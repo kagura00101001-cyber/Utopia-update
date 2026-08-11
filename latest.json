@@ -1,0 +1,12 @@
+{
+  "version": "3.0.26",
+  "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js",
+  "published_at": "2026-08-11",
+  "changelog": [
+    "取消 Tampermonkey 自动更新，改为右下角版本窗口中的手动检查更新。",
+    "只有主动点击检查更新时才访问 GitHub；发现新版后再手动打开安装页。",
+    "固定脚本身份；从 V3.0.26 手动更新版开始，后续安装新版会覆盖同一脚本。",
+    "Ozon 与 ChatGPT 两个模块的版本窗口都提供检查更新入口。",
+    "保留上传失败重试、待发送观察、自适应生图识别、Ozon告罄处理、日志拖拽等现有功能。"
+  ]
+}

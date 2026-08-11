@@ -1,6 +1,5 @@
 // ==UserScript==
-// @name         Ozon主图下载 + ChatGPT批量生图助手 V3.0.25
-// @name:zh-CN   Ozon主图下载 + ChatGPT批量生图助手 V3.0.26
+// @name         Ozon主图下载 + ChatGPT批量生图助手
 // @namespace    https://github.com/Kagura-userscripts
 // @version      3.0.26
 // @description  Kagura - 手动检查更新版；右下角版本按钮检查更新，不再自动更新

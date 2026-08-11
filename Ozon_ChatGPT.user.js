@@ -72,8 +72,8 @@
       if (!code.includes("const APP_VERSION = '3.0.25'")) {
         throw new Error('远程脚本版本校验失败');
       }
-      // indirect eval 保持 userscript 全局 API 可用，并执行完整主程序。
-      (0, eval)(`${code}\n//# sourceURL=Ozon_ChatGPT_payload_V${VERSION}.user.js`);
+      // 使用直接 eval，使完整主程序继续处于 Tampermonkey 沙箱内，可访问 GM_* 与 unsafeWindow。
+      eval(`${code}\n//# sourceURL=Ozon_ChatGPT_payload_V${VERSION}.user.js`);
     } catch (error) {
       console.error(`[Kagura AutoUpdate V${VERSION}] 加载失败：`, error);
       const box = document.createElement('div');

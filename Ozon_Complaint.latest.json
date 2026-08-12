@@ -1,0 +1,10 @@
+{
+  "version": "1.1.0",
+  "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_Complaint.user.js",
+  "changelog": [
+    "新增右下角“检查更新”入口，只在手动点击时访问 GitHub",
+    "发现新版本后在脚本窗口内显示当前版本、最新版本和更新内容",
+    "点击更新后打开 Tampermonkey 安装确认页，由用户手动覆盖更新",
+    "采用完整脚本直接运行，不再使用 Base64、gzip 或远程载荷分片，避免旧版 atob 解码问题"
+  ]
+}

@@ -1,11 +1,10 @@
 {
-  "version": "3.0.27",
-  "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js",
-  "published_at": "2026-08-11",
+  "version": "3.0.29",
+  "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/update-test.txt",
+  "published_at": "2026-08-12",
   "changelog": [
-    "修复 V3.0.26 远程载荷 Base64 解码失败：改为逐个分片解码后再拼接二进制。",
-    "取消 Tampermonkey 自动更新，只保留脚本窗口右下角手动检查更新。",
-    "只有主动点击检查更新时才访问 GitHub；发现新版后手动打开安装页确认。",
-    "固定脚本身份，完成本次迁移后，后续手动安装新版会覆盖同一脚本。"
+    "【更新功能测试】验证 V3.0.28 右下角“检查更新”能否正确读取 GitHub 最新版本。",
+    "测试发现新版本后的版本号、更新内容显示。",
+    "测试“打开更新安装页”按钮的跳转；本次跳转目标只是测试说明文件，不会安装脚本。"
   ]
 }

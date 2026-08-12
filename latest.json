@@ -1,10 +1,10 @@
 {
-  "version": "3.0.30",
-  "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/update-test.txt",
+  "version": "3.0.29",
+  "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js",
   "published_at": "2026-08-12",
   "changelog": [
-    "【第二轮更新功能测试】验证 V3.0.29 改用 GitHub API 后能否立即识别新版本。",
-    "修复 raw.githubusercontent.com 缓存导致 V3.0.28 错误提示“已经是最新版本”的问题。",
-    "本次更新链接仍指向测试说明文件，不会安装脚本。"
+    "手动检查更新改用 GitHub API，修复 raw.githubusercontent.com 缓存导致版本判断滞后的问题。",
+    "取消自动更新；仅在脚本窗口右下角主动点击“检查更新”时访问 GitHub。",
+    "完整脚本继续本地运行，不使用 Base64/gzip/payload 远程载荷。"
   ]
 }

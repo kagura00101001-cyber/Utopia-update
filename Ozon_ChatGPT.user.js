@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Ozon主图下载 + ChatGPT批量生图助手
 // @namespace    https://github.com/Kagura-userscripts
-// @version      3.0.29
-// @description  Kagura - 正式更新轨道迁移基线，仅用于建立固定 GitHub 安装身份
+// @version      3.0.30
+// @description  Kagura - 正式更新轨道覆盖测试版，用于验证 V3.0.29 原地升级到 V3.0.30
 // @author       Kagura
 // @match        https://www.ozon.ru/*
 // @match        https://ozon.ru/*
@@ -13,5 +13,5 @@
 
 (() => {
   'use strict';
-  console.log('[Kagura] V3.0.29 正式更新轨道迁移基线已安装。');
+  console.log('[Kagura] V3.0.30 正式更新轨道覆盖测试版已加载。');
 })();

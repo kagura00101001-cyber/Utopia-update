@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Ozon 自动投诉 V1.0.0
-// @name:zh-CN   Ozon 自动投诉 V1.1.0
+// @name:zh-CN   Ozon 自动投诉 V1.1.1
 // @namespace    kagura.ozon.auto.complaint
-// @version      1.1.0
+// @version      1.1.1
 // @description  从 Excel/CSV 读取 SKU 与申诉链接自动循环投诉；支持 GitHub 手动检查更新。
 // @author       Kagura
 // @match        https://seller.ozon.ru/*
@@ -18,7 +18,7 @@
 
   const SCRIPT_ID = 'kagura-ozon-complaint';
   const STORAGE_KEY = 'kagura_ozon_complaint_v1_state';
-  const VERSION = '1.1.0';
+  const VERSION = '1.1.1';
 
   // 热更新采用与之前稳定版相同的“完整脚本 + latest.json + 手动检查更新”结构。
   // 不做运行时远程载荷/Base64 分片加载，避免旧版 atob 分片错误。

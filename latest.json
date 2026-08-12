@@ -1,10 +1,10 @@
 {
-  "version": "3.0.29",
+  "version": "3.0.30",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/update-test.txt",
   "published_at": "2026-08-12",
   "changelog": [
-    "【更新功能测试】验证 V3.0.28 右下角“检查更新”能否正确读取 GitHub 最新版本。",
-    "测试发现新版本后的版本号、更新内容显示。",
-    "测试“打开更新安装页”按钮的跳转；本次跳转目标只是测试说明文件，不会安装脚本。"
+    "【第二轮更新功能测试】验证 V3.0.29 改用 GitHub API 后能否立即识别新版本。",
+    "修复 raw.githubusercontent.com 缓存导致 V3.0.28 错误提示“已经是最新版本”的问题。",
+    "本次更新链接仍指向测试说明文件，不会安装脚本。"
   ]
 }

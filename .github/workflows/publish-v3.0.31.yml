@@ -1,0 +1,137 @@
+name: Publish V3.0.31 full userscript
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-v3.0.31.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Rebuild and patch full userscript
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import base64, gzip, json, re
+
+          NEW_VERSION = '3.0.31'
+          UPDATE_URL = 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.meta.js'
+          DOWNLOAD_URL = 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js'
+          API_MANIFEST = 'https://api.github.com/repos/kagura00101001-cyber/Utopia-update/contents/latest.json?ref=main'
+
+          parts = []
+          for p in sorted(Path('dist/v3.0.30').glob('part_*.js')):
+              s = p.read_text(encoding='utf-8')
+              m = re.search(r"\+'([^']*)'", s)
+              if not m:
+                  raise SystemExit(f'Cannot parse {p}')
+              parts.append(m.group(1))
+          if not parts:
+              raise SystemExit('No payload parts found')
+
+          payload = ''.join(parts)
+          text = gzip.decompress(base64.b64decode(payload)).decode('utf-8')
+
+          vm = re.search(r'^// @version\s+([0-9.]+)\s*$', text, re.M)
+          if not vm:
+              raise SystemExit('Cannot detect original version')
+          old_version = vm.group(1)
+          text = text.replace(old_version, NEW_VERSION)
+
+          # Keep a stable Tampermonkey identity and native update channel.
+          text = re.sub(r'^// @name\s+.*$', '// @name         Ozon主图下载 + ChatGPT批量生图助手', text, count=1, flags=re.M)
+          text = re.sub(r'^// @updateURL\s+.*\n?', '', text, flags=re.M)
+          text = re.sub(r'^// @downloadURL\s+.*\n?', '', text, flags=re.M)
+          text = re.sub(
+              rf'^// @version\s+{re.escape(NEW_VERSION)}\s*$',
+              f'// @version      {NEW_VERSION}\n// @updateURL    {UPDATE_URL}\n// @downloadURL  {DOWNLOAD_URL}',
+              text,
+              count=1,
+              flags=re.M,
+          )
+          text = re.sub(
+              r'^// @description\s+.*$',
+              '// @description  完整正式版：保留原有 Ozon/ChatGPT 自动化功能；接入 Tampermonkey 原生覆盖更新；右下角仅手动检查版本。',
+              text,
+              count=1,
+              flags=re.M,
+          )
+          if '// @connect      api.github.com' not in text:
+              text = text.replace('// @connect      raw.githubusercontent.com\n', '// @connect      raw.githubusercontent.com\n// @connect      api.github.com\n', 1)
+
+          # Ensure runtime version constants are current.
+          text = re.sub(r"const APP_VERSION = '[0-9.]+';", f"const APP_VERSION = '{NEW_VERSION}';", text, count=1)
+          text = re.sub(r"const KAGURA_MANUAL_VERSION = '[0-9.]+';", f"const KAGURA_MANUAL_VERSION = '{NEW_VERSION}';", text, count=1)
+          text = re.sub(r"const KAGURA_MANIFEST_URL = '.*?';", f"const KAGURA_MANIFEST_URL = '{API_MANIFEST}';", text, count=1)
+
+          # Right-bottom update UI only checks versions. Installation is delegated to Tampermonkey's native updater.
+          text = re.sub(r"\n\s*const KAGURA_INSTALL_URL = .*?;", '', text, count=1)
+          text = re.sub(r"\n\s*installUrl:\s*String\(info\.install_url \|\| KAGURA_INSTALL_URL\),", '', text, count=1)
+          text = text.replace('            <button type="button" data-role="install" style="display:none">打开更新安装页</button>\n', '')
+          text = text.replace("      .kagura-manual-update-actions [data-role=\"install\"] { background:#005bff; color:#fff; }\n", '')
+          text = text.replace("        const install = overlay.querySelector('[data-role=\"install\"]');\n", '')
+          text = text.replace("        install.style.display = 'none';\n", '')
+          text = re.sub(
+              r"\n\s*install\.onclick = \(\) => \{\n\s*const a = document\.createElement\('a'\);\n\s*a\.href = info\.installUrl;\n\s*a\.target = '_blank';\n\s*a\.rel = 'noopener noreferrer';\n\s*document\.body\.appendChild\(a\);\n\s*a\.click\(\);\n\s*a\.remove\(\);\n\s*\};",
+              '',
+              text,
+              count=1,
+          )
+          text = text.replace("            install.style.display = '';\n", '')
+          text = text.replace("    overlay.querySelector('[data-role=\"install\"]').style.display = 'none';\n", '')
+          text = text.replace(
+              '不会自动检查或自动更新。只有点击“检查更新”时才访问 GitHub。',
+              '脚本窗口只负责手动检查版本；实际更新请使用 Tampermonkey 原生“检查用户脚本的更新”并选择 Overwrite（覆盖）。',
+          )
+          text = text.replace(
+              '点击“打开更新安装页”，由你在 Tampermonkey 页面手动确认。',
+              '请在 Tampermonkey 中打开本脚本设置，点击“检查用户脚本的更新”，然后在更新页点 Overwrite（覆盖）。',
+          )
+          text = text.replace(
+              f'/* ===== Kagura 手动更新检查 V{NEW_VERSION} ===== */',
+              f'/* ===== Kagura 手动更新检查 V{NEW_VERSION}（仅检查版本） ===== */',
+          )
+
+          Path('Ozon_ChatGPT.user.js').write_text(text, encoding='utf-8')
+
+          meta = f'''// ==UserScript==\n// @name         Ozon主图下载 + ChatGPT批量生图助手\n// @namespace    https://github.com/Kagura-userscripts\n// @version      {NEW_VERSION}\n// @description  Ozon主图下载 + ChatGPT批量生图助手 更新元数据\n// @author       Kagura\n// @updateURL    {UPDATE_URL}\n// @downloadURL  {DOWNLOAD_URL}\n// ==/UserScript==\n'''
+          Path('Ozon_ChatGPT.meta.js').write_text(meta, encoding='utf-8')
+
+          latest = {
+              'version': NEW_VERSION,
+              'install_url': DOWNLOAD_URL,
+              'published_at': '2026-08-13',
+              'changelog': [
+                  '正式接入 Tampermonkey 原生覆盖更新：从原有 V3.0.29 UUID 原地升级，不再新增第二条脚本。',
+                  '恢复完整 Ozon 主图下载与 ChatGPT 批量生图主程序，不使用 Base64/gzip/payload 远程启动。',
+                  '右下角“检查更新”只负责查询最新版；实际安装统一通过 Tampermonkey 的“检查用户脚本的更新”并点 Overwrite。',
+                  '保留原有批量流程、异常批次、上传重试、生成检测、缩小拖动和日志拖拽等功能。'
+              ]
+          }
+          Path('latest.json').write_text(json.dumps(latest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+
+      - name: Syntax check
+        run: node -c Ozon_ChatGPT.user.js
+
+      - name: Commit published files
+        shell: bash
+        run: |
+          git config user.name 'Kagura Update Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add Ozon_ChatGPT.user.js Ozon_ChatGPT.meta.js latest.json
+          if git diff --cached --quiet; then
+            echo 'No changes to publish.'
+            exit 0
+          fi
+          git commit -m '发布 V3.0.31 完整正式更新版'
+          git push

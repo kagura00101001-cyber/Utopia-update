@@ -1,0 +1,41 @@
+name: "Publish V3.1.2 refresh recovery"
+
+"on":
+  push:
+    branches:
+      - release-v3.1.2-refresh-recovery
+    paths:
+      - '.github/workflows/publish-v3.1.2-refresh-recovery.yml'
+      - 'tools/patch_v3_1_2.py'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch V3.1.2
+        run: python3 tools/patch_v3_1_2.py
+      - name: Syntax check
+        run: node -c Ozon_ChatGPT.user.js
+      - name: Verify refresh recovery
+        shell: bash
+        run: |
+          grep -F '// @version      3.1.2' Ozon_ChatGPT.user.js
+          grep -F 'function cFindCurrentAssistantReply' Ozon_ChatGPT.user.js
+          grep -F 'function cPrimeRefreshRecovery' Ozon_ChatGPT.user.js
+          grep -F '最终深度恢复扫描' Ozon_ChatGPT.user.js
+          grep -F 'imgs.length < 1 && lazySlots.length < 2' Ozon_ChatGPT.user.js
+          grep -F '刷新恢复改为主动定位当前批次用户消息' latest.json
+          test -s 'versions/Ozon_ChatGPT批量生图下载器_V3.1.2.txt'
+      - name: Commit V3.1.2
+        shell: bash
+        run: |
+          git config user.name "Kagura Update Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add Ozon_ChatGPT.user.js Ozon_ChatGPT.meta.js latest.json history.json versions
+          git diff --cached --quiet && exit 0
+          git commit -m "发布 V3.1.2 增强刷新恢复与懒加载扫描"
+          git push

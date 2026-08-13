@@ -1,0 +1,27 @@
+name: Build V3.1.1 preview
+
+on:
+  push:
+    paths:
+      - '.github/workflows/build-v3.1.1-preview.yml'
+      - 'tools/patch_v3_1_1.py'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch
+        run: python3 tools/patch_v3_1_1.py
+      - name: Syntax check
+        run: node -c Ozon_ChatGPT.user.js
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ozon_ChatGPT_V3.1.1_build
+          path: |
+            Ozon_ChatGPT.user.js
+            Ozon_ChatGPT.meta.js
+            latest.json
+            history.json
+            versions/Ozon_ChatGPT批量生图下载器_V3.1.1.txt

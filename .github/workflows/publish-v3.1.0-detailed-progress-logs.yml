@@ -1,0 +1,48 @@
+name: "Publish V3.1.0 detailed progress and logs"
+
+"on":
+  push:
+    paths:
+      - '.github/workflows/publish-v3.1.0-detailed-progress-logs.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch V3.1.0
+        run: python3 tools/patch_v3_1_0.py
+
+      - name: Syntax check
+        run: node -c Ozon_ChatGPT.user.js
+
+      - name: Verify feature set
+        shell: bash
+        run: |
+          grep -F '// @version      3.1.0' Ozon_ChatGPT.user.js
+          grep -F "const C_LOG_KEY = 'chatgptBatchImageLogsV1'" Ozon_ChatGPT.user.js
+          grep -F "cCreateButton('运行日志'" Ozon_ChatGPT.user.js
+          grep -F "cCreateButton('导出日志'" Ozon_ChatGPT.user.js
+          grep -F 'function cCreateLogWindow' Ozon_ChatGPT.user.js
+          grep -F 'function cExportDiagnosticJson' Ozon_ChatGPT.user.js
+          grep -F 'data-role="generated"' Ozon_ChatGPT.user.js
+          grep -F 'data-role="total-time"' Ozon_ChatGPT.user.js
+          grep -F 'data-role="batch-time"' Ozon_ChatGPT.user.js
+          grep -F 'data-role="generation-time"' Ozon_ChatGPT.user.js
+          grep -F '已确认发送成功的批次只刷新同步或进入待确认' latest.json
+          test -s 'versions/Ozon_ChatGPT批量生图下载器_V3.0.36.txt'
+          test -s 'versions/Ozon_ChatGPT批量生图下载器_V3.1.0.txt'
+
+      - name: Commit V3.1.0
+        shell: bash
+        run: |
+          git config user.name "Kagura Update Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add Ozon_ChatGPT.user.js Ozon_ChatGPT.meta.js latest.json history.json versions
+          git diff --cached --quiet && exit 0
+          git commit -m "发布 V3.1.0 详细进度与独立日志窗口"
+          git push

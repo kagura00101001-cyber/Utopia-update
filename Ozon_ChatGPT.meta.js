@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Ozon主图下载 + ChatGPT批量生图助手
 // @namespace    https://github.com/Kagura-userscripts
-// @version      3.1.1
+// @version      3.1.2
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js
-// @description  稳定性修正版：当前批次原图区间显示；增强“+→创建图片”菜单展开确认、快速重试与诊断日志。
+// @description  刷新恢复增强版：主动定位当前批次回复、强制懒加载图库、减少0/3与1/3误判待确认。
 // @author       Kagura
 // @match        https://www.ozon.ru/*
 // @match        https://ozon.ru/*

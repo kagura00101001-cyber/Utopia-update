@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Ozon主图下载 + ChatGPT批量生图助手
 // @namespace    https://github.com/Kagura-userscripts
-// @version      3.0.31
+// @version      3.0.32
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js
-// @description  完整正式版：保留原有 Ozon/ChatGPT 自动化功能；接入 Tampermonkey 原生覆盖更新；右下角仅手动检查版本。
+// @description  完整正式版：右下角手动检查新版并可直接打开 Tampermonkey 管理面板；实际更新使用原生 Overwrite 覆盖。
 // @author       Kagura
 // @match        https://www.ozon.ru/*
 // @match        https://ozon.ru/*
@@ -31,7 +31,7 @@
 (() => {
   'use strict';
 
-  const APP_VERSION = '3.0.31';
+  const APP_VERSION = '3.0.32';
 
   const KAGURA_IS_CHATGPT = /(^|\.)(chatgpt\.com|chat\.openai\.com)$/i.test(location.hostname);
   if (KAGURA_IS_CHATGPT) {
@@ -4519,11 +4519,11 @@
   if (state.running) setTimeout(worker, 1200);
 })();
 
-/* ===== Kagura 手动更新检查 V3.0.31（仅检查版本） ===== */
+/* ===== Kagura 手动更新检查 V3.0.32（检查版本 + 打开 Tampermonkey） ===== */
 (() => {
   'use strict';
 
-  const KAGURA_MANUAL_VERSION = '3.0.31';
+  const KAGURA_MANUAL_VERSION = '3.0.32';
   const KAGURA_MANIFEST_URL = 'https://api.github.com/repos/kagura00101001-cyber/Utopia-update/contents/latest.json?ref=main';
 
   function versionCompare(a, b) {
@@ -4611,9 +4611,26 @@
         border:0; border-radius:8px; padding:8px 11px; cursor:pointer; font-weight:650;
       }
       .kagura-manual-update-actions [data-role="check"] { background:#e8f7ee; color:#087a3f; }
+      .kagura-manual-update-actions [data-role="open-tm"] { background:#005bff; color:#fff; }
       .kagura-manual-update-actions [data-role="close"] { background:#eef2f6; color:#344054; }
     `;
     document.documentElement.appendChild(style);
+  }
+
+  function openTampermonkeyUpdate(result) {
+    const steps = '请在 Tampermonkey 中找到“ Ozon主图下载 + ChatGPT批量生图助手 ” → 铅笔/编辑 → 设置 → 检查用户脚本的更新 → Overwrite（覆盖）。';
+    try {
+      const tm = unsafeWindow?.external?.Tampermonkey || window?.external?.Tampermonkey;
+      if (tm && typeof tm.openOptions === 'function') {
+        tm.openOptions('nav=dashboard');
+        result.textContent += `\n\n已尝试打开 Tampermonkey 管理面板。${steps}`;
+        return true;
+      }
+    } catch (error) {
+      console.warn('[Kagura] 打开 Tampermonkey 管理面板失败：', error);
+    }
+    result.textContent += `\n\n当前浏览器没有向网页开放 Tampermonkey 管理面板入口。${steps}`;
+    return false;
   }
 
   function showUpdateDialog(panel) {
@@ -4627,6 +4644,7 @@
           <div class="kagura-manual-update-result" data-role="result">当前版本：V${KAGURA_MANUAL_VERSION}\n\n脚本窗口只负责手动检查版本；实际更新请使用 Tampermonkey 原生“检查用户脚本的更新”并选择 Overwrite（覆盖）。</div>
           <div class="kagura-manual-update-actions">
             <button type="button" data-role="check">检查更新</button>
+            <button type="button" data-role="open-tm" style="display:none">前往 Tampermonkey 更新</button>
             <button type="button" data-role="close">关闭</button>
           </div>
         </div>`;
@@ -4641,6 +4659,9 @@
       overlay.querySelector('[data-role="check"]').addEventListener('click', async event => {
         const btn = event.currentTarget;
         const result = overlay.querySelector('[data-role="result"]');
+        const openTm = overlay.querySelector('[data-role="open-tm"]');
+        openTm.style.display = 'none';
+        openTm.onclick = null;
         btn.disabled = true;
         btn.textContent = '检查中…';
         result.textContent = `当前版本：V${KAGURA_MANUAL_VERSION}\n正在检查 GitHub…`;
@@ -4651,7 +4672,9 @@
               ? `\n\n更新内容：\n${info.changelog.map((v, i) => `${i + 1}. ${v}`).join('\n')}`
               : '';
             result.textContent =
-              `发现新版本：V${info.latest}\n当前版本：V${KAGURA_MANUAL_VERSION}${notes}\n\n请在 Tampermonkey 中打开本脚本设置，点击“检查用户脚本的更新”，然后在更新页点 Overwrite（覆盖）。`;
+              `发现新版本：V${info.latest}\n当前版本：V${KAGURA_MANUAL_VERSION}${notes}\n\n点击“前往 Tampermonkey 更新”打开 Tampermonkey 管理面板。为避免产生重复脚本，不会打开 Raw 安装页；实际更新请使用本脚本的“检查用户脚本的更新”并点 Overwrite（覆盖）。`;
+            openTm.style.display = '';
+            openTm.onclick = () => openTampermonkeyUpdate(result);
           } else {
             result.textContent = `当前已经是最新版本：V${KAGURA_MANUAL_VERSION}`;
           }
@@ -4665,7 +4688,12 @@
     }
 
     overlay.querySelector('[data-role="result"]').textContent =
-      `当前版本：V${KAGURA_MANUAL_VERSION}\n\n脚本窗口只负责手动检查版本；实际更新请使用 Tampermonkey 原生“检查用户脚本的更新”并选择 Overwrite（覆盖）。`;
+      `当前版本：V${KAGURA_MANUAL_VERSION}\n\n点击“检查更新”只查询 GitHub 版本；发现新版后可点“前往 Tampermonkey 更新”打开管理面板。实际覆盖仍由 Tampermonkey 原生更新流程完成。`;
+    const openTm = overlay.querySelector('[data-role="open-tm"]');
+    if (openTm) {
+      openTm.style.display = 'none';
+      openTm.onclick = null;
+    }
     overlay.classList.add('show');
   }
 

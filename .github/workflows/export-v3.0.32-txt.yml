@@ -1,0 +1,35 @@
+name: "Export V3.0.32 txt"
+
+"on":
+  push:
+    paths:
+      - '.github/workflows/export-v3.0.32-txt.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Export historical V3.0.32 userscript as txt
+        shell: bash
+        run: |
+          git show 3b8e41f6389c3fabbab516a8a86a1fcce95a97d5:Ozon_ChatGPT.user.js > 'Ozon_ChatGPT批量生图下载器_V3.0.32.txt'
+          grep -q '^// @version      3.0.32$' 'Ozon_ChatGPT批量生图下载器_V3.0.32.txt'
+          cp 'Ozon_ChatGPT批量生图下载器_V3.0.32.txt' /tmp/v3032.js
+          node -c /tmp/v3032.js
+
+      - name: Commit exported txt
+        shell: bash
+        run: |
+          git config user.name "Kagura Update Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add 'Ozon_ChatGPT批量生图下载器_V3.0.32.txt'
+          git diff --cached --quiet && exit 0
+          git commit -m '导出 V3.0.32 TXT 备份'
+          git push

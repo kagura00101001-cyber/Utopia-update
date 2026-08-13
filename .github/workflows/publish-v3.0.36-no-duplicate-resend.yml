@@ -1,0 +1,40 @@
+name: "Publish V3.0.36 no duplicate resend"
+
+"on":
+  push:
+    paths:
+      - '.github/workflows/publish-v3.0.36-no-duplicate-resend.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch V3.0.36
+        run: python3 scripts/patch_v3_0_36_no_duplicate_resend.py
+
+      - name: Syntax check
+        run: node -c Ozon_ChatGPT.user.js
+
+      - name: Verify anti-duplicate safeguards
+        shell: bash
+        run: |
+          grep -F '// @version      3.0.36' Ozon_ChatGPT.user.js
+          grep -F 'finishedButHiddenRefreshDone' Ozon_ChatGPT.user.js
+          grep -F 'V3.0.36 起禁止自动重发已提交批次' Ozon_ChatGPT.user.js
+          grep -F '为避免重复生成，先刷新页面同步已有回复，不重新发送' Ozon_ChatGPT.user.js
+          test -s 'versions/Ozon_ChatGPT批量生图下载器_V3.0.36.txt'
+
+      - name: Commit V3.0.36
+        shell: bash
+        run: |
+          git config user.name "Kagura Update Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add Ozon_ChatGPT.user.js Ozon_ChatGPT.meta.js latest.json history.json versions
+          git diff --cached --quiet && exit 0
+          git commit -m "发布 V3.0.36 修复生图完成未渲染导致重复重发"
+          git push

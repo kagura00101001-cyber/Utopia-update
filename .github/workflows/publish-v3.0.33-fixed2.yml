@@ -1,0 +1,78 @@
+name: "Publish V3.0.33 startup reminder fixed2"
+
+"on":
+  push:
+    paths:
+      - '.github/workflows/publish-v3.0.33-fixed2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch userscript
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          path = Path('Ozon_ChatGPT.user.js')
+          s = path.read_text(encoding='utf-8')
+          s = s.replace('// @version      3.0.32', '// @version      3.0.33', 1)
+          s = s.replace("const APP_VERSION = '3.0.32';", "const APP_VERSION = '3.0.33';", 1)
+          s = s.replace("const KAGURA_MANUAL_VERSION = '3.0.32';", "const KAGURA_MANUAL_VERSION = '3.0.33';", 1)
+          s = s.replace('/* ===== Kagura 手动更新检查 V3.0.32（检查版本 + 打开 Tampermonkey） ===== */', '/* ===== Kagura 手动更新检查 V3.0.33（检查版本 + 打开 Tampermonkey） ===== */', 1)
+          s = s.replace('// @description  完整正式版：右下角手动检查新版并可直接打开 Tampermonkey 管理面板；实际更新使用原生 Overwrite 覆盖。', '// @description  完整正式版：检测到新版本时自动弹窗提醒；更新说明实时读取 GitHub；支持立刻更新、不再提醒和关闭。', 1)
+
+          marker = '// ==/UserScript==\n'
+          startup = Path('patches/v3.0.33_startup.js').read_text(encoding='utf-8')
+          if 'KAGURA_STARTUP_UPDATE_REMINDER_V3033' not in s:
+              s = s.replace(marker, marker + '\n' + startup + '\n', 1)
+          path.write_text(s, encoding='utf-8')
+
+          meta_lines = [
+              '// ==UserScript==',
+              '// @name         Ozon主图下载 + ChatGPT批量生图助手',
+              '// @namespace    https://github.com/Kagura-userscripts',
+              '// @version      3.0.33',
+              '// @description  Ozon主图下载 + ChatGPT批量生图助手 更新元数据',
+              '// @author       Kagura',
+              '// @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.meta.js',
+              '// @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js',
+              '// ==/UserScript==',
+              ''
+          ]
+          Path('Ozon_ChatGPT.meta.js').write_text('\n'.join(meta_lines), encoding='utf-8')
+
+          latest = {
+              'version': '3.0.33',
+              'install_url': 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js',
+              'published_at': '2026-08-13',
+              'changelog': [
+                  '修复旧“脚本更新说明”与当前版本更新内容对不上的问题，更新说明改为实时读取 GitHub latest.json。',
+                  '只有远程存在更高版本时，用户打开 ChatGPT/Ozon 页面才自动弹出新版提醒；当前已是最新版时不弹窗。',
+                  '新版提醒提供“立刻更新 / 不再提醒 / 关闭”三个选项。',
+                  '“不再提醒”只忽略当前发现的这个版本；以后发布更高版本时会重新提醒。',
+                  '“立刻更新”优先尝试打开 Tampermonkey 管理面板，实际覆盖仍由 Tampermonkey 原生 Overwrite 完成，避免重复脚本。'
+              ]
+          }
+          Path('latest.json').write_text(json.dumps(latest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+
+      - name: Syntax check
+        run: node -c Ozon_ChatGPT.user.js
+
+      - name: Commit
+        shell: bash
+        run: |
+          git config user.name "Kagura Update Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add Ozon_ChatGPT.user.js Ozon_ChatGPT.meta.js latest.json
+          git diff --cached --quiet && exit 0
+          git commit -m "发布 V3.0.33 新版启动提醒"
+          git push

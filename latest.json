@@ -1,10 +1,11 @@
 {
-  "version": "3.0.30",
+  "version": "3.0.31",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js",
-  "published_at": "2026-08-12",
+  "published_at": "2026-08-13",
   "changelog": [
-    "【正式更新轨道覆盖测试】验证刚建立的 GitHub V3.0.29 能否原地升级到 V3.0.30。",
-    "本次仍是轻量测试脚本，不运行 Ozon / ChatGPT 主程序，只验证 Tampermonkey 更新身份。",
-    "如果安装后原来的 508 B V3.0.29 直接变成 V3.0.30 且没有新增第三条，则更新轨道验证通过。"
+    "正式接入 Tampermonkey 原生覆盖更新：从原有 V3.0.29 UUID 原地升级，不再新增第二条脚本。",
+    "恢复完整 Ozon 主图下载与 ChatGPT 批量生图主程序，不使用 Base64/gzip/payload 远程启动。",
+    "右下角“检查更新”只负责查询最新版；实际安装统一通过 Tampermonkey 的“检查用户脚本的更新”并点 Overwrite。",
+    "保留原有批量流程、异常批次、上传重试、生成检测、缩小拖动和日志拖拽等功能。"
   ]
 }

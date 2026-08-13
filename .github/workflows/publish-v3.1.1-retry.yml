@@ -1,0 +1,46 @@
+name: "Publish V3.1.1 retry"
+
+"on":
+  push:
+    branches:
+      - release-v3.1.1-publish
+    paths:
+      - '.github/workflows/publish-v3.1.1-retry.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release-v3.1.1-publish
+
+      - name: Patch V3.1.1
+        run: python3 tools/patch_v3_1_1.py
+
+      - name: Syntax check
+        run: node -c Ozon_ChatGPT.user.js
+
+      - name: Verify V3.1.1
+        shell: bash
+        run: |
+          grep -F '// @version      3.1.1' Ozon_ChatGPT.user.js
+          grep -F 'data-role="current-files"' Ozon_ChatGPT.user.js
+          grep -F 'function cCreateImageMenuDiagnostics' Ozon_ChatGPT.user.js
+          grep -F 'function cIsCreateImageMenuOpen' Ozon_ChatGPT.user.js
+          grep -F '点击“+”后菜单未真正展开' Ozon_ChatGPT.user.js
+          grep -F '"version": "3.1.1"' latest.json
+          test -s 'versions/Ozon_ChatGPT批量生图下载器_V3.1.1.txt'
+
+      - name: Commit release candidate
+        shell: bash
+        run: |
+          git config user.name "Kagura Update Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add Ozon_ChatGPT.user.js Ozon_ChatGPT.meta.js latest.json history.json versions
+          git diff --cached --quiet && exit 0
+          git commit -m "发布候选 V3.1.1 创建图片菜单稳定性修复"
+          git push origin HEAD:release-v3.1.1-publish

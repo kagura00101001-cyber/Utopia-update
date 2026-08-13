@@ -1,0 +1,76 @@
+name: "Publish V3.0.34 update guide and history fixed"
+
+"on":
+  push:
+    paths:
+      - '.github/workflows/publish-v3.0.34-fixed.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch userscript
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          path = Path('Ozon_ChatGPT.user.js')
+          s = path.read_text(encoding='utf-8')
+          s = s.replace('// @version      3.0.33', '// @version      3.0.34', 1)
+          s = s.replace("const APP_VERSION = '3.0.33';", "const APP_VERSION = '3.0.34';", 1)
+          s = s.replace("const KAGURA_MANUAL_VERSION = '3.0.33';", "const KAGURA_MANUAL_VERSION = '3.0.34';", 1)
+          s = s.replace("const CURRENT_VERSION = '3.0.33';", "const CURRENT_VERSION = '3.0.34';", 1)
+          s = s.replace('// @description  完整正式版：检测到新版本时自动弹窗提醒；更新说明实时读取 GitHub；支持立刻更新、不再提醒和关闭。', '// @description  完整正式版：新版提醒提供独立更新操作卡；点击右下角版本号可查看 GitHub 历史更新说明。', 1)
+
+          patch = Path('patches/v3.0.34_update_ui.js').read_text(encoding='utf-8')
+          if 'KAGURA_UPDATE_UI_V3034' not in s:
+              s = s.rstrip() + '\n\n' + patch.rstrip() + '\n'
+          path.write_text(s, encoding='utf-8')
+
+          meta_lines = [
+              '// ==UserScript==',
+              '// @name         Ozon主图下载 + ChatGPT批量生图助手',
+              '// @namespace    https://github.com/Kagura-userscripts',
+              '// @version      3.0.34',
+              '// @description  Ozon主图下载 + ChatGPT批量生图助手 更新元数据',
+              '// @author       Kagura',
+              '// @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.meta.js',
+              '// @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js',
+              '// ==/UserScript==',
+              ''
+          ]
+          Path('Ozon_ChatGPT.meta.js').write_text('\n'.join(meta_lines), encoding='utf-8')
+
+          latest = {
+              'version': '3.0.34',
+              'install_url': 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js',
+              'published_at': '2026-08-13',
+              'changelog': [
+                  '更新操作步骤改为独立可见的小弹窗，点击“立刻更新”后不再把步骤追加到更新说明底部。',
+                  '最快更新方式固定显示 4 步，不需要滚动更新说明即可看到。',
+                  '点击脚本窗口右下角版本号可打开“历史更新说明”。',
+                  '历史更新说明从 GitHub history.json 实时读取，并从 V3.0.28 起保留可追溯记录。'
+              ]
+          }
+          Path('latest.json').write_text(json.dumps(latest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+
+      - name: Syntax check
+        run: node -c Ozon_ChatGPT.user.js
+
+      - name: Commit
+        shell: bash
+        run: |
+          git config user.name "Kagura Update Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add Ozon_ChatGPT.user.js Ozon_ChatGPT.meta.js latest.json
+          git diff --cached --quiet && exit 0
+          git commit -m "发布 V3.0.34 更新操作卡与历史更新说明"
+          git push

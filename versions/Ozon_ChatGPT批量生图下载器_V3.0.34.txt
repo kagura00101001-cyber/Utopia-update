@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Ozon主图下载 + ChatGPT批量生图助手
 // @namespace    https://github.com/Kagura-userscripts
-// @version      3.0.35
+// @version      3.0.34
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js
-// @description  完整正式版：新增清空原图目录和成品目录全部图片功能，二次确认防误删；保留历史更新与原生覆盖更新。
+// @description  完整正式版：新版提醒提供独立更新操作卡；点击右下角版本号可查看 GitHub 历史更新说明。
 // @author       Kagura
 // @match        https://www.ozon.ru/*
 // @match        https://ozon.ru/*
@@ -32,7 +32,7 @@
 (() => {
   'use strict';
 
-  const CURRENT_VERSION = '3.0.35';
+  const CURRENT_VERSION = '3.0.34';
   const MANIFEST_API = 'https://api.github.com/repos/kagura00101001-cyber/Utopia-update/contents/latest.json?ref=main';
   const SUPPRESS_KEY = 'kaguraStartupUpdateSuppressVersion';
   const OVERLAY_CLASS = 'kagura-startup-update-overlay';
@@ -188,7 +188,7 @@
 (() => {
   'use strict';
 
-  const APP_VERSION = '3.0.35';
+  const APP_VERSION = '3.0.34';
 
   const KAGURA_IS_CHATGPT = /(^|\.)(chatgpt\.com|chat\.openai\.com)$/i.test(location.hostname);
   if (KAGURA_IS_CHATGPT) {
@@ -1839,7 +1839,7 @@
     async function cChooseSourceFolder() {
       const picker = unsafeWindow.showDirectoryPicker || window.showDirectoryPicker;
       if (typeof picker !== 'function') throw new Error('当前浏览器不支持文件夹选择，请使用最新版Chrome或Edge。');
-      const handle = await picker.call(unsafeWindow, { mode: 'readwrite' });
+      const handle = await picker.call(unsafeWindow, { mode: 'read' });
       await cSaveHandle(C_SOURCE_DIR_KEY, handle);
       cSourceText.textContent = handle.name;
       cSourceText.title = handle.name;
@@ -1855,75 +1855,6 @@
       cOutputText.textContent = handle.name;
       cOutputText.title = handle.name;
       cLog(`成品文件夹已选择：${handle.name}`, 'success');
-    }
-
-    async function cDeleteImagesRecursive(directoryHandle) {
-      let removed = 0;
-      for await (const entry of directoryHandle.values()) {
-        if (entry.kind === 'file') {
-          if (!cIsImageName(entry.name)) continue;
-          await directoryHandle.removeEntry(entry.name);
-          removed += 1;
-          continue;
-        }
-        if (entry.kind === 'directory') {
-          removed += await cDeleteImagesRecursive(entry);
-        }
-      }
-      return removed;
-    }
-
-    async function cClearSourceAndOutputImages() {
-      if (cState.running) throw new Error('请先暂停任务，再执行清空图片。');
-
-      const source = await cGetHandle(C_SOURCE_DIR_KEY);
-      const output = await cGetHandle(C_OUTPUT_DIR_KEY);
-      if (!source) throw new Error('请先选择原图目录');
-      if (!output) throw new Error('请先选择成品目录');
-
-      const sourceName = source.name || '原图目录';
-      const outputName = output.name || '成品目录';
-      const first = confirm(`确定清空“${sourceName}”和“${outputName}”中的所有图片吗？
-
-只删除 JPG/JPEG/PNG/WEBP/GIF/BMP 图片，其他文件保留。此操作不可恢复。`);
-      if (!first) {
-        cLog('已取消清空图片', 'info');
-        return;
-      }
-
-      const second = confirm(`二次确认：真的要删除两个目录中的全部图片吗？
-
-原图目录：${sourceName}
-成品目录：${outputName}`);
-      if (!second) {
-        cLog('二次确认未通过，已取消清空图片', 'info');
-        return;
-      }
-
-      if ((await cPermission(source, 'readwrite', true)) !== 'granted') throw new Error('没有获得原图目录读写权限');
-      if ((await cPermission(output, 'readwrite', true)) !== 'granted') throw new Error('没有获得成品目录读写权限');
-
-      let sameDirectory = false;
-      try {
-        if (typeof source.isSameEntry === 'function') sameDirectory = await source.isSameEntry(output);
-      } catch (_) {}
-
-      const removedSource = await cDeleteImagesRecursive(source);
-      const removedOutput = sameDirectory ? 0 : await cDeleteImagesRecursive(output);
-
-      cState.running = false;
-      cState.imagePaths = [];
-      cState.index = 0;
-      cState.currentBatch = [];
-      cState.phase = 'idle';
-      cSaveState();
-
-      if (sameDirectory) {
-        cLog(`原图目录与成品目录为同一目录，共删除 ${removedSource} 张图片`, 'warn');
-      } else {
-        cLog(`清空完成：原图目录删除 ${removedSource} 张，成品目录删除 ${removedOutput} 张`, 'warn');
-      }
-      if (cStatusText) cStatusText.textContent = '图片目录已清空，请重新放入原图后扫描';
     }
 
     async function cChooseTemplate() {
@@ -4672,7 +4603,6 @@
         cCreateButton('检测当前成图', 'kagura-gpt-success', cRecoverCurrentGenerated),
         cCreateButton('导出待确认', 'kagura-gpt-success', cExportPendingQueue),
         cCreateButton('跳过当前批', '', cSkipBatch),
-        cCreateButton('清空图片', 'kagura-gpt-danger', cClearSourceAndOutputImages),
         cCreateButton('清空进度', 'kagura-gpt-danger', cReset),
         cCreateButton('清除授权', 'kagura-gpt-danger', cForgetFolders),
       );
@@ -4750,7 +4680,7 @@
 (() => {
   'use strict';
 
-  const KAGURA_MANUAL_VERSION = '3.0.35';
+  const KAGURA_MANUAL_VERSION = '3.0.34';
   const KAGURA_MANIFEST_URL = 'https://api.github.com/repos/kagura00101001-cyber/Utopia-update/contents/latest.json?ref=main';
 
   function versionCompare(a, b) {

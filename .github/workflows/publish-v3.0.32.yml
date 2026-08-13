@@ -1,0 +1,157 @@
+name: Publish V3.0.32 Tampermonkey update entry
+
+on:
+  push:
+    paths:
+      - '.github/workflows/publish-v3.0.32.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Patch userscript to V3.0.32
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          import re
+
+          path = Path('Ozon_ChatGPT.user.js')
+          s = path.read_text(encoding='utf-8')
+
+          # Version / metadata
+          s = s.replace('// @version      3.0.31', '// @version      3.0.32', 1)
+          s = s.replace("const APP_VERSION = '3.0.31';", "const APP_VERSION = '3.0.32';", 1)
+          s = s.replace('/* ===== Kagura 手动更新检查 V3.0.31（仅检查版本） ===== */', '/* ===== Kagura 手动更新检查 V3.0.32（检查版本 + 打开 Tampermonkey） ===== */', 1)
+          s = s.replace("const KAGURA_MANUAL_VERSION = '3.0.31';", "const KAGURA_MANUAL_VERSION = '3.0.32';", 1)
+          s = s.replace(
+              '// @description  完整正式版：保留原有 Ozon/ChatGPT 自动化功能；接入 Tampermonkey 原生覆盖更新；右下角仅手动检查版本。',
+              '// @description  完整正式版：右下角手动检查新版并可直接打开 Tampermonkey 管理面板；实际更新使用原生 Overwrite 覆盖。',
+              1,
+          )
+
+          # Add style for the Tampermonkey button.
+          old_css = '      .kagura-manual-update-actions [data-role="check"] { background:#e8f7ee; color:#087a3f; }\n      .kagura-manual-update-actions [data-role="close"] { background:#eef2f6; color:#344054; }'
+          new_css = '      .kagura-manual-update-actions [data-role="check"] { background:#e8f7ee; color:#087a3f; }\n      .kagura-manual-update-actions [data-role="open-tm"] { background:#005bff; color:#fff; }\n      .kagura-manual-update-actions [data-role="close"] { background:#eef2f6; color:#344054; }'
+          if old_css not in s:
+              raise SystemExit('CSS patch target not found')
+          s = s.replace(old_css, new_css, 1)
+
+          # Add helper that opens Tampermonkey through its external page bridge.
+          marker = '  function showUpdateDialog(panel) {'
+          helper = r'''  function openTampermonkeyUpdate(result) {
+    const steps = '请在 Tampermonkey 中找到“ Ozon主图下载 + ChatGPT批量生图助手 ” → 铅笔/编辑 → 设置 → 检查用户脚本的更新 → Overwrite（覆盖）。';
+    try {
+      const tm = unsafeWindow?.external?.Tampermonkey || window?.external?.Tampermonkey;
+      if (tm && typeof tm.openOptions === 'function') {
+        tm.openOptions('nav=dashboard');
+        result.textContent += `\n\n已尝试打开 Tampermonkey 管理面板。${steps}`;
+        return true;
+      }
+    } catch (error) {
+      console.warn('[Kagura] 打开 Tampermonkey 管理面板失败：', error);
+    }
+    result.textContent += `\n\n当前浏览器没有向网页开放 Tampermonkey 管理面板入口。${steps}`;
+    return false;
+  }
+
+'''
+          if marker not in s:
+              raise SystemExit('showUpdateDialog marker not found')
+          s = s.replace(marker, helper + marker, 1)
+
+          # Add the hidden button to the dialog.
+          old_buttons = '''            <button type="button" data-role="check">检查更新</button>
+            <button type="button" data-role="close">关闭</button>'''
+          new_buttons = '''            <button type="button" data-role="check">检查更新</button>
+            <button type="button" data-role="open-tm" style="display:none">前往 Tampermonkey 更新</button>
+            <button type="button" data-role="close">关闭</button>'''
+          if old_buttons not in s:
+              raise SystemExit('dialog buttons patch target not found')
+          s = s.replace(old_buttons, new_buttons, 1)
+
+          # Wire the button into update checking.
+          old_vars = '''        const btn = event.currentTarget;
+        const result = overlay.querySelector('[data-role="result"]');
+        btn.disabled = true;'''
+          new_vars = '''        const btn = event.currentTarget;
+        const result = overlay.querySelector('[data-role="result"]');
+        const openTm = overlay.querySelector('[data-role="open-tm"]');
+        openTm.style.display = 'none';
+        openTm.onclick = null;
+        btn.disabled = true;'''
+          if old_vars not in s:
+              raise SystemExit('check handler vars target not found')
+          s = s.replace(old_vars, new_vars, 1)
+
+          old_update_msg = '''            result.textContent =
+              `发现新版本：V${info.latest}\n当前版本：V${KAGURA_MANUAL_VERSION}${notes}\n\n请在 Tampermonkey 中打开本脚本设置，点击“检查用户脚本的更新”，然后在更新页点 Overwrite（覆盖）。`;'''
+          new_update_msg = '''            result.textContent =
+              `发现新版本：V${info.latest}\n当前版本：V${KAGURA_MANUAL_VERSION}${notes}\n\n点击“前往 Tampermonkey 更新”打开 Tampermonkey 管理面板。为避免产生重复脚本，不会打开 Raw 安装页；实际更新请使用本脚本的“检查用户脚本的更新”并点 Overwrite（覆盖）。`;
+            openTm.style.display = '';
+            openTm.onclick = () => openTampermonkeyUpdate(result);'''
+          if old_update_msg not in s:
+              raise SystemExit('update result message target not found')
+          s = s.replace(old_update_msg, new_update_msg, 1)
+
+          # Always reset the Tampermonkey button when the dialog opens.
+          old_reset = '''    overlay.querySelector('[data-role="result"]').textContent =
+      `当前版本：V${KAGURA_MANUAL_VERSION}\n\n脚本窗口只负责手动检查版本；实际更新请使用 Tampermonkey 原生“检查用户脚本的更新”并选择 Overwrite（覆盖）。`;
+    overlay.classList.add('show');'''
+          new_reset = '''    overlay.querySelector('[data-role="result"]').textContent =
+      `当前版本：V${KAGURA_MANUAL_VERSION}\n\n点击“检查更新”只查询 GitHub 版本；发现新版后可点“前往 Tampermonkey 更新”打开管理面板。实际覆盖仍由 Tampermonkey 原生更新流程完成。`;
+    const openTm = overlay.querySelector('[data-role="open-tm"]');
+    if (openTm) {
+      openTm.style.display = 'none';
+      openTm.onclick = null;
+    }
+    overlay.classList.add('show');'''
+          if old_reset not in s:
+              raise SystemExit('dialog reset target not found')
+          s = s.replace(old_reset, new_reset, 1)
+
+          path.write_text(s, encoding='utf-8')
+
+          Path('Ozon_ChatGPT.meta.js').write_text('''// ==UserScript==
+// @name         Ozon主图下载 + ChatGPT批量生图助手
+// @namespace    https://github.com/Kagura-userscripts
+// @version      3.0.32
+// @description  Ozon主图下载 + ChatGPT批量生图助手 更新元数据
+// @author       Kagura
+// @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.meta.js
+// @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js
+// ==/UserScript==
+''', encoding='utf-8')
+
+          latest = {
+              'version': '3.0.32',
+              'install_url': 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js',
+              'published_at': '2026-08-13',
+              'changelog': [
+                  '右下角检查到新版后新增“前往 Tampermonkey 更新”按钮。',
+                  '按钮不再打开 Raw 安装地址，避免误装成第二条脚本。',
+                  '点击后优先通过 Tampermonkey 页面桥接直接打开管理面板；若浏览器不允许，则在窗口内显示原生更新步骤。',
+                  '实际安装继续使用 Tampermonkey 原生“检查用户脚本的更新” → Overwrite，保留同一脚本 UUID 与配置。'
+              ]
+          }
+          Path('latest.json').write_text(json.dumps(latest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+
+      - name: Syntax check
+        run: node -c Ozon_ChatGPT.user.js
+
+      - name: Commit V3.0.32
+        shell: bash
+        run: |
+          git config user.name "Kagura Update Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add Ozon_ChatGPT.user.js Ozon_ChatGPT.meta.js latest.json
+          git diff --cached --quiet && exit 0
+          git commit -m "发布 V3.0.32 右下角 Tampermonkey 更新入口"
+          git push

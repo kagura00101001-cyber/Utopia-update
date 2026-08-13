@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Ozon 自动投诉 V1.0.0
-// @name:zh-CN   Ozon 自动投诉 V1.1.1
+// @name:zh-CN   Ozon 自动投诉 V1.1.2
 // @namespace    kagura.ozon.auto.complaint
-// @version      1.1.1
+// @version      1.1.2
 // @description  从 Excel/CSV 读取 SKU 与申诉链接自动循环投诉；支持 GitHub 手动检查更新。
 // @author       Kagura
 // @match        https://seller.ozon.ru/*
@@ -18,7 +18,8 @@
 
   const SCRIPT_ID = 'kagura-ozon-complaint';
   const STORAGE_KEY = 'kagura_ozon_complaint_v1_state';
-  const VERSION = '1.1.1';
+  const UI_STORAGE_KEY = 'kagura_ozon_complaint_ui_v1';
+  const VERSION = '1.1.2';
 
   // 热更新采用与之前稳定版相同的“完整脚本 + latest.json + 手动检查更新”结构。
   // 不做运行时远程载荷/Base64 分片加载，避免旧版 atob 分片错误。
@@ -40,9 +41,140 @@
   };
 
   let state = loadState();
+  let uiState = loadUiState();
   let running = false;
   let stopRequested = false;
   let currentRunToken = 0;
+
+  function loadUiState() {
+    try {
+      const raw = localStorage.getItem(UI_STORAGE_KEY);
+      if (!raw) return { minimized: false, x: null, y: null };
+      const obj = JSON.parse(raw);
+      return {
+        minimized: Boolean(obj.minimized),
+        x: Number.isFinite(Number(obj.x)) ? Number(obj.x) : null,
+        y: Number.isFinite(Number(obj.y)) ? Number(obj.y) : null,
+      };
+    } catch {
+      return { minimized: false, x: null, y: null };
+    }
+  }
+
+  function saveUiState() {
+    localStorage.setItem(UI_STORAGE_KEY, JSON.stringify(uiState));
+  }
+
+  function clamp(n, min, max) {
+    return Math.min(Math.max(n, min), Math.max(min, max));
+  }
+
+  function applyUiPosition(box) {
+    if (!box) return;
+
+    const rect = box.getBoundingClientRect();
+    let x = uiState.x;
+    let y = uiState.y;
+
+    if (!Number.isFinite(x) || !Number.isFinite(y)) {
+      x = Math.max(8, window.innerWidth - rect.width - 16);
+      y = Math.max(8, window.innerHeight - rect.height - 16);
+    }
+
+    x = clamp(x, 8, window.innerWidth - rect.width - 8);
+    y = clamp(y, 8, window.innerHeight - rect.height - 8);
+
+    box.style.left = `${Math.round(x)}px`;
+    box.style.top = `${Math.round(y)}px`;
+    box.style.right = 'auto';
+    box.style.bottom = 'auto';
+
+    uiState.x = Math.round(x);
+    uiState.y = Math.round(y);
+    saveUiState();
+  }
+
+  function applyUiMode(box) {
+    if (!box) return;
+    box.classList.toggle('kg-minimized', uiState.minimized);
+    requestAnimationFrame(() => applyUiPosition(box));
+  }
+
+  function setMinimized(minimized) {
+    uiState.minimized = Boolean(minimized);
+    saveUiState();
+    const box = document.getElementById(SCRIPT_ID);
+    applyUiMode(box);
+  }
+
+  function enableDrag(box) {
+    if (!box || box.dataset.dragReady === '1') return;
+    box.dataset.dragReady = '1';
+
+    let drag = null;
+
+    const startDrag = (e, source) => {
+      if (e.button !== 0) return;
+      if (source === 'head' && e.target.closest('button, input, label, a')) return;
+
+      const rect = box.getBoundingClientRect();
+      drag = {
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        left: rect.left,
+        top: rect.top,
+        moved: false,
+        source,
+      };
+
+      try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch {}
+      e.preventDefault();
+    };
+
+    const moveDrag = e => {
+      if (!drag || e.pointerId !== drag.pointerId) return;
+
+      const dx = e.clientX - drag.startX;
+      const dy = e.clientY - drag.startY;
+      if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+
+      const rect = box.getBoundingClientRect();
+      const x = clamp(drag.left + dx, 8, window.innerWidth - rect.width - 8);
+      const y = clamp(drag.top + dy, 8, window.innerHeight - rect.height - 8);
+
+      box.style.left = `${Math.round(x)}px`;
+      box.style.top = `${Math.round(y)}px`;
+      box.style.right = 'auto';
+      box.style.bottom = 'auto';
+    };
+
+    const endDrag = e => {
+      if (!drag || e.pointerId !== drag.pointerId) return;
+
+      const moved = drag.moved;
+      const source = drag.source;
+      drag = null;
+
+      const rect = box.getBoundingClientRect();
+      uiState.x = Math.round(rect.left);
+      uiState.y = Math.round(rect.top);
+      saveUiState();
+
+      if (source === 'icon' && !moved) setMinimized(false);
+    };
+
+    const head = box.querySelector('.kg-head');
+    const icon = box.querySelector('.kg-collapsed-icon');
+
+    head?.addEventListener('pointerdown', e => startDrag(e, 'head'));
+    icon?.addEventListener('pointerdown', e => startDrag(e, 'icon'));
+    window.addEventListener('pointermove', moveDrag, { passive: false });
+    window.addEventListener('pointerup', endDrag);
+    window.addEventListener('pointercancel', endDrag);
+
+    window.addEventListener('resize', () => applyUiPosition(box));
+  }
 
   function defaultState() {
     return {
@@ -839,10 +971,35 @@
         #${SCRIPT_ID} *{box-sizing:border-box}
         #${SCRIPT_ID} .kg-head{
           display:flex; align-items:center; justify-content:space-between;
-          padding:10px 12px; font-weight:700; background:#f7f9fc;
-          border-bottom:1px solid #e8ecf1;
+          padding:10px 10px 10px 12px; font-weight:700; background:#f7f9fc;
+          border-bottom:1px solid #e8ecf1; cursor:move; user-select:none;
+          touch-action:none;
         }
-        #${SCRIPT_ID} .kg-ver{font-weight:400;color:#8a94a3;font-size:12px}
+        #${SCRIPT_ID} .kg-head-left{display:flex;align-items:center;gap:8px;min-width:0}
+        #${SCRIPT_ID} .kg-head-actions{display:flex;align-items:center;gap:5px}
+        #${SCRIPT_ID} .kg-ver{font-weight:400;color:#8a94a3;font-size:12px;white-space:nowrap}
+        #${SCRIPT_ID} .kg-minimize{
+          width:27px;height:27px;padding:0;border:0!important;border-radius:6px!important;
+          font-size:18px!important;line-height:24px;background:transparent!important;color:#667085;
+          cursor:pointer!important;
+        }
+        #${SCRIPT_ID} .kg-minimize:hover{background:#e9eef6!important;color:#146cff}
+        #${SCRIPT_ID} .kg-collapsed-icon{
+          display:none;width:50px;height:50px;border-radius:14px;
+          align-items:center;justify-content:center;
+          background:#146cff;color:#fff;font-size:25px;font-weight:700;
+          box-shadow:0 8px 25px rgba(20,108,255,.30);
+          cursor:move;user-select:none;touch-action:none;
+          border:2px solid rgba(255,255,255,.92);
+        }
+        #${SCRIPT_ID}.kg-minimized{
+          width:50px;height:50px;background:transparent;border:0;border-radius:14px;
+          box-shadow:none;overflow:visible;
+        }
+        #${SCRIPT_ID}.kg-minimized .kg-head,
+        #${SCRIPT_ID}.kg-minimized .kg-body,
+        #${SCRIPT_ID}.kg-minimized .kg-update-panel{display:none!important}
+        #${SCRIPT_ID}.kg-minimized .kg-collapsed-icon{display:flex}
         #${SCRIPT_ID} .kg-body{padding:10px 12px}
         #${SCRIPT_ID} .kg-row{display:flex;gap:7px;align-items:center;margin:7px 0}
         #${SCRIPT_ID} button,#${SCRIPT_ID} .kg-file{
@@ -901,10 +1058,16 @@
           display:flex;gap:8px;justify-content:flex-end;margin-top:12px
         }
       </style>
-      <div class="kg-head">
-        <span>Ozon 自动投诉</span>
-        <span class="kg-ver">V${VERSION}</span>
+      <div class="kg-head" title="按住标题栏可拖动">
+        <div class="kg-head-left">
+          <span>Ozon 自动投诉</span>
+          <span class="kg-ver">V${VERSION}</span>
+        </div>
+        <div class="kg-head-actions">
+          <button id="kg-minimize" class="kg-minimize" title="缩小成图标">−</button>
+        </div>
       </div>
+      <div class="kg-collapsed-icon" title="拖动可移动；单击恢复">⚑</div>
       <div class="kg-body">
         <div class="kg-row">
           <label class="kg-file">选择 Excel/CSV
@@ -956,6 +1119,7 @@
       if (confirm('确认清空已导入的数据和进度？')) clearAll();
     });
     box.querySelector('#kg-check-update').addEventListener('click', checkForUpdate);
+    box.querySelector('#kg-minimize').addEventListener('click', () => setMinimized(true));
     box.querySelector('#kg-update-close').addEventListener('click', hideUpdatePanel);
     box.querySelector('#kg-update-install').addEventListener('click', e => {
       const url = e.currentTarget.dataset.url || '';
@@ -965,6 +1129,8 @@
       }
     });
 
+    enableDrag(box);
+    applyUiMode(box);
     render();
   }
 
@@ -988,6 +1154,13 @@
       : '未导入表格';
 
     box.querySelector('#kg-progress-bar').style.width = `${pct}%`;
+
+    const icon = box.querySelector('.kg-collapsed-icon');
+    if (icon) {
+      icon.title = running
+        ? `Ozon 自动投诉运行中｜完成 ${done}/${total}｜拖动可移动；单击恢复`
+        : `Ozon 自动投诉｜完成 ${done}/${total}｜拖动可移动；单击恢复`;
+    }
 
     const logBox = box.querySelector('#kg-log');
     logBox.innerHTML = state.logs.slice(-80).map(x =>

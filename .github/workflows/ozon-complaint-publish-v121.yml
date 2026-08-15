@@ -1,0 +1,527 @@
+name: Publish Ozon Complaint v1.2.1
+
+on:
+  push:
+    paths:
+      - '.github/workflows/ozon-complaint-publish-v121.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build v1.2.1 files
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          p = Path('Ozon_Complaint.user.js')
+          s = p.read_text(encoding='utf-8')
+
+          # ---- 版本与元数据 ----
+          lines = s.splitlines()
+          out = []
+          for line in lines:
+              if line.startswith('// @name:zh-CN'):
+                  out.append('// @name:zh-CN   Ozon 自动投诉 V1.2.1')
+              elif line.startswith('// @version'):
+                  out.append('// @version      1.2.1')
+              elif line.startswith('// @description'):
+                  out.append('// @description  从 Excel/CSV 读取 SKU 与申诉链接自动循环投诉；修复发送时误点附件按钮弹出文件选择窗口。')
+              elif line.startswith('// @require'):
+                  continue
+              elif line == '// @match        https://seller.ozon.ru/*':
+                  out.append(line)
+                  out.append('// @match        https://seller.ozon.ru/app/messenger/*')
+              elif line == '// @grant        GM_openInTab':
+                  out.append(line)
+                  out.append('// @grant        GM_registerMenuCommand')
+              elif line == '// @connect      api.github.com':
+                  out.append(line)
+                  out.append('// @connect      cdn.jsdelivr.net')
+                  out.append('// @connect      unpkg.com')
+              else:
+                  out.append(line)
+          s = '\n'.join(out) + '\n'
+          s = s.replace("const VERSION = '1.1.3';", "const VERSION = '1.2.1';")
+
+          old = '''  function saveUiState() {
+            localStorage.setItem(UI_STORAGE_KEY, JSON.stringify(uiState));
+          }'''
+          new = '''  function saveUiState() {
+            try {
+              localStorage.setItem(UI_STORAGE_KEY, JSON.stringify(uiState));
+            } catch (error) {
+              console.warn('[Ozon投诉] 无法保存窗口位置：', error);
+            }
+          }'''
+          if old in s:
+              s = s.replace(old, new, 1)
+
+          # ---- Excel 组件按需加载，避免 @require 阻断整个脚本 ----
+          anchor = '''  function cellLink(cell) {
+            if (!cell) return '';
+            if (cell.l?.Target) return String(cell.l.Target).trim();
+            const v = cellDisplay(cell);
+            const m = v.match(/https?:\\/\\/\\S+/i);
+            return m ? m[0] : v;
+          }
+
+          '''
+          loader = r'''  let XLSX_LIB = null;
+
+          function getXlsxLib() {
+            try {
+              if (XLSX_LIB?.read && XLSX_LIB?.utils) return XLSX_LIB;
+              if (typeof XLSX !== 'undefined' && XLSX?.read && XLSX?.utils) {
+                XLSX_LIB = XLSX;
+                return XLSX_LIB;
+              }
+              if (unsafeWindow?.XLSX?.read && unsafeWindow?.XLSX?.utils) {
+                XLSX_LIB = unsafeWindow.XLSX;
+                return XLSX_LIB;
+              }
+            } catch {}
+            return null;
+          }
+
+          function fetchScriptText(url, timeout = 30000) {
+            return new Promise((resolve, reject) => {
+              GM_xmlhttpRequest({
+                method: 'GET',
+                url: `${url}${url.includes('?') ? '&' : '?'}_=${Date.now()}`,
+                timeout,
+                headers: {
+                  'Cache-Control': 'no-cache',
+                  Pragma: 'no-cache',
+                },
+                onload: res => {
+                  if (res.status >= 200 && res.status < 300) resolve(String(res.responseText || ''));
+                  else reject(new Error(`HTTP ${res.status || '未知'}`));
+                },
+                onerror: () => reject(new Error('网络请求失败')),
+                ontimeout: () => reject(new Error('请求超时')),
+              });
+            });
+          }
+
+          async function ensureXlsxLib() {
+            const existing = getXlsxLib();
+            if (existing) return existing;
+
+            const urls = [
+              'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+              'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js',
+            ];
+
+            let lastError = null;
+            for (const url of urls) {
+              try {
+                log(`正在加载 Excel 解析组件：${new URL(url).hostname}`);
+                const code = await fetchScriptText(url);
+                (0, eval)(`${code}\\n//# sourceURL=kagura-xlsx-runtime.js`);
+                const loaded = getXlsxLib();
+                if (loaded) {
+                  log('Excel 解析组件加载成功');
+                  return loaded;
+                }
+                throw new Error('组件执行完成，但未检测到 XLSX');
+              } catch (error) {
+                lastError = error;
+                console.warn('[Ozon投诉] Excel 组件加载失败：', url, error);
+              }
+            }
+
+            throw new Error(`Excel 解析组件加载失败：${lastError?.message || '未知错误'}。脚本窗口仍可使用，请检查网络后重新选择表格。`);
+          }
+
+          '''
+          if 'let XLSX_LIB = null;' not in s:
+              if anchor not in s:
+                  raise RuntimeError('找不到 cellLink 插入点')
+              s = s.replace(anchor, anchor + loader, 1)
+
+          s = s.replace('''  function parseSheetRows(ws) {
+            const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:A1');''', '''  function parseSheetRows(ws) {
+            const X = getXlsxLib();
+            if (!X) throw new Error('Excel 解析组件尚未加载');
+            const range = X.utils.decode_range(ws['!ref'] || 'A1:A1');''', 1)
+          s = s.replace('XLSX.utils.encode_cell', 'X.utils.encode_cell')
+          s = s.replace('''    try {
+              const buf = await file.arrayBuffer();
+              const wb = XLSX.read(buf, { type: 'array', cellText: true, cellDates: false });''', '''    try {
+              const X = await ensureXlsxLib();
+              const buf = await file.arrayBuffer();
+              const wb = X.read(buf, { type: 'array', cellText: true, cellDates: false });''', 1)
+
+          # ---- 使用说明 + 窗口恢复 ----
+          help_code = r'''  function showHelp() {
+            showUpdatePanel({
+              title: '使用说明',
+              html:
+                `<div style="line-height:1.75">` +
+                `<b>第一次使用：</b><br>` +
+                `1. 打开 Ozon Seller 客服聊天页面。<br>` +
+                `2. 点击 <b>选择 Excel/CSV</b>，导入投诉模板。<br>` +
+                `3. 确认面板显示文件名和任务数量。<br>` +
+                `4. 点击 <b>开始/继续</b>。<br><br>` +
+                `<b>自动循环：</b><br>` +
+                `发送 SKU → 等客服要求提供版权/证据 → 发送该 SKU 对应申诉链接 → 等客服回复核查 → 点击“返回” → 处理下一个 SKU。<br><br>` +
+                `<b>安全规则：</b><br>` +
+                `任何一步无法确认发送成功、等待回复超时、或找不到“返回”按钮，脚本都会暂停，不会盲目重复发送。<br><br>` +
+                `<b>窗口操作：</b><br>` +
+                `标题栏可拖动；右上角“−”可缩小成图标；图标可拖动，单击恢复。窗口找不到时，可从 Tampermonkey 菜单点击“显示/恢复 Ozon 自动投诉窗口”。` +
+                `</div>`,
+            });
+          }
+
+          function forceRestorePanel() {
+            ensureUI();
+            uiState.minimized = false;
+            uiState.x = null;
+            uiState.y = null;
+            saveUiState();
+
+            const box = document.getElementById(SCRIPT_ID);
+            if (box) {
+              box.style.display = '';
+              applyUiMode(box);
+              applyUiPosition(box);
+            }
+          }
+
+          '''
+          if 'function showHelp()' not in s:
+              idx = s.index('  function ensureUI() {')
+              s = s[:idx] + help_code + s[idx:]
+
+          if '<button id="kg-help">操作说明</button>' not in s:
+              s = s.replace('''        <div class="kg-row">
+                  <button id="kg-reset">重置进度</button>
+                  <button id="kg-export">导出结果</button>
+                  <button id="kg-clear" class="kg-danger">清空</button>
+                </div>''', '''        <div class="kg-row">
+                  <button id="kg-help">操作说明</button>
+                  <button id="kg-reset">重置进度</button>
+                  <button id="kg-export">导出结果</button>
+                  <button id="kg-clear" class="kg-danger">清空</button>
+                </div>''', 1)
+              s = s.replace("    box.querySelector('#kg-pause').addEventListener('click', pauseRun);", "    box.querySelector('#kg-pause').addEventListener('click', pauseRun);\n    box.querySelector('#kg-help').addEventListener('click', showHelp);", 1)
+
+          # ---- 启动兜底 + Tampermonkey 菜单恢复 ----
+          old_boot = '''  function boot() {
+            if (!/seller\\.ozon\\.ru$/i.test(location.hostname)) return;
+            ensureUI();
+
+            // Ozon 是 SPA，页面切换后保证面板仍在
+            setInterval(() => {
+              if (!document.getElementById(SCRIPT_ID)) ensureUI();
+            }, 2000);
+          }
+
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', boot, { once: true });
+          } else {
+            boot();
+          }
+          })();'''
+          new_boot = '''  function safeEnsureUI() {
+            try {
+              ensureUI();
+              return true;
+            } catch (error) {
+              console.error('[Ozon投诉] 界面初始化失败：', error);
+              try {
+                let fallback = document.getElementById('kagura-ozon-complaint-fallback');
+                if (!fallback && document.body) {
+                  fallback = document.createElement('button');
+                  fallback.id = 'kagura-ozon-complaint-fallback';
+                  fallback.textContent = 'Ozon投诉脚本加载异常｜点击重试';
+                  fallback.style.cssText =
+                    'position:fixed;right:16px;bottom:16px;z-index:2147483647;' +
+                    'border:0;border-radius:10px;padding:10px 12px;background:#c62828;color:#fff;' +
+                    'font:13px Microsoft YaHei,sans-serif;cursor:pointer;box-shadow:0 8px 25px rgba(0,0,0,.22)';
+                  fallback.title = String(error?.message || error);
+                  fallback.addEventListener('click', () => {
+                    fallback.remove();
+                    try {
+                      forceRestorePanel();
+                    } catch (retryError) {
+                      alert(`Ozon 自动投诉窗口恢复失败：${retryError?.message || retryError}`);
+                    }
+                  });
+                  document.body.appendChild(fallback);
+                }
+              } catch {}
+              return false;
+            }
+          }
+
+          function boot() {
+            if (!/seller\\.ozon\\.ru$/i.test(location.hostname)) return;
+            safeEnsureUI();
+
+            try {
+              if (typeof GM_registerMenuCommand === 'function') {
+                GM_registerMenuCommand('显示/恢复 Ozon 自动投诉窗口', () => {
+                  try {
+                    forceRestorePanel();
+                  } catch (error) {
+                    alert(`Ozon 自动投诉窗口恢复失败：${error?.message || error}`);
+                  }
+                });
+              }
+            } catch (error) {
+              console.warn('[Ozon投诉] 注册 Tampermonkey 菜单失败：', error);
+            }
+
+            setInterval(() => {
+              if (!document.getElementById(SCRIPT_ID)) safeEnsureUI();
+            }, 2000);
+          }
+
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', boot, { once: true });
+          } else {
+            boot();
+          }
+          })();'''
+          if 'function safeEnsureUI()' not in s:
+              if old_boot not in s:
+                  raise RuntimeError('找不到 boot 替换块')
+              s = s.replace(old_boot, new_boot, 1)
+
+          # ---- V1.2.1：彻底禁止按位置猜发送按钮 ----
+          start = s.index('  function findSendButton(composer) {')
+          end = s.index('  async function sendText(text) {', start)
+          new_find = r'''  function buttonEvidence(el) {
+            if (!el) return '';
+            const attrs = [
+              el.getAttribute('aria-label'),
+              el.getAttribute('title'),
+              el.getAttribute('name'),
+              el.getAttribute('data-testid'),
+              el.getAttribute('data-test-id'),
+              el.getAttribute('data-qa'),
+              el.getAttribute('data-qa-id'),
+              el.getAttribute('type'),
+              el.className,
+              el.textContent,
+            ];
+            return normalize(attrs.filter(Boolean).join(' ')).toLowerCase();
+          }
+
+          function isAttachmentButton(el) {
+            if (!el) return false;
+            const evidence = buttonEvidence(el);
+            const html = String(el.innerHTML || '').toLowerCase();
+            if (el.matches?.('input[type="file"]')) return true;
+            if (el.querySelector?.('input[type="file"]')) return true;
+            const labelFor = el.getAttribute?.('for');
+            if (labelFor) {
+              const target = document.getElementById(labelFor);
+              if (target?.matches?.('input[type="file"]')) return true;
+            }
+            return (
+              /附件|上传|选择文件|文件|attach|attachment|upload|paperclip|скреп|прикреп|файл/.test(evidence) ||
+              /paperclip|attachment|upload|file-input|input-file|скреп|прикреп/.test(html)
+            );
+          }
+
+          function isExplicitSendButton(el, composer) {
+            if (!el || !isVisible(el)) return false;
+            if (el.closest(`#${SCRIPT_ID}`)) return false;
+            if (isAttachmentButton(el)) return false;
+            if (el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') return false;
+            const evidence = buttonEvidence(el);
+            if (/发送|send|submit|отправ|message-send|send-message|sendbutton|send-button/.test(evidence)) return true;
+            if (el.tagName === 'BUTTON' && String(el.getAttribute('type') || '').toLowerCase() === 'submit') {
+              const form = el.closest('form');
+              if (form && composer && form.contains(composer)) return true;
+            }
+            return false;
+          }
+
+          function findSendButton(composer) {
+            let root = composer?.parentElement || null;
+            const candidates = [];
+            for (let depth = 0; root && depth < 7; depth++, root = root.parentElement) {
+              for (const el of root.querySelectorAll('button, [role="button"], input[type="submit"]')) {
+                if (!isExplicitSendButton(el, composer)) continue;
+                const evidence = buttonEvidence(el);
+                let score = 0;
+                if (/发送|send-message|message-send|sendbutton|send-button|отправ/.test(evidence)) score += 300;
+                if (/submit/.test(evidence)) score += 100;
+                if (el.tagName === 'BUTTON' && String(el.getAttribute('type') || '').toLowerCase() === 'submit') score += 80;
+                const r = el.getBoundingClientRect();
+                const cr = composer.getBoundingClientRect();
+                if (Math.abs((r.top + r.bottom) / 2 - (cr.top + cr.bottom) / 2) < 100) score += 20;
+                candidates.push({ el, score });
+              }
+              if (candidates.length) break;
+            }
+            candidates.sort((a, b) => b.score - a.score);
+            return candidates[0]?.el || null;
+          }
+
+          function describeNearbyButtons(composer) {
+            try {
+              let root = composer?.parentElement || null;
+              for (let depth = 0; root && depth < 5; depth++, root = root.parentElement) {
+                const list = [...root.querySelectorAll('button, [role="button"], input[type="submit"]')]
+                  .filter(el => isVisible(el) && !el.closest(`#${SCRIPT_ID}`))
+                  .slice(0, 12)
+                  .map(el => `${el.tagName.toLowerCase()}{${buttonEvidence(el).slice(0, 180) || '无文字/属性'}}`);
+                if (list.length) return list.join(' | ');
+              }
+            } catch {}
+            return '未读取到附近按钮';
+          }
+
+          '''
+          s = s[:start] + new_find + s[end:]
+
+          start = s.index('  async function sendText(text) {')
+          end = s.index('  function textFromMutation(m) {', start)
+          new_send = r'''  async function sendText(text) {
+            const composer = findComposer();
+            if (!composer) throw new Error('找不到聊天输入框');
+
+            setNativeValue(composer, String(text));
+            await sleep(300);
+
+            if (!normalize(editableText(composer))) {
+              throw new Error('文字未成功写入聊天输入框');
+            }
+
+            let sent = false;
+            const btn = findSendButton(composer);
+
+            if (btn) {
+              const evidence = buttonEvidence(btn);
+              log(`发送方式：点击已确认的发送按钮${evidence ? `（${evidence.slice(0, 80)}）` : ''}`);
+              btn.click();
+              await sleep(750);
+              sent = !normalize(editableText(composer));
+            }
+
+            if (!sent) {
+              log(btn ? '点击发送按钮后输入框未清空，尝试 Enter' : '未找到明确发送按钮，尝试 Enter 发送');
+              composer.focus();
+              composer.dispatchEvent(new KeyboardEvent('keydown', {
+                key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
+                bubbles: true, cancelable: true,
+              }));
+              composer.dispatchEvent(new KeyboardEvent('keyup', {
+                key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
+                bubbles: true, cancelable: true,
+              }));
+              await sleep(850);
+              sent = !normalize(editableText(composer));
+            }
+
+            if (!sent) {
+              const nearby = describeNearbyButtons(composer);
+              console.warn('[Ozon投诉] 未找到安全的发送方式，附近按钮：', nearby);
+              throw new Error(
+                '未确认消息已发送，已自动暂停。为避免误点附件按钮，本版不会再按位置猜测发送按钮。' +
+                '请把运行日志和当前聊天输入区截图发给我继续适配。'
+              );
+            }
+          }
+
+          '''
+          s = s[:start] + new_send + s[end:]
+
+          # 避免重复元数据项
+          dedup = []
+          seen_meta = set()
+          for line in s.splitlines():
+              key = None
+              if line.startswith('// @match        https://seller.ozon.ru/app/messenger/*'): key = 'messenger_match'
+              if line.startswith('// @grant        GM_registerMenuCommand'): key = 'menu_grant'
+              if line.startswith('// @connect      cdn.jsdelivr.net'): key = 'jsdelivr_connect'
+              if line.startswith('// @connect      unpkg.com'): key = 'unpkg_connect'
+              if key and key in seen_meta: continue
+              if key: seen_meta.add(key)
+              dedup.append(line)
+          s = '\n'.join(dedup) + '\n'
+
+          if any(line.startswith('// @require') for line in s.splitlines()):
+              raise RuntimeError('仍存在 @require')
+          if 'XLSX.utils' in s or 'XLSX.read(' in s:
+              raise RuntimeError('仍存在 XLSX 硬依赖')
+          if 'function safeEnsureUI()' not in s or 'GM_registerMenuCommand' not in s:
+              raise RuntimeError('V1.2.0 界面恢复逻辑未完整写入')
+          if 'function isAttachmentButton' not in s:
+              raise RuntimeError('V1.2.1 发送安全逻辑未写入')
+
+          p.write_text(s, encoding='utf-8')
+
+          Path('Ozon_Complaint.meta.js').write_text('''// ==UserScript==
+          // @name         Ozon 自动投诉 V1.0.0
+          // @namespace    kagura.ozon.auto.complaint
+          // @version      1.2.1
+          // @description  Ozon 自动投诉脚本更新元数据
+          // @author       Kagura
+          // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_Complaint.meta.js
+          // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_Complaint.user.js
+          // ==/UserScript==
+          '''.replace('          ', ''), encoding='utf-8')
+
+          latest = {
+              'version': '1.2.1',
+              'install_url': 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_Complaint.user.js',
+              'published_at': '2026-08-15',
+              'changelog': [
+                  '修复发送 SKU 或申诉链接时误点附件/上传按钮并弹出文件选择窗口的问题。',
+                  '发送按钮不再通过位置猜测，必须检测到明确的发送语义后才允许点击。',
+                  '文件输入、附件、上传、paperclip、file 等相关控件一律禁止作为发送按钮。',
+                  '找不到明确发送按钮时只尝试 Enter；仍无法确认发送则立即暂停，不再点击未知图标。',
+                  '保留 V1.2.0 的客服页显示增强、窗口恢复菜单、操作说明和 Excel 按需加载。',
+              ],
+          }
+          Path('Ozon_Complaint.latest.json').write_text(json.dumps(latest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          history = {
+              'title': 'Ozon 自动投诉',
+              'since': '1.0.0',
+              'versions': [
+                  {'version':'1.2.1','date':'2026-08-15','notes':['修复发送 SKU/申诉链接时误点附件按钮、弹出文件选择窗口。','发送按钮必须有明确发送语义，不再根据位置猜测。','找不到安全发送按钮时只尝试 Enter，失败后自动暂停。']},
+                  {'version':'1.2.0','date':'2026-08-15','notes':['增强 Ozon Seller Messenger 客服页脚本窗口显示与恢复。','Excel 解析组件改为导入表格时按需加载，避免外部 @require 阻塞脚本界面。','新增 Tampermonkey 菜单恢复窗口、异常重试按钮和操作说明。']},
+                  {'version':'1.1.3','date':'2026-08-13','notes':['更新逻辑改为参考洗图脚本：Tampermonkey 原生 @updateURL / @downloadURL 覆盖更新。','手动检查更新改用 GitHub API，避免 Raw 缓存造成版本检测延迟。','发现新版后改为在 Tampermonkey 中执行“检查用户脚本的更新 → Overwrite（覆盖）”，不再直接打开 Raw 安装页。','右下角版本号可实时读取 GitHub 历史更新说明。','保持手动检查、手动更新，不自动安装新版本。']},
+                  {'version':'1.1.2','date':'2026-08-13','notes':['新增脚本窗口拖动。','新增缩小为可拖动图标、单击恢复。','新增窗口位置与缩小状态记忆。']},
+                  {'version':'1.1.1','date':'2026-08-13','notes':['验证 V1.1.0 → V1.1.1 更新链路。']},
+                  {'version':'1.1.0','date':'2026-08-13','notes':['首次加入 GitHub 版本检查能力。']},
+                  {'version':'1.0.0','date':'2026-08-13','notes':['自动投诉脚本首版。']},
+              ],
+          }
+          Path('Ozon_Complaint.history.json').write_text(json.dumps(history, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+
+      - name: Validate generated script
+        shell: bash
+        run: |
+          grep -q '@version      1.2.1' Ozon_Complaint.user.js
+          grep -q 'function isAttachmentButton' Ozon_Complaint.user.js
+          grep -q 'GM_registerMenuCommand' Ozon_Complaint.user.js
+          grep -q '"version": "1.2.1"' Ozon_Complaint.latest.json
+          grep -q '@version      1.2.1' Ozon_Complaint.meta.js
+
+      - name: Commit release and remove temporary workflow
+        shell: bash
+        run: |
+          rm -f .github/workflows/ozon-complaint-publish-v121.yml
+          git config user.name 'Kagura Update Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add Ozon_Complaint.user.js Ozon_Complaint.meta.js Ozon_Complaint.latest.json Ozon_Complaint.history.json .github/workflows/ozon-complaint-publish-v121.yml
+          git commit -m 'release: Ozon Complaint v1.2.1'
+          git push origin HEAD:main

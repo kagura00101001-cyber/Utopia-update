@@ -1,19 +1,22 @@
 // ==UserScript==
 // @name         Ozon 自动投诉 V1.0.0
-// @name:zh-CN   Ozon 自动投诉 V1.1.3
+// @name:zh-CN   Ozon 自动投诉 V1.2.1
 // @namespace    kagura.ozon.auto.complaint
-// @version      1.1.3
-// @description  从 Excel/CSV 读取 SKU 与申诉链接自动循环投诉；采用与洗图脚本一致的 Tampermonkey 原生覆盖更新。
+// @version      1.2.1
+// @description  从 Excel/CSV 读取 SKU 与申诉链接自动循环投诉；修复发送时误点附件按钮弹出文件选择窗口。
 // @author       Kagura
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_Complaint.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_Complaint.user.js
 // @match        https://seller.ozon.ru/*
-// @require      https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js
+// @match        https://seller.ozon.ru/app/messenger/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_openInTab
+// @grant        GM_registerMenuCommand
 // @grant        unsafeWindow
 // @connect      raw.githubusercontent.com
 // @connect      api.github.com
+// @connect      cdn.jsdelivr.net
+// @connect      unpkg.com
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -23,7 +26,7 @@
   const SCRIPT_ID = 'kagura-ozon-complaint';
   const STORAGE_KEY = 'kagura_ozon_complaint_v1_state';
   const UI_STORAGE_KEY = 'kagura_ozon_complaint_ui_v1';
-  const VERSION = '1.1.3';
+  const VERSION = '1.2.1';
 
   // 与洗图脚本一致：Tampermonkey 原生覆盖更新 + GitHub API 手动检查版本。
   // 不直接打开 Raw 安装页，避免安装成第二条重复脚本。
@@ -66,7 +69,11 @@
   }
 
   function saveUiState() {
-    localStorage.setItem(UI_STORAGE_KEY, JSON.stringify(uiState));
+    try {
+      localStorage.setItem(UI_STORAGE_KEY, JSON.stringify(uiState));
+    } catch (error) {
+      console.warn('[Ozon投诉] 无法保存窗口位置：', error);
+    }
   }
 
   function clamp(n, min, max) {
@@ -342,84 +349,102 @@
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
-  function findSendButton(composer) {
-    const cr = composer.getBoundingClientRect();
-    let root = composer.parentElement;
-    let buttons = [];
+  function buttonEvidence(el) {
+  if (!el) return '';
+  const attrs = [el.getAttribute('aria-label'), el.getAttribute('title'), el.getAttribute('name'), el.getAttribute('data-testid'), el.getAttribute('data-test-id'), el.getAttribute('data-qa'), el.getAttribute('data-qa-id'), el.getAttribute('type'), el.className, el.textContent];
+  return normalize(attrs.filter(Boolean).join(' ')).toLowerCase();
+}
 
-    for (let depth = 0; root && depth < 6; depth++, root = root.parentElement) {
-      const local = [...root.querySelectorAll('button, [role="button"]')]
-        .filter(el => isVisible(el) && !el.closest(`#${SCRIPT_ID}`));
-
-      for (const el of local) {
-        const r = el.getBoundingClientRect();
-        const aria = normalize(
-          (el.getAttribute('aria-label') || '') + ' ' +
-          (el.getAttribute('title') || '') + ' ' +
-          (el.textContent || '')
-        );
-        if (/附件|attach|paperclip/i.test(aria)) continue;
-
-        let score = 0;
-        if (/发送|send|отправ/i.test(aria)) score += 200;
-        if (r.left >= cr.right - 30) score += 80;
-        if (Math.abs((r.top + r.bottom) / 2 - (cr.top + cr.bottom) / 2) < 80) score += 50;
-        if (r.width <= 80 && r.height <= 80) score += 20;
-        if (el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') score -= 500;
-        buttons.push({ el, score });
-      }
-      if (buttons.some(x => x.score >= 200)) break;
-    }
-
-    buttons.sort((a, b) => b.score - a.score);
-    return buttons.find(x => x.score > 0)?.el || null;
+function isAttachmentButton(el) {
+  if (!el) return false;
+  const evidence = buttonEvidence(el);
+  const html = String(el.innerHTML || '').toLowerCase();
+  if (el.matches?.('input[type="file"]')) return true;
+  if (el.querySelector?.('input[type="file"]')) return true;
+  const labelFor = el.getAttribute?.('for');
+  if (labelFor) {
+    const target = document.getElementById(labelFor);
+    if (target?.matches?.('input[type="file"]')) return true;
   }
+  return (/附件|上传|选择文件|文件|attach|attachment|upload|paperclip|скреп|прикреп|файл/.test(evidence) || /paperclip|attachment|upload|file-input|input-file|скреп|прикреп/.test(html));
+}
+
+function isExplicitSendButton(el, composer) {
+  if (!el || !isVisible(el)) return false;
+  if (el.closest(`#${SCRIPT_ID}`)) return false;
+  if (isAttachmentButton(el)) return false;
+  if (el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') return false;
+  const evidence = buttonEvidence(el);
+  if (/发送|send|submit|отправ|message-send|send-message|sendbutton|send-button/.test(evidence)) return true;
+  if (el.tagName === 'BUTTON' && String(el.getAttribute('type') || '').toLowerCase() === 'submit') {
+    const form = el.closest('form');
+    if (form && composer && form.contains(composer)) return true;
+  }
+  return false;
+}
+
+function findSendButton(composer) {
+  let root = composer?.parentElement || null;
+  const candidates = [];
+  for (let depth = 0; root && depth < 7; depth++, root = root.parentElement) {
+    for (const el of root.querySelectorAll('button, [role="button"], input[type="submit"]')) {
+      if (!isExplicitSendButton(el, composer)) continue;
+      const evidence = buttonEvidence(el);
+      let score = 0;
+      if (/发送|send-message|message-send|sendbutton|send-button|отправ/.test(evidence)) score += 300;
+      if (/submit/.test(evidence)) score += 100;
+      if (el.tagName === 'BUTTON' && String(el.getAttribute('type') || '').toLowerCase() === 'submit') score += 80;
+      const r = el.getBoundingClientRect();
+      const cr = composer.getBoundingClientRect();
+      if (Math.abs((r.top + r.bottom) / 2 - (cr.top + cr.bottom) / 2) < 100) score += 20;
+      candidates.push({ el, score });
+    }
+    if (candidates.length) break;
+  }
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0]?.el || null;
+}
+
+function describeNearbyButtons(composer) {
+  try {
+    let root = composer?.parentElement || null;
+    for (let depth = 0; root && depth < 5; depth++, root = root.parentElement) {
+      const list = [...root.querySelectorAll('button, [role="button"], input[type="submit"]')].filter(el => isVisible(el) && !el.closest(`#${SCRIPT_ID}`)).slice(0, 12).map(el => `${el.tagName.toLowerCase()}{${buttonEvidence(el).slice(0, 180) || '无文字/属性'}}`);
+      if (list.length) return list.join(' | ');
+    }
+  } catch {}
+  return '未读取到附近按钮';
+}
 
   async function sendText(text) {
-    const composer = findComposer();
-    if (!composer) throw new Error('找不到聊天输入框');
-
-    setNativeValue(composer, String(text));
-    await sleep(250);
-
-    if (!normalize(editableText(composer))) {
-      throw new Error('文字未成功写入聊天输入框');
-    }
-
-    let sent = false;
-    const btn = findSendButton(composer);
-    if (btn && !btn.hasAttribute('disabled') && btn.getAttribute('aria-disabled') !== 'true') {
-      btn.click();
-      await sleep(600);
-      sent = !normalize(editableText(composer));
-    }
-
-    if (!sent) {
-      composer.focus();
-      composer.dispatchEvent(new KeyboardEvent('keydown', {
-        key: 'Enter',
-        code: 'Enter',
-        keyCode: 13,
-        which: 13,
-        bubbles: true,
-        cancelable: true,
-      }));
-      composer.dispatchEvent(new KeyboardEvent('keyup', {
-        key: 'Enter',
-        code: 'Enter',
-        keyCode: 13,
-        which: 13,
-        bubbles: true,
-        cancelable: true,
-      }));
-      await sleep(700);
-      sent = !normalize(editableText(composer));
-    }
-
-    if (!sent) {
-      throw new Error('未确认消息已发送，为避免重复投诉已自动暂停');
-    }
+  const composer = findComposer();
+  if (!composer) throw new Error('找不到聊天输入框');
+  setNativeValue(composer, String(text));
+  await sleep(300);
+  if (!normalize(editableText(composer))) throw new Error('文字未成功写入聊天输入框');
+  let sent = false;
+  const btn = findSendButton(composer);
+  if (btn) {
+    const evidence = buttonEvidence(btn);
+    log(`发送方式：点击已确认的发送按钮${evidence ? `（${evidence.slice(0, 80)}）` : ''}`);
+    btn.click();
+    await sleep(750);
+    sent = !normalize(editableText(composer));
   }
+  if (!sent) {
+    log(btn ? '点击发送按钮后输入框未清空，尝试 Enter' : '未找到明确发送按钮，尝试 Enter 发送');
+    composer.focus();
+    composer.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+    composer.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+    await sleep(850);
+    sent = !normalize(editableText(composer));
+  }
+  if (!sent) {
+    const nearby = describeNearbyButtons(composer);
+    console.warn('[Ozon投诉] 未找到安全的发送方式，附近按钮：', nearby);
+    throw new Error('未确认消息已发送，已自动暂停。为避免误点附件按钮，本版不会再按位置猜测发送按钮。请把运行日志和当前聊天输入区截图发给我继续适配。');
+  }
+}
 
   function textFromMutation(m) {
     const chunks = [];
@@ -682,13 +707,76 @@
     return -1;
   }
 
+  let XLSX_LIB = null;
+
+function getXlsxLib() {
+  try {
+    if (XLSX_LIB?.read && XLSX_LIB?.utils) return XLSX_LIB;
+    if (typeof XLSX !== 'undefined' && XLSX?.read && XLSX?.utils) {
+      XLSX_LIB = XLSX;
+      return XLSX_LIB;
+    }
+    if (unsafeWindow?.XLSX?.read && unsafeWindow?.XLSX?.utils) {
+      XLSX_LIB = unsafeWindow.XLSX;
+      return XLSX_LIB;
+    }
+  } catch {}
+  return null;
+}
+
+function fetchScriptText(url, timeout = 30000) {
+  return new Promise((resolve, reject) => {
+    GM_xmlhttpRequest({
+      method: 'GET',
+      url: `${url}${url.includes('?') ? '&' : '?'}_=${Date.now()}`,
+      timeout,
+      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      onload: res => {
+        if (res.status >= 200 && res.status < 300) resolve(String(res.responseText || ''));
+        else reject(new Error(`HTTP ${res.status || '未知'}`));
+      },
+      onerror: () => reject(new Error('网络请求失败')),
+      ontimeout: () => reject(new Error('请求超时')),
+    });
+  });
+}
+
+async function ensureXlsxLib() {
+  const existing = getXlsxLib();
+  if (existing) return existing;
+  const urls = [
+    'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js',
+    'https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js',
+  ];
+  let lastError = null;
+  for (const url of urls) {
+    try {
+      log(`正在加载 Excel 解析组件：${new URL(url).hostname}`);
+      const code = await fetchScriptText(url);
+      (0, eval)(`${code}\n//# sourceURL=kagura-xlsx-runtime.js`);
+      const loaded = getXlsxLib();
+      if (loaded) {
+        log('Excel 解析组件加载成功');
+        return loaded;
+      }
+      throw new Error('组件执行完成，但未检测到 XLSX');
+    } catch (error) {
+      lastError = error;
+      console.warn('[Ozon投诉] Excel 组件加载失败：', url, error);
+    }
+  }
+  throw new Error(`Excel 解析组件加载失败：${lastError?.message || '未知错误'}。脚本窗口仍可使用，请检查网络后重新选择表格。`);
+}
+
   function parseSheetRows(ws) {
-    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:A1');
+    const X = getXlsxLib();
+    if (!X) throw new Error('Excel 解析组件尚未加载');
+    const range = X.utils.decode_range(ws['!ref'] || 'A1:A1');
     const headerRow = range.s.r;
     const headers = [];
 
     for (let c = range.s.c; c <= range.e.c; c++) {
-      headers.push(cellDisplay(ws[XLSX.utils.encode_cell({ r: headerRow, c })]));
+      headers.push(cellDisplay(ws[X.utils.encode_cell({ r: headerRow, c })]));
     }
 
     const skuIdx = findHeaderIndex(headers, 'sku');
@@ -700,8 +788,8 @@
 
     const rows = [];
     for (let r = headerRow + 1; r <= range.e.r; r++) {
-      const skuCell = ws[XLSX.utils.encode_cell({ r, c: range.s.c + skuIdx })];
-      const linkCell = ws[XLSX.utils.encode_cell({ r, c: range.s.c + linkIdx })];
+      const skuCell = ws[X.utils.encode_cell({ r, c: range.s.c + skuIdx })];
+      const linkCell = ws[X.utils.encode_cell({ r, c: range.s.c + linkIdx })];
       const sku = cellDisplay(skuCell).replace(/\.0$/, '').trim();
       const link = cellLink(linkCell).trim();
 
@@ -737,8 +825,9 @@
     if (!file) return;
 
     try {
+      const X = await ensureXlsxLib();
       const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: 'array', cellText: true, cellDates: false });
+      const wb = X.read(buf, { type: 'array', cellText: true, cellDates: false });
       const first = wb.SheetNames[0];
       if (!first) throw new Error('表格没有工作表');
 
@@ -1001,6 +1090,40 @@
     }
   }
 
+  function showHelp() {
+  showUpdatePanel({
+    title: '使用说明',
+    html:
+      `<div style="line-height:1.75">` +
+      `<b>第一次使用：</b><br>` +
+      `1. 打开 Ozon Seller 客服聊天页面。<br>` +
+      `2. 点击 <b>选择 Excel/CSV</b>，导入投诉模板。<br>` +
+      `3. 确认面板显示文件名和任务数量。<br>` +
+      `4. 点击 <b>开始/继续</b>。<br><br>` +
+      `<b>自动循环：</b><br>` +
+      `发送 SKU → 等客服要求提供版权/证据 → 发送该 SKU 对应申诉链接 → 等客服回复核查 → 点击“返回” → 处理下一个 SKU。<br><br>` +
+      `<b>安全规则：</b><br>` +
+      `任何一步无法确认发送成功、等待回复超时、或找不到“返回”按钮，脚本都会暂停，不会盲目重复发送。<br><br>` +
+      `<b>窗口操作：</b><br>` +
+      `标题栏可拖动；右上角“−”可缩小成图标；图标可拖动，单击恢复。窗口找不到时，可从 Tampermonkey 菜单点击“显示/恢复 Ozon 自动投诉窗口”。` +
+      `</div>`,
+  });
+}
+
+function forceRestorePanel() {
+  ensureUI();
+  uiState.minimized = false;
+  uiState.x = null;
+  uiState.y = null;
+  saveUiState();
+  const box = document.getElementById(SCRIPT_ID);
+  if (box) {
+    box.style.display = '';
+    applyUiMode(box);
+    applyUiPosition(box);
+  }
+}
+
   function ensureUI() {
     if (document.getElementById(SCRIPT_ID)) return;
 
@@ -1128,6 +1251,7 @@
           <button id="kg-pause">暂停</button>
         </div>
         <div class="kg-row">
+          <button id="kg-help">操作说明</button>
           <button id="kg-reset">重置进度</button>
           <button id="kg-export">导出结果</button>
           <button id="kg-clear" class="kg-danger">清空</button>
@@ -1163,6 +1287,7 @@
     });
     box.querySelector('#kg-start').addEventListener('click', runQueue);
     box.querySelector('#kg-pause').addEventListener('click', pauseRun);
+    box.querySelector('#kg-help').addEventListener('click', showHelp);
     box.querySelector('#kg-reset').addEventListener('click', () => {
       if (confirm('确认把所有执行状态重置为待处理？')) resetProgress();
     });
@@ -1224,19 +1349,53 @@
       .replace(/"/g, '&quot;');
   }
 
-  function boot() {
-    if (!/seller\.ozon\.ru$/i.test(location.hostname)) return;
+  function safeEnsureUI() {
+  try {
     ensureUI();
-
-    // Ozon 是 SPA，页面切换后保证面板仍在
-    setInterval(() => {
-      if (!document.getElementById(SCRIPT_ID)) ensureUI();
-    }, 2000);
+    return true;
+  } catch (error) {
+    console.error('[Ozon投诉] 界面初始化失败：', error);
+    try {
+      let fallback = document.getElementById('kagura-ozon-complaint-fallback');
+      if (!fallback && document.body) {
+        fallback = document.createElement('button');
+        fallback.id = 'kagura-ozon-complaint-fallback';
+        fallback.textContent = 'Ozon投诉脚本加载异常｜点击重试';
+        fallback.style.cssText = 'position:fixed;right:16px;bottom:16px;z-index:2147483647;border:0;border-radius:10px;padding:10px 12px;background:#c62828;color:#fff;font:13px Microsoft YaHei,sans-serif;cursor:pointer;box-shadow:0 8px 25px rgba(0,0,0,.22)';
+        fallback.title = String(error?.message || error);
+        fallback.addEventListener('click', () => {
+          fallback.remove();
+          try { forceRestorePanel(); }
+          catch (retryError) { alert(`Ozon 自动投诉窗口恢复失败：${retryError?.message || retryError}`); }
+        });
+        document.body.appendChild(fallback);
+      }
+    } catch {}
+    return false;
   }
+}
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot, { once: true });
-  } else {
-    boot();
+function boot() {
+  if (!/seller\.ozon\.ru$/i.test(location.hostname)) return;
+  safeEnsureUI();
+  try {
+    if (typeof GM_registerMenuCommand === 'function') {
+      GM_registerMenuCommand('显示/恢复 Ozon 自动投诉窗口', () => {
+        try { forceRestorePanel(); }
+        catch (error) { alert(`Ozon 自动投诉窗口恢复失败：${error?.message || error}`); }
+      });
+    }
+  } catch (error) {
+    console.warn('[Ozon投诉] 注册 Tampermonkey 菜单失败：', error);
   }
+  setInterval(() => {
+    if (!document.getElementById(SCRIPT_ID)) safeEnsureUI();
+  }, 2000);
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', boot, { once: true });
+} else {
+  boot();
+}
 })();

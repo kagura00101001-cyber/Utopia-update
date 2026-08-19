@@ -1,1 +1,0 @@
-POD updater identity lock: keep base @name as "ChatGPT服装POD统一工作台 V1.2.2" for in-place upgrades from V1.2.2. Visible localized name and UI use the current version. This note may be removed after the V1.2.3 transition is confirmed.

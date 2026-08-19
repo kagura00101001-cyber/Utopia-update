@@ -1,12 +1,11 @@
-name: "Publish V3.1.2 refresh recovery"
+name: "Publish V3.2.0 POD update"
 
 "on":
   push:
     branches:
-      - release-v3.1.2-refresh-recovery
+      - main
     paths:
-      - '.github/workflows/publish-v3.1.2-refresh-recovery.yml'
-      - 'tools/patch_v3_1_2.py'
+      - 'tools/patch_v3_2_0.py'
 
 permissions:
   contents: write
@@ -16,26 +15,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch V3.1.2
-        run: python3 tools/patch_v3_1_2.py
+      - name: Patch V3.2.0
+        run: python3 tools/patch_v3_2_0.py
       - name: Syntax check
         run: node -c Ozon_ChatGPT.user.js
-      - name: Verify refresh recovery
+      - name: Verify POD updater
         shell: bash
         run: |
-          grep -F '// @version      3.1.2' Ozon_ChatGPT.user.js
-          grep -F 'function cFindCurrentAssistantReply' Ozon_ChatGPT.user.js
-          grep -F 'function cPrimeRefreshRecovery' Ozon_ChatGPT.user.js
-          grep -F '最终深度恢复扫描' Ozon_ChatGPT.user.js
-          grep -F 'imgs.length < 1 && lazySlots.length < 2' Ozon_ChatGPT.user.js
-          grep -F '刷新恢复改为主动定位当前批次用户消息' latest.json
-          test -s 'versions/Ozon_ChatGPT批量生图下载器_V3.1.2.txt'
-      - name: Commit V3.1.2
+          grep -F '// @version      3.2.0' Ozon_ChatGPT.user.js
+          grep -F "const APP_VERSION = '3.2.0'" Ozon_ChatGPT.user.js
+          grep -F 'KAGURA_POD_STYLE_UPDATE_V320' Ozon_ChatGPT.user.js
+          grep -F 'openPodStyleUpdate' Ozon_ChatGPT.user.js
+          grep -F 'raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js' Ozon_ChatGPT.user.js
+          grep -F '立刻更新' Ozon_ChatGPT.user.js
+          ! grep -F '前往 Tampermonkey 更新' Ozon_ChatGPT.user.js
+          ! grep -F 'showGuide(updateButton)' Ozon_ChatGPT.user.js
+          grep -F '"version": "3.2.0"' latest.json
+          test -s 'versions/Ozon_ChatGPT批量生图下载器_V3.2.0.txt'
+      - name: Commit V3.2.0
         shell: bash
         run: |
           git config user.name "Kagura Update Bot"
           git config user.email "actions@users.noreply.github.com"
           git add Ozon_ChatGPT.user.js Ozon_ChatGPT.meta.js latest.json history.json versions
           git diff --cached --quiet && exit 0
-          git commit -m "发布 V3.1.2 增强刷新恢复与懒加载扫描"
+          git commit -m "发布 V3.2.0 POD 统一热更新模块"
           git push

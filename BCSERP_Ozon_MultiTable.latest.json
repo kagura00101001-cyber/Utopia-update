@@ -1,0 +1,13 @@
+{
+  "version": "4.3.0",
+  "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/BCSERP_Ozon_MultiTable.user.js",
+  "download_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/BCSERP_Ozon_MultiTable.user.js",
+  "published_at": "2026-08-19",
+  "changelog": [
+    "新增与当前 POD 工作台一致的独立手动热更新模块。",
+    "页面启动后自动检查新版；无新版时不打扰，发现新版时弹窗提醒。",
+    "版本弹窗显示更新说明，并提供“立刻更新 / 本版本不再提醒 / 稍后”。",
+    "立刻更新只打开 Tampermonkey 新版确认页，不会自动下载、自动替换或自动执行。",
+    "保留 V4.2.4 商品订单量阈值服务端筛选、搜索请求官方数组、类目TOP、卖家、价格等采集逻辑。"
+  ]
+}

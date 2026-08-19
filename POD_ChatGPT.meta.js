@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         ChatGPT服装POD统一工作台
+// @name         ChatGPT服装POD统一工作台 V1.2.2
 // @name:zh-CN   ChatGPT服装POD统一工作台 V1.2.3
 // @namespace    https://github.com/Kagura-userscripts
 // @version      1.2.3

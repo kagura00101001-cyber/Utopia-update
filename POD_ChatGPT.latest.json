@@ -1,0 +1,14 @@
+{
+  "version": "1.2.3",
+  "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
+  "download_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
+  "published_at": "2026-08-19",
+  "changelog": [
+    "修复 Excel 空白单元格被误判为表头，解决 500 条任务表只识别 34 条的问题。",
+    "Excel 自动识别改为扫描全部工作表，并按实际有效任务行、编号数量、非空提示词数量综合评分。",
+    "“完整中文生图提示词”设为最高优先级；使用本次 500 条真实任务表回归，正确识别工作表“500条提示词”、编号列“编号”、提示词列“完整中文生图提示词”，共 500 条。",
+    "任务表导入区改为“选择 Excel 任务表”按钮；导入后明确显示文件、工作表、编号列、提示词列和识别任务数。",
+    "保留 V1.2.2 的母提示词可留空、日志按需刷新、运行参数布局和稳定 ChatGPT 上传/创建图片/发送确认/生图检测逻辑。",
+    "正式补齐 POD 独立热更新发布文件；发现新版只提醒，更新仍需用户手动确认覆盖，不自动下载、不自动替换、不自动执行。"
+  ]
+}

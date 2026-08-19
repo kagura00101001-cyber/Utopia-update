@@ -1,0 +1,46 @@
+name: Publish V3.2.0 POD update module
+
+on:
+  push:
+    branches:
+      - release-v3.2.0-pod-update-module
+    paths:
+      - tools/patch_v3_2_0.py
+      - .github/workflows/publish-v3.2.0-pod-update-module.yml
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release-v3.2.0-pod-update-module
+          fetch-depth: 0
+      - name: Apply patch
+        run: python3 tools/patch_v3_2_0.py
+      - name: Syntax check
+        run: node -c Ozon_ChatGPT.user.js
+      - name: Verify POD updater
+        run: |
+          grep -q '@version      3.2.0' Ozon_ChatGPT.user.js
+          grep -q "const APP_VERSION = '3.2.0'" Ozon_ChatGPT.user.js
+          grep -q 'KAGURA_POD_STYLE_UPDATE_V320' Ozon_ChatGPT.user.js
+          grep -q 'raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js' Ozon_ChatGPT.user.js
+          grep -q '立刻更新' Ozon_ChatGPT.user.js
+          ! grep -q '前往 Tampermonkey 更新' Ozon_ChatGPT.user.js
+          ! grep -q 'showGuide(updateButton)' Ozon_ChatGPT.user.js
+          grep -q '"version": "3.2.0"' latest.json
+      - name: Commit release files
+        run: |
+          git config user.name kagura00101001-cyber
+          git config user.email kagura00101001@gmail.com
+          git add Ozon_ChatGPT.user.js Ozon_ChatGPT.meta.js latest.json history.json versions/Ozon_ChatGPT批量生图下载器_V3.2.0.txt
+          if git diff --cached --quiet; then
+            echo 'No changes to commit'
+          else
+            git commit -m '发布 V3.2.0 POD 统一热更新模块'
+            git push origin HEAD:release-v3.2.0-pod-update-module
+          fi

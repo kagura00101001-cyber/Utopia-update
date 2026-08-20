@@ -1,0 +1,94 @@
+name: Publish POD V1.3.0
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  publish:
+    if: github.event.issue.title == '[internal] publish POD V1.3.0'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify V1.2.4 base
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object POD_ChatGPT.user.js)" = "40c3acadd2a70aeb18c324a51329613da6cf9f73"
+
+      - name: Decode and apply verified patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 -d .pod_release/POD_v130.patch.gz.b64 | gzip -d > /tmp/POD_v130.patch
+          echo "4b5270385fb0783c83732d01308f788fac5c9c032c522999ff148844a5d726f2  /tmp/POD_v130.patch" | sha256sum -c -
+          git apply --check /tmp/POD_v130.patch
+          git apply /tmp/POD_v130.patch
+          node --check POD_ChatGPT.user.js
+          echo "84b3cd43106c68b59e83318b5753c5cffb6b5b45b8709050c6937b230a733123  POD_ChatGPT.user.js" | sha256sum -c -
+
+      - name: Publish metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          script = Path('POD_ChatGPT.user.js').read_text(encoding='utf-8')
+          marker = '// ==/UserScript=='
+          head = script[:script.index(marker)+len(marker)] + '\n'
+          Path('POD_ChatGPT.meta.js').write_text(head, encoding='utf-8')
+
+          notes = [
+            '批量生图流程固定为“Excel完整提示词 + 1张公共模板图”，不再需要参考图目录、扫描或图片匹配。',
+            '公共模板图改为必需项，每一批只上传同一张模板图一次；Excel 每行完整提示词决定对应任务的设计内容。',
+            '删除批量生图中的任务来源模式和参考图相关界面；参考图类能力以后只在其他独立流程中添加。',
+            '新增可编辑公共提示词：只描述模板图的共同使用规则，可留空并自动保存；Excel 完整提示词保持原文进入对应任务。',
+            '升级后自动清理旧任务中的“未匹配参考图”状态，已导入的 500 条任务无需重新准备参考图。',
+            '保留按 Excel 文件名自动创建输出子文件夹、日志按需刷新，以及稳定 ChatGPT 上传/创建图片/发送确认/生图检测与下载核心。'
+          ]
+          manifest = {
+            'version':'1.3.0',
+            'install_url':'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js',
+            'download_url':'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js',
+            'published_at':'2026-08-20',
+            'changelog':notes,
+          }
+          Path('POD_ChatGPT.latest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          compat = {'version':'1.3.0','name':'ChatGPT服装POD统一工作台',**{k:v for k,v in manifest.items() if k!='version'}}
+          Path('POD_ChatGPT_latest.json').write_text(json.dumps(compat,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          hp=Path('POD_ChatGPT.history.json')
+          history=json.loads(hp.read_text(encoding='utf-8'))
+          versions=history.setdefault('versions',[])
+          versions=[v for v in versions if str(v.get('version'))!='1.3.0']
+          versions.insert(0,{'version':'1.3.0','date':'2026-08-20','notes':notes})
+          history['versions']=versions
+          hp.write_text(json.dumps(history,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          PY
+
+      - name: Commit release and clean temporary files
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .pod_release/POD_v130.patch.gz.b64 .github/workflows/pod_publish_v130.yml
+          rmdir .pod_release 2>/dev/null || true
+          git config user.name 'Kagura Update Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'release: POD unified workbench V1.3.0'
+          git push
+
+      - name: Close release issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: gh issue close "${{ github.event.issue.number }}" --reason completed --comment 'POD V1.3.0 published and verified.'

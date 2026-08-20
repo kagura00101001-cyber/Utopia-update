@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ChatGPT服装POD统一工作台 V1.2.2
-// @name:zh-CN   ChatGPT服装POD统一工作台 V1.3.0
+// @name:zh-CN   ChatGPT服装POD统一工作台 V1.3.1
 // @namespace    https://github.com/Kagura-userscripts
-// @version      1.3.0
-// @description  服装POD统一工作台：V1.3.0 将批量生图固定为 Excel完整提示词 + 1张公共模板图，不再需要参考图；公共规则可编辑，输出仍按 Excel 自动归档。
+// @version      1.3.1
+// @description  服装POD统一工作台：V1.3.1 在批量生图中新增可选公共Logo图；每批可上传模板图 + Logo图，Excel完整提示词保持原文，输出仍按 Excel 自动归档。
 // @author       Kagura
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js
@@ -42,11 +42,13 @@
  * - V1.2.3 修复空白单元格被误判为表头导致只识别34条的问题；所有工作表按有效任务量评分，完整中文生图提示词最高优先；任务表改为按钮选择并显示实际识别信息。
  * - V1.2.4 新增输出归档：选择总输出目录后，若已导入 Excel，则自动按 Excel 文件名（去扩展名）创建/复用批次子文件夹；正常图、待确认图和任务记录统一写入。
  * - V1.3.0 批量生图正式改为“Excel完整提示词 + 1张公共模板图”：删除参考图目录/扫描/匹配依赖；模板图必需；公共规则可编辑；每批仅上传1张模板图。
+ * - V1.3.1 新增可选公共Logo图：若已选择Logo图，则每批额外上传同一张公共Logo图一次；模板图仍用于产品载体，Logo图只用于品牌标识参考。
+ * - V1.3.1 的公共提示词支持说明 Logo 使用规则；未提供 Logo 图时仍保持“仅模板图 + Excel完整提示词”的批量生图流程。
    * - 已确认发送后的任务遵循 at-most-once：优先恢复检测，不轻易重复发送。
    * ================================================================
    */
 
-  const APP_VERSION = '1.3.0';
+  const APP_VERSION = '1.3.1';
   const APP_NAME = `ChatGPT服装POD统一工作台 V${APP_VERSION}`;
 
   const STATE_KEY = 'kaguraPodStandaloneStateV120';
@@ -60,6 +62,7 @@
   const DB_STORE = 'handles';
   const OUTPUT_KEY = 'output-directory';
   const TEMPLATE_KEY = 'template-file';
+  const LOGO_KEY = 'logo-file';
 
   // 独立手动热更新通道：只检查/提醒，不会自动下载、替换或执行新版。
   const UPDATE_MANIFEST = 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.latest.json';
@@ -69,7 +72,8 @@
   const DEFAULT_PUBLIC_PROMPT = [
     '模板图只用于约束产品版型、剪裁结构、领口、袖型、衣身比例、松紧程度、面料纹理/质感、模特展示方式和整体产品形态。',
     '不得继承模板图中的衣服颜色、图案、配色、风格或其他视觉元素；每个任务的最终设计内容以对应 Excel 行的完整提示词为准。',
-    '不同任务之间禁止混用图案元素、文字、Logo、配色、风格或其他设计特征。'
+    '不同任务之间禁止混用图案元素、文字、Logo、配色、风格或其他设计特征。',
+    '如果本批同时提供公共Logo图，则Logo图只用于品牌Logo参考；未明确要求使用Logo的任务不要强行添加Logo。'
   ].join('\n');
 
   const DEFAULT_STATE = {
@@ -110,6 +114,7 @@
     intervalMax: 7000,
     filter: 'all',
     search: '',
+    useLogoFile: false,
   };
 
   const savedState = GM_getValue(STATE_KEY, null) ?? GM_getValue(LEGACY_STATE_KEY, null);
@@ -155,7 +160,7 @@
   function nowText(d=new Date()){ return d.toLocaleTimeString('zh-CN',{hour12:false}); }
   function stamp(d=new Date()) { const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; }
   function formatDuration(ms){ const s=Math.max(0,Math.floor(Number(ms||0)/1000)); const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`; }
-  function phaseLabel(p=state.phase){ return ({idle:'等待配置',ready:'准备开始',preparing:'准备当前批次',activating_create_image:'添加创建图片模式',uploading_template:'上传模板图',writing_prompt:'写入提示词',sending:'发送并确认提交',generating:'等待/检测生图',downloading:'下载保存',recovering:'恢复检测',refreshing:'刷新同步结果',batch_wait:'批次间等待',pending:'异常待确认',error:'异常暂停',done:'全部完成'})[p]||String(p||'未知'); }
+  function phaseLabel(p=state.phase){ return ({idle:'等待配置',ready:'准备开始',preparing:'准备当前批次',activating_create_image:'添加创建图片模式',uploading_assets:'上传模板/Logo图',uploading_template:'上传模板图',writing_prompt:'写入提示词',sending:'发送并确认提交',generating:'等待/检测生图',downloading:'下载保存',recovering:'恢复检测',refreshing:'刷新同步结果',batch_wait:'批次间等待',pending:'异常待确认',error:'异常暂停',done:'全部完成'})[p]||String(p||'未知'); }
   function totalRunMs(){ return Number(state.totalRunMs||0)+(state.runSegmentStartedAt?Math.max(0,Date.now()-state.runSegmentStartedAt):0); }
   function batchElapsed(){ return state.batchStartedAt?Date.now()-state.batchStartedAt:Number(state.lastBatchElapsedMs||0); }
   function generationElapsed(){ return state.generationStartedAt?Date.now()-state.generationStartedAt:Number(state.lastGenerationElapsedMs||0); }
@@ -181,6 +186,8 @@
   async function permission(handle,mode='read',request=false){if(!handle)return'denied';const o={mode};try{if(await handle.queryPermission(o)==='granted')return'granted';if(request&&await handle.requestPermission(o)==='granted')return'granted';}catch(_){}return'denied';}
   async function chooseOutput(){const picker=unsafeWindow.showDirectoryPicker||window.showDirectoryPicker;if(typeof picker!=='function')throw new Error('当前浏览器不支持选择文件夹');const h=await picker.call(unsafeWindow,{mode:'readwrite'});await saveHandle(OUTPUT_KEY,h);if(excelBatchFolderName()){await ensureTaskOutputDir({requestPermission:true,logCreated:true});}else log(`输出目录：${h.name}`,'success');await updateFolderLabels();}
   async function chooseTemplate(){const picker=unsafeWindow.showOpenFilePicker||window.showOpenFilePicker;if(typeof picker!=='function')throw new Error('当前浏览器不支持选择模板图');const [h]=await picker.call(unsafeWindow,{multiple:false,types:[{description:'图片',accept:{'image/*':['.jpg','.jpeg','.png','.webp']}}]});if(!h)return;await saveHandle(TEMPLATE_KEY,h);log(`公共模板图：${h.name}`,'success');await updateFolderLabels();}
+  async function chooseLogo(){const picker=unsafeWindow.showOpenFilePicker||window.showOpenFilePicker;if(typeof picker!=='function')throw new Error('当前浏览器不支持选择Logo图');const [h]=await picker.call(unsafeWindow,{multiple:false,types:[{description:'图片',accept:{'image/*':['.jpg','.jpeg','.png','.webp']}}]});if(!h)return;await saveHandle(LOGO_KEY,h);log(`公共Logo图：${h.name}`,'success');await updateFolderLabels();}
+  async function clearLogo(){const db=await openDb();await new Promise((res,rej)=>{const tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).delete(LOGO_KEY);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});db.close();log('公共Logo图已清除','warn');await updateFolderLabels();}
   async function writeBlob(dir,name,blob){if(await permission(dir,'readwrite',false)!=='granted')throw new Error('输出目录写入权限失效，请重新选择');const fh=await dir.getFileHandle(name,{create:true});const w=await fh.createWritable();await w.write(blob);await w.close();}
 
   function norm(v){return String(v??'').trim().toLowerCase().replace(/[\s\n\r\t_\-—–（）()【】\[\]：:]/g,'');}
@@ -344,6 +351,7 @@
   }
   function buildBatchPrompt(tasks){
     const common=publicPrompt();
+    const hasLogo=Boolean(settings.useLogoFile);
     const lines=[];
     if(common){lines.push('【公共规则】',common,'');}
     lines.push('【本批任务】');
@@ -354,8 +362,9 @@
       lines.push('');
     });
     lines.push('【固定执行要求】');
-    lines.push('你会收到 1 张公共模板图，该模板图是本批所有任务共同使用的产品载体。');
+    lines.push(`你会收到 1 张公共模板图，该模板图是本批所有任务共同使用的产品载体。${hasLogo?'另外还会收到 1 张公共Logo图，该Logo图只用于品牌Logo参考。':''}`);
     lines.push(`本批共有 ${tasks.length} 个独立任务，必须严格生成 ${tasks.length} 张结果图；第1张对应第1个任务、第2张对应第2个任务，依此类推。`);
+    if(hasLogo) lines.push('Logo图不能当作产品主体，也不要把 Logo 图上的元素扩展成整件衣服的主图案；只有当前任务明确需要时才使用该 Logo。');
     lines.push('不同任务之间禁止混用任何设计内容；不要把多个任务合并到同一张图中。');
     return lines.filter((x,i,a)=>!(x===''&&a[i-1]==='')).join('\n').trim();
   }
@@ -363,13 +372,15 @@
   async function validateHandles(request=true){
     if(!state.importedFileName||!state.tasks.length)throw new Error('请先导入 Excel 任务表');
     refreshMissingPromptStates();
-    const template=await getHandle(TEMPLATE_KEY),outputRoot=await getHandle(OUTPUT_KEY);
+    const template=await getHandle(TEMPLATE_KEY),logo=await getHandle(LOGO_KEY),outputRoot=await getHandle(OUTPUT_KEY);
     if(!template)throw new Error('请先选择公共模板图');
     if(!outputRoot)throw new Error('请先选择输出目录');
     if(await permission(template,'read',request)!=='granted')throw new Error('没有公共模板图读取权限');
+    if(logo&&await permission(logo,'read',request)!=='granted')throw new Error('没有公共Logo图读取权限');
     if(await permission(outputRoot,'readwrite',request)!=='granted')throw new Error('没有输出目录写入权限');
     const output=await getTaskOutputDir(outputRoot,{create:true,requestPermission:request});
-    return{output,outputRoot,template};
+    settings.useLogoFile=Boolean(logo);
+    return{output,outputRoot,template,logo};
   }
 
 
@@ -429,15 +440,15 @@
 
   async function processBatch(){const handles=await validateHandles(false);let tasks=currentBatchTasks();let detectOnly=Boolean(state.resumeContext?.kind==='generation-refresh'&&state.currentBatchKeys.length);if(!tasks.length){tasks=pendingTasks().slice(0,Math.max(1,Math.min(10,Number(settings.batchSize)||3)));if(!tasks.length)return false;state.currentBatchKeys=tasks.map(t=>t.key);state.currentBatchPaths=[];state.batchStartedAt=Date.now();state.generationStartedAt=0;state.detectedGeneratedCount=0;state.expectedGeneratedCount=tasks.length;state.generatedCountChangedAt=Date.now();state.phase='preparing';for(const t of tasks){t.status='running';t.attempts=Number(t.attempts||0)+1;t.error='';t.updatedAt=new Date().toISOString();}saveState();}
     const prompt=state.resumeContext?.prompt||buildBatchPrompt(tasks);let uploadRetries=0;let execution=0;
-    while(true){execution++;let sent=detectOnly;try{log(`${detectOnly?'恢复检测':'开始处理'}第 ${state.batchNo} 批：${tasks.map(t=>t.id).join('–')}`,'success');let baseline=new Set();if(!detectOnly){if(settings.newChatEachBatch)await goNewChat();baseline=new Set(generatedImages().map(i=>i.key));state.phase='uploading_template';saveState();const expected=await uploadFiles([await handles.template.getFile()],'公共模板图');await activateCreate();state.phase='writing_prompt';saveState();await setPromptValue(prompt);state.phase='sending';saveState();await sendPrompt(expected,prompt);sent=true;state.generationStartedAt=Date.now();state.phase='generating';saveState();}else{baseline=new Set();state.phase='recovering';state.generationStartedAt=state.generationStartedAt||Date.now();saveState();log('当前批次此前已发送成功，本次只恢复检测，不会重新发送','warn');await sleep(8000);}
+    while(true){execution++;let sent=detectOnly;try{log(`${detectOnly?'恢复检测':'开始处理'}第 ${state.batchNo} 批：${tasks.map(t=>t.id).join('–')}`,'success');let baseline=new Set();if(!detectOnly){if(settings.newChatEachBatch)await goNewChat();baseline=new Set(generatedImages().map(i=>i.key));state.phase='uploading_assets';saveState();const uploadList=[await handles.template.getFile()];let uploadLabel='公共模板图';if(handles.logo){uploadList.push(await handles.logo.getFile());uploadLabel='公共模板图、公共Logo图';}const expected=await uploadFiles(uploadList,uploadLabel);await activateCreate();state.phase='writing_prompt';saveState();await setPromptValue(prompt);state.phase='sending';saveState();await sendPrompt(expected,prompt);sent=true;state.generationStartedAt=Date.now();state.phase='generating';saveState();}else{baseline=new Set();state.phase='recovering';state.generationStartedAt=state.generationStartedAt||Date.now();saveState();log('当前批次此前已发送成功，本次只恢复检测，不会重新发送','warn');await sleep(8000);}
       const imgs=await waitGenerated(baseline,tasks.length,prompt);state.resumeContext=null;state.detectedGeneratedCount=imgs.length;state.phase='downloading';saveState();if(imgs.length!==tasks.length){const saved=await downloadAbnormal(imgs,state.batchNo,handles.output);for(const t of tasks){t.status='confirm';t.error=`生成数量不一致：计划${tasks.length}张，实际${imgs.length}张；已保存待确认文件 ${saved.join('、')}`;t.updatedAt=new Date().toISOString();}log(`第${state.batchNo}批进入待确认：任务${tasks.length}条，生成${imgs.length}张；不按顺序强行配图`,'warn');}else await downloadNormal(imgs,tasks,handles.output);
       finishBatchTimers();state.currentBatchKeys=[];state.currentBatchPaths=[];state.resumeContext=null;state.batchNo++;state.phase=pendingTasks().length?'ready':'done';saveState();return true;
-    }catch(e){if(e instanceof PausedError)throw e;if(e instanceof UploadRetryableError&&uploadRetries<2&&!sent){uploadRetries++;log(`模板图上传失败，整批清理/重试 ${uploadRetries}/2：${e.message}`,'warn');await clearComposer();detectOnly=false;await sleep(1200);continue;}if(sent){const partial=normalizeGallery(generatedImages(prompt),0);const saved=await downloadAbnormal(partial,state.batchNo,handles.output).catch(()=>[]);for(const t of tasks){t.status='confirm';t.error=`已发送后异常：${e.message}；为避免重复生成不自动重发${saved.length?`；临时图：${saved.join('、')}`:''}`;t.updatedAt=new Date().toISOString();}state.resumeContext=null;finishBatchTimers();state.currentBatchKeys=[];state.currentBatchPaths=[];state.batchNo++;state.phase='ready';saveState();log(`第${state.batchNo-1}批发送后异常，已转待确认，不自动重发`,'warn');return true;}for(const t of tasks){t.status='error';t.error=e.message||String(e);t.updatedAt=new Date().toISOString();}state.running=false;state.phase='error';saveState();throw e;}}
+    }catch(e){if(e instanceof PausedError)throw e;if(e instanceof UploadRetryableError&&uploadRetries<2&&!sent){uploadRetries++;log(`模板/Logo图上传失败，整批清理/重试 ${uploadRetries}/2：${e.message}`,'warn');await clearComposer();detectOnly=false;await sleep(1200);continue;}if(sent){const partial=normalizeGallery(generatedImages(prompt),0);const saved=await downloadAbnormal(partial,state.batchNo,handles.output).catch(()=>[]);for(const t of tasks){t.status='confirm';t.error=`已发送后异常：${e.message}；为避免重复生成不自动重发${saved.length?`；临时图：${saved.join('、')}`:''}`;t.updatedAt=new Date().toISOString();}state.resumeContext=null;finishBatchTimers();state.currentBatchKeys=[];state.currentBatchPaths=[];state.batchNo++;state.phase='ready';saveState();log(`第${state.batchNo-1}批发送后异常，已转待确认，不自动重发`,'warn');return true;}for(const t of tasks){t.status='error';t.error=e.message||String(e);t.updatedAt=new Date().toISOString();}state.running=false;state.phase='error';saveState();throw e;}}
   }
   async function clearComposer(){const c=findComposer();for(let n=0;n<10&&countAttachments()>0;n++){const b=[...c.querySelectorAll('button[aria-label*="移除"],button[aria-label*="Remove"],button[aria-label*="删除附件"],button[aria-label*="Delete attachment"]')].filter(isVisible);if(!b.length)break;for(const x of b){smartClick(x);await sleep(150)}}const e=findPromptEditor();if(e){try{if(e instanceof HTMLTextAreaElement||e instanceof HTMLInputElement)setNativeValue(e,'');else{e.focus();document.execCommand('selectAll',false);document.execCommand('delete',false)}}catch(_){}}await sleep(500);}
   async function betweenBatches(){const min=Math.max(0,Number(settings.intervalMin)||0),max=Math.max(min,Number(settings.intervalMax)||min),ms=Math.floor(min+Math.random()*(max-min+1)),end=Date.now()+ms;log(`本批完成，随机等待 ${Math.ceil(ms/1000)} 秒后进入下一批`);while(state.running&&Date.now()<end){state.phase='batch_wait';updatePanel();await sleep(Math.min(1000,end-Date.now()))}if(!state.running)return false;state.phase='ready';saveState();return true;}
   async function worker(){if(workerActive||!state.running)return;workerActive=true;try{while(state.running&&pendingTasks().length){const ok=await processBatch();if(!ok)break;if(state.running&&pendingTasks().length&&!await betweenBatches())break;}if(state.running&&!pendingTasks().length){stopRunClock();state.running=false;state.phase='done';saveState();log(`全部完成：${activeTasks().filter(t=>t.status==='done').length} 条已完成，${activeTasks().filter(t=>t.status==='confirm').length} 条待确认`,'success')}}catch(e){if(e instanceof PausedError)log('任务已暂停','warn');else{stopRunClock();state.running=false;state.phase='error';saveState();log(e.message||String(e),'error')}}finally{workerActive=false;updatePanel();}}
-  async function start(){readUiSettings();if(settings.flow!=='batch_generation')throw new Error('当前流程尚未启用执行器，请切换到“批量生图”');refreshMissingPromptStates();saveState(false);await validateHandles(true);renderTaskList(true);const p=pendingTasks();if(!p.length){const missing=activeTasks().filter(t=>t.status==='error'&&/^缺少Excel完整提示词/.test(String(t.error||''))).length;if(missing)log(`当前范围没有可执行任务；其中 ${missing} 条缺少 Excel 完整提示词`,'warn');else log('当前范围没有待处理任务','warn');return;}state.running=true;state.phase='ready';startRunClock();saveState();log(`任务开始：待处理 ${p.length} 条，每批 ${settings.batchSize} 条；每批只上传 1 张公共模板图`,'success');worker();}
+  async function start(){readUiSettings();if(settings.flow!=='batch_generation')throw new Error('当前流程尚未启用执行器，请切换到“批量生图”');refreshMissingPromptStates();saveState(false);await validateHandles(true);renderTaskList(true);const p=pendingTasks();if(!p.length){const missing=activeTasks().filter(t=>t.status==='error'&&/^缺少Excel完整提示词/.test(String(t.error||''))).length;if(missing)log(`当前范围没有可执行任务；其中 ${missing} 条缺少 Excel 完整提示词`,'warn');else log('当前范围没有待处理任务','warn');return;}state.running=true;state.phase='ready';startRunClock();saveState();log(`任务开始：待处理 ${p.length} 条，每批 ${settings.batchSize} 条；每批上传 1 张公共模板图${settings.useLogoFile?' + 1 张公共Logo图':''}`,'success');worker();}
   function pause(){stopRunClock();state.running=false;saveState();log('已请求暂停；当前页面操作结束后停止','warn');}
   function skipCurrent(){const tasks=currentBatchTasks();if(!tasks.length)return;for(const t of tasks){t.status='skipped';t.error='用户跳过当前批';t.updatedAt=new Date().toISOString();}finishBatchTimers();state.currentBatchKeys=[];state.currentBatchPaths=[];state.resumeContext=null;state.batchNo++;state.running=false;state.phase='ready';saveState();log(`已跳过当前批：${tasks.map(t=>t.id).join('、')}`,'warn');}
   function resetProgress(){if(!confirm('确定把任务状态全部重置为待处理吗？已保存图片不会删除。'))return;for(const t of state.tasks){t.status='pending';t.outputFiles=[];t.error='';t.attempts=0;}stopRunClock();state.running=false;state.phase='ready';state.batchNo=1;state.currentBatchKeys=[];state.currentBatchPaths=[];state.resumeContext=null;state.totalRunMs=0;state.startedAt=0;finishBatchTimers();saveState();log('任务状态和运行进度已重置','warn');}
@@ -543,18 +554,19 @@
         </div>
         <div style="font-size:10.5px;color:#758196;margin:5px 0 8px">脚本会扫描所有工作表并按实际有效任务量选择主任务表；“完整中文生图提示词”优先级最高。批量生图不再匹配参考图。</div>
         <div class="pod-row"><span class="pod-label">公共模板图</span><span class="pod-value" data-role="template">未选择</span></div>
+        <div class="pod-row"><span class="pod-label">公共Logo图</span><span class="pod-value" data-role="logo">未使用（可选）</span></div>
         <div class="pod-row"><span class="pod-label">输出目录</span><span class="pod-value" data-role="output">未选择</span></div>
-        <div style="font-size:10.5px;color:#758196;margin:-2px 0 7px">公共模板图为必需项，每一批只上传这 1 张模板图；Excel 每行完整提示词决定该任务的设计内容。输出仍按 Excel 文件名自动创建/复用批次子文件夹。</div>
-        <div class="pod-buttons">
-          <button class="pod-btn success" data-act="template">选择模板图</button><button class="pod-btn success" data-act="output">选择输出</button><button class="pod-btn success" data-act="exportTasks">导出任务记录</button>
+        <div style="font-size:10.5px;color:#758196;margin:-2px 0 7px">公共模板图为必需项，每一批都会上传；公共Logo图为可选项，选择后每一批会额外上传同一张Logo图一次。Excel 每行完整提示词决定该任务的设计内容。输出仍按 Excel 文件名自动创建/复用批次子文件夹。</div>
+        <div class="pod-buttons" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          <button class="pod-btn success" data-act="template">选择模板图</button><button class="pod-btn success" data-act="logo">选择Logo图</button><button class="pod-btn success" data-act="output">选择输出</button><button class="pod-btn success" data-act="exportTasks">导出任务记录</button>
         </div>
-        <div class="pod-buttons" style="grid-template-columns:1fr"><button class="pod-btn danger" data-act="forget">清除模板图/输出授权</button></div>
+        <div class="pod-buttons" style="grid-template-columns:1fr 1fr"><button class="pod-btn warn" data-act="clearLogo">清除Logo图</button><button class="pod-btn danger" data-act="forget">清除模板图/Logo图/输出授权</button></div>
       </div>
 
       <div class="pod-section">
         <div class="pod-section-title"><span>2. 批量生图规则</span><span class="pod-section-sub">POD业务逻辑已经合并在本流程内</span></div>
-        <textarea class="pod-textarea" data-role="publicPrompt" placeholder="公共提示词（可选，可编辑）｜用于说明模板图的共同使用规则"></textarea>
-        <div style="font-size:10.5px;color:#758196;margin-top:5px">公共提示词可以留空并会自动保存。Excel 每行“完整中文生图提示词 / 完整提示词”会原样作为该任务的完整要求；每个任务都必须有自己的 Excel 完整提示词。</div>
+        <textarea class="pod-textarea" data-role="publicPrompt" placeholder="公共提示词（可选，可编辑）｜用于说明模板图与可选Logo图的共同使用规则"></textarea>
+        <div style="font-size:10.5px;color:#758196;margin-top:5px">公共提示词可以留空并会自动保存。你可以在这里说明模板图如何使用、Logo 何时使用/不得误用等共同规则；脚本只负责追加批次任务映射、结果数量要求等固定结构，Excel 每行完整提示词保持原文进入对应任务。</div>
       </div>
 
       <div class="pod-section">
@@ -620,8 +632,8 @@
     v.querySelector('[data-role="taskFilter"]')?.addEventListener('change',e=>{settings.filter=e.target.value;saveSettings();renderTaskList();});
     v.querySelectorAll('[data-setting]').forEach(e=>e.addEventListener('change',()=>readUiSettings()));
     const actions={
-      excel:()=>excel?.click(),template:chooseTemplate,output:chooseOutput,start,pause:()=>pause(),skip:()=>skipCurrent(),logs:openLogWindow,exportLogs:()=>exportLogs(),exportTasks,reset:()=>resetProgress(),
-      forget:async()=>{if(confirm('清除公共模板图和输出目录授权？')){await clearHandles();await updateFolderLabels();log('模板图/输出目录授权已清除','warn');}},
+      excel:()=>excel?.click(),template:chooseTemplate,logo:chooseLogo,clearLogo:clearLogo,output:chooseOutput,start,pause:()=>pause(),skip:()=>skipCurrent(),logs:openLogWindow,exportLogs:()=>exportLogs(),exportTasks,reset:()=>resetProgress(),
+      forget:async()=>{if(confirm('清除公共模板图、公共Logo图和输出目录授权？')){await clearHandles();await updateFolderLabels();log('模板图/Logo图/输出目录授权已清除','warn');}},
       resetTasks:()=>{if(!confirm('全部任务状态重置为待处理？已保存图片不会删除。'))return;for(const t of state.tasks){t.status='pending';t.outputFiles=[];t.error='';t.attempts=0;t.updatedAt=new Date().toISOString();}refreshMissingPromptStates();saveState();renderTaskList();log('任务状态已全部重置','warn');},
     };
     v.querySelectorAll('[data-act]').forEach(b=>b.addEventListener('click',()=>Promise.resolve(actions[b.dataset.act]?.()).then(()=>{updatePanel();renderTaskList();}).catch(e=>{log(e.message||String(e),'error');if(e?.name!=='AbortError')alert(e.message||e)})));
@@ -645,7 +657,7 @@
 
   function renderLogWindow(force=false){if(!logWindow)return;const b=logWindow.querySelector('[data-role="body"]');const last=logs.at(-1),signature=`${logs.length}|${last?.time||''}|${last?.type||''}|${last?.message||''}`;if(force||signature!==lastLogWindowSignature){lastLogWindowSignature=signature;b.innerHTML=logs.map(e=>`<div class="plw-line ${e.type}">${escapeHtml(logLine(e))}</div>`).join('');if(logAutoScroll)b.scrollTop=b.scrollHeight;}const m=logWindow.querySelector('[data-role="metrics"]');if(m)m.textContent=`${flowLabel()} ｜ 总运行 ${formatDuration(totalRunMs())} ｜ 第${state.batchNo}批 ｜ ${phaseLabel()} ｜ 生图 ${state.detectedGeneratedCount}/${state.expectedGeneratedCount}`;}
 
-  async function updateFolderLabels(){if(!panel||settings.flow!=='batch_generation')return;const [t,o]=await Promise.all([getHandle(TEMPLATE_KEY),getHandle(OUTPUT_KEY)]).catch(()=>[null,null]);const set=(role,val)=>panel.querySelectorAll(`[data-role="${role}"]`).forEach(n=>n.textContent=val);set('template',t?t.name:'未选择');set('output',outputDisplayName(o));}
+  async function updateFolderLabels(){if(!panel||settings.flow!=='batch_generation')return;const [t,l,o]=await Promise.all([getHandle(TEMPLATE_KEY),getHandle(LOGO_KEY),getHandle(OUTPUT_KEY)]).catch(()=>[null,null,null]);const set=(role,val)=>panel.querySelectorAll(`[data-role="${role}"]`).forEach(n=>n.textContent=val);set('template',t?t.name:'未选择');set('logo',l?l.name:'未使用（可选）');set('output',outputDisplayName(o));settings.useLogoFile=Boolean(l);}
 
   function updatePanel(){
     if(!panel)return;
@@ -671,7 +683,7 @@
     set('status-summary',`完成 ${done} · 待确认 ${confirm} · 失败 ${error}`);
     set('task-stats',`待处理 ${state.tasks.filter(t=>t.status==='pending').length} · 完成 ${state.tasks.filter(t=>t.status==='done').length} · 待确认 ${state.tasks.filter(t=>t.status==='confirm').length}`);
     const status=panel.querySelector('[data-role="status"]');
-    if(status){if(!state.tasks.length)status.textContent='请先导入 Excel 任务表，再选择公共模板图和输出目录';else if(state.running&&state.phase==='batch_wait')status.textContent='批次完成，正在等待下一批';else if(state.running&&state.phase==='generating')status.textContent=`正在生图：${det}/${expected||'?'} · 当前批次 ${compactBatch()}`;else if(state.running)status.textContent=`运行中：${phaseLabel()} · 当前 ${compactBatch()}`;else if(state.phase==='done')status.textContent=confirm?`全部可执行任务已结束；待确认 ${confirm} 条`:'全部完成';else if(state.phase==='error')status.textContent='发生错误，已暂停';else status.textContent='等待/已暂停';}
+    if(status){if(!state.tasks.length)status.textContent='请先导入 Excel 任务表，再选择公共模板图、可选Logo图和输出目录';else if(state.running&&state.phase==='batch_wait')status.textContent='批次完成，正在等待下一批';else if(state.running&&state.phase==='generating')status.textContent=`正在生图：${det}/${expected||'?'} · 当前批次 ${compactBatch()}`;else if(state.running)status.textContent=`运行中：${phaseLabel()} · 当前 ${compactBatch()}`;else if(state.phase==='done')status.textContent=confirm?`全部可执行任务已结束；待确认 ${confirm} 条`:'全部完成';else if(state.phase==='error')status.textContent='发生错误，已暂停';else status.textContent='等待/已暂停';}
     const startBtn=panel.querySelector('[data-act="start"]');if(startBtn)startBtn.textContent=state.running?'运行中':'开始/继续';
     renderTaskList();
     renderLogWindow(); // 只更新日志窗口顶部计时；正文仅在日志内容变化时重绘
@@ -756,7 +768,7 @@
     }
   }catch(_){}
 
-  async function boot(){refreshMissingPromptStates();saveState(false);saveSettings();createPanel();GM_setValue(LOG_KEY,logs);await updateFolderLabels();setTimeout(()=>checkUpdate(false),1600);setInterval(()=>{try{updatePanel()}catch(_){}},1000);if(state.running&&state.resumeContext?.kind==='generation-refresh'){log(`检测到刷新恢复：第${state.batchNo}批只恢复检测，不重新发送`,'warn');setTimeout(()=>worker(),1500);}else if(state.running){stopRunClock();state.running=false;state.phase='ready';saveState();log('页面重新加载后已自动暂停；点击“开始/继续”可继续未完成任务','warn');}else{log(`POD统一工作台已启动 V${APP_VERSION}；当前流程：${flowLabel()}；批量生图模式：Excel完整提示词 + 公共模板图`,'success');}}
+  async function boot(){refreshMissingPromptStates();saveState(false);saveSettings();createPanel();GM_setValue(LOG_KEY,logs);await updateFolderLabels();setTimeout(()=>checkUpdate(false),1600);setInterval(()=>{try{updatePanel()}catch(_){}},1000);if(state.running&&state.resumeContext?.kind==='generation-refresh'){log(`检测到刷新恢复：第${state.batchNo}批只恢复检测，不重新发送`,'warn');setTimeout(()=>worker(),1500);}else if(state.running){stopRunClock();state.running=false;state.phase='ready';saveState();log('页面重新加载后已自动暂停；点击“开始/继续”可继续未完成任务','warn');}else{log(`POD统一工作台已启动 V${APP_VERSION}；当前流程：${flowLabel()}；批量生图模式：Excel完整提示词 + 公共模板图${settings.useLogoFile?' + 公共Logo图':''}`,'success');}}
 
   boot().catch(e=>{console.error(e);alert(`POD统一工作台启动失败：${e.message||e}`)});
 })();

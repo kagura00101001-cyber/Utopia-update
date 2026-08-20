@@ -1,0 +1,116 @@
+--- a/POD_ChatGPT.user.js
++++ b/POD_ChatGPT.user.js
+@@ -1,9 +1,9 @@
+ // ==UserScript==
+ // @name         ChatGPT服装POD统一工作台 V1.2.2
+-// @name:zh-CN   ChatGPT服装POD统一工作台 V1.2.3
++// @name:zh-CN   ChatGPT服装POD统一工作台 V1.2.4
+ // @namespace    https://github.com/Kagura-userscripts
+-// @version      1.2.3
+-// @description  服装POD统一工作台：V1.2.3 修复Excel空白表头误判和34条问题，按有效任务量选择工作表，完整中文生图提示词最高优先，并优化任务表导入显示。
++// @version      1.2.4
++// @description  服装POD统一工作台：V1.2.4 新增按 Excel 文件名自动创建/复用输出子文件夹，正常图、待确认图和任务记录统一归档；保留稳定 ChatGPT 生图核心。
+ // @author       Kagura
+ // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.meta.js
+ // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js
+@@ -40,11 +40,12 @@
+  * - V1.2.1 仅调整模板图选项布局与启停交互，不修改已验证的 ChatGPT 上传/发送/生图检测核心。
+  * - V1.2.2 调整运行参数布局、日志/任务列表按需重绘、母提示词可留空、Excel完整提示词列优先识别，并加入独立手动热更新提醒。
+  * - V1.2.3 修复空白单元格被误判为表头导致只识别34条的问题；所有工作表按有效任务量评分，完整中文生图提示词最高优先；任务表改为按钮选择并显示实际识别信息。
++ * - V1.2.4 新增输出归档：选择总输出目录后，若已导入 Excel，则自动按 Excel 文件名（去扩展名）创建/复用批次子文件夹；正常图、待确认图和任务记录统一写入。
+    * - 已确认发送后的任务遵循 at-most-once：优先恢复检测，不轻易重复发送。
+    * ================================================================
+    */
+ 
+-  const APP_VERSION = '1.2.3';
++  const APP_VERSION = '1.2.4';
+   const APP_NAME = `ChatGPT服装POD统一工作台 V${APP_VERSION}`;
+ 
+   const STATE_KEY = 'kaguraPodStandaloneStateV120';
+@@ -196,7 +197,7 @@
+   async function clearHandles(){const db=await openDb();await new Promise((res,rej)=>{const tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).clear();tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});db.close();}
+   async function permission(handle,mode='read',request=false){if(!handle)return'denied';const o={mode};try{if(await handle.queryPermission(o)==='granted')return'granted';if(request&&await handle.requestPermission(o)==='granted')return'granted';}catch(_){}return'denied';}
+   async function chooseSource(){const picker=unsafeWindow.showDirectoryPicker||window.showDirectoryPicker;if(typeof picker!=='function')throw new Error('当前浏览器不支持选择文件夹，请使用最新版Chrome/Edge');const h=await picker.call(unsafeWindow,{mode:'readwrite'});await saveHandle(SOURCE_KEY,h);await updateFolderLabels();log(`参考图目录：${h.name}`,'success');await scanImages();}
+-  async function chooseOutput(){const picker=unsafeWindow.showDirectoryPicker||window.showDirectoryPicker;if(typeof picker!=='function')throw new Error('当前浏览器不支持选择文件夹');const h=await picker.call(unsafeWindow,{mode:'readwrite'});await saveHandle(OUTPUT_KEY,h);log(`输出目录：${h.name}`,'success');updateFolderLabels();}
++  async function chooseOutput(){const picker=unsafeWindow.showDirectoryPicker||window.showDirectoryPicker;if(typeof picker!=='function')throw new Error('当前浏览器不支持选择文件夹');const h=await picker.call(unsafeWindow,{mode:'readwrite'});await saveHandle(OUTPUT_KEY,h);if(excelBatchFolderName()){await ensureTaskOutputDir({requestPermission:true,logCreated:true});}else log(`输出目录：${h.name}`,'success');await updateFolderLabels();}
+   async function chooseTemplate(){const picker=unsafeWindow.showOpenFilePicker||window.showOpenFilePicker;if(typeof picker!=='function')throw new Error('当前浏览器不支持选择模板图');const [h]=await picker.call(unsafeWindow,{multiple:false,types:[{description:'图片',accept:{'image/*':['.jpg','.jpeg','.png','.webp']}}]});if(!h)return;await saveHandle(TEMPLATE_KEY,h);settings.useTemplate=true;saveSettings();log(`模板图：${h.name}`,'success');updateFolderLabels();}
+   function naturalCompare(a,b){return String(a).localeCompare(String(b),'zh-CN',{numeric:true,sensitivity:'base'});}
+   function isImageName(n){return /\.(?:jpe?g|png|webp|gif|bmp)$/i.test(n||'');}
+@@ -309,6 +310,33 @@
+   function basename(p){return String(p||'').split('/').pop()||'';}
+   function stem(p){return basename(p).replace(/\.[^.]+$/,'');}
+   function sanitizeName(n){return String(n||'').replace(/[\\/:*?"<>|\x00-\x1F]/g,'_').replace(/[. ]+$/g,'').slice(0,150)||'POD';}
++  function excelBatchFolderName(){
++    const file=String(state.importedFileName||'').trim();
++    if(!file)return '';
++    const stem=file.replace(/\.[^.]+$/,'').trim();
++    return sanitizeName(stem).slice(0,120);
++  }
++  async function getTaskOutputDir(root,{create=true,requestPermission=false}={}){
++    if(!root)throw new Error('未选择输出目录');
++    if(await permission(root,'readwrite',requestPermission)!=='granted')throw new Error('没有输出目录写入权限');
++    const folder=excelBatchFolderName();
++    if(!folder)return root;
++    return root.getDirectoryHandle(folder,{create});
++  }
++  async function ensureTaskOutputDir({requestPermission=false,logCreated=false}={}){
++    const root=await getHandle(OUTPUT_KEY);
++    if(!root)return null;
++    const folder=excelBatchFolderName();
++    if(!folder)return root;
++    const dir=await getTaskOutputDir(root,{create:true,requestPermission});
++    if(logCreated)log(`输出子文件夹已就绪：${root.name}/${folder}`,'success');
++    return dir;
++  }
++  function outputDisplayName(root){
++    if(!root)return '未选择';
++    const folder=excelBatchFolderName();
++    return folder?`${root.name}/${folder}`:root.name;
++  }
+   async function importExcel(file){
+     const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
+     const m=detectSheet(wb);
+@@ -344,6 +372,8 @@
+     resolveAllTasks();refreshMissingPromptStates();state.phase='ready';saveState();
+     const promptInfo=m.prompt>=0?`提示词列“${state.importedHeaders.prompt}”非空 ${m.promptCount||0} 条`:'未检测到提示词列';
+     log(`Excel导入成功：${file.name}｜工作表“${m.sheetName}”｜编号列“${state.importedHeaders.id}”｜${promptInfo}｜最终任务 ${tasks.length} 条`,'success');
++    try{const root=await getHandle(OUTPUT_KEY);if(root)await ensureTaskOutputDir({requestPermission:false,logCreated:true});}catch(e){log(`Excel已导入，但输出子文件夹暂未创建：${e.message||e}`,'warn');}
++    await updateFolderLabels();
+   }
+   function resolveAllTasks(){if(!state.tasks.length||!state.imagePaths.length)return;const byBase=new Map(),byStem=new Map(),byNumeric=new Map();for(const path of state.imagePaths){const base=basename(path).toLowerCase(),st=stem(path).toLowerCase();byBase.set(base,path);if(!byStem.has(st))byStem.set(st,path);if(/^\d+$/.test(st)){const nk=String(Number(st));if(!byNumeric.has(nk))byNumeric.set(nk,path);}}for(const t of state.tasks){let p='';if(t.imageName){const ib=basename(t.imageName).toLowerCase(),is=stem(t.imageName).toLowerCase();p=byBase.get(ib)||byStem.get(is)||(/^\d+$/.test(is)?byNumeric.get(String(Number(is))):'')||'';}const tid=String(t.id).toLowerCase();if(!p)p=byStem.get(tid)||(/^\d+$/.test(tid)?byNumeric.get(String(Number(tid))):'')||'';t.sourcePath=p;if(!p&&t.status!=='done'){t.error='未匹配到参考图';}else if(t.error==='未匹配到参考图')t.error='';}}
+   function activeTasks(){const a=Math.max(1,Number(settings.rangeStart)||1),b=Math.max(a,Number(settings.rangeEnd)||999999);return state.tasks.filter((t,i)=>i+1>=a&&i+1<=b);}
+@@ -382,7 +412,7 @@
+     return lines.filter(Boolean).join('\n');
+   }
+ 
+-  async function validateHandles(request=true){const source=await getHandle(SOURCE_KEY),output=await getHandle(OUTPUT_KEY),template=await getHandle(TEMPLATE_KEY);if(!source)throw new Error('请先选择参考图目录');if(!output)throw new Error('请先选择输出目录');if(await permission(source,'read',request)!=='granted')throw new Error('没有参考图目录读取权限');if(await permission(output,'readwrite',request)!=='granted')throw new Error('没有输出目录写入权限');if(settings.useTemplate){if(!template)throw new Error('已启用模板图，但尚未选择模板图');if(await permission(template,'read',request)!=='granted')throw new Error('没有模板图读取权限');}return{source,output,template};}
++  async function validateHandles(request=true){const source=await getHandle(SOURCE_KEY),outputRoot=await getHandle(OUTPUT_KEY),template=await getHandle(TEMPLATE_KEY);if(!source)throw new Error('请先选择参考图目录');if(!outputRoot)throw new Error('请先选择输出目录');if(await permission(source,'read',request)!=='granted')throw new Error('没有参考图目录读取权限');if(await permission(outputRoot,'readwrite',request)!=='granted')throw new Error('没有输出目录写入权限');const output=await getTaskOutputDir(outputRoot,{create:true,requestPermission:request});if(settings.useTemplate){if(!template)throw new Error('已启用模板图，但尚未选择模板图');if(await permission(template,'read',request)!=='granted')throw new Error('没有模板图读取权限');}return{source,output,outputRoot,template};}
+ 
+   // ========================== 稳定 ChatGPT 交互层 ==========================
+   function isVisible(el){if(!(el instanceof Element))return false;const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>1&&r.height>1&&s.visibility!=='hidden'&&s.display!=='none'&&Number(s.opacity||1)>0;}
+@@ -557,6 +587,7 @@
+         <div class="pod-row"><span class="pod-label">参考图目录</span><span class="pod-value" data-role="source">未选择</span></div>
+         <div class="pod-row ${settings.useTemplate?'':'pod-muted'}" data-role="template-row"><span class="pod-label">模板图</span><span class="pod-value" data-role="template">${settings.useTemplate?'未选择':'未启用'}</span></div>
+         <div class="pod-row"><span class="pod-label">输出目录</span><span class="pod-value" data-role="output">未选择</span></div>
++        <div style="font-size:10.5px;color:#758196;margin:-2px 0 7px">若已导入 Excel，选择的目录作为“总输出目录”，脚本会自动创建/复用“Excel文件名（去扩展名）”子文件夹；生成图、待确认图和任务记录统一写入该批次文件夹。</div>
+         <div class="pod-buttons">
+           <button class="pod-btn success" data-act="source">选择参考图</button><button class="pod-btn success" data-act="template" ${settings.useTemplate?'':'disabled'}>选择模板图</button><button class="pod-btn success" data-act="output">选择输出</button>
+           <button class="pod-btn" data-act="scan">扫描参考图</button><button class="pod-btn success" data-act="exportTasks">导出任务记录</button><button class="pod-btn danger" data-act="forget">清除授权</button>
+@@ -656,7 +687,7 @@
+     box.innerHTML=tasks.length?tasks.map(t=>`<div class="pod-task"><b>${escapeHtml(t.id)}</b><div class="pod-task-main"><div class="pod-task-file" title="${escapeAttr(t.sourcePath||t.imageName||'')}">${escapeHtml(t.sourcePath||t.imageName||'未匹配参考图')}</div><div class="pod-task-prompt" title="${escapeAttr(t.error||t.prompt||'')}">${escapeHtml(t.error||t.prompt||(basePrompt()?'使用母提示词':'缺少提示词'))}</div></div><span class="pod-badge s-${t.status}">${statusLabel(t.status)}</span></div>`).join(''):'<div style="padding:15px;text-align:center;color:#98a2b3">暂无任务</div>';
+   }
+ 
+-  function exportTasks(){const payload={version:APP_VERSION,flow:settings.flow,exportedAt:new Date().toISOString(),file:state.importedFileName,sheet:state.importedSheetName,headers:state.importedHeaders,importStats:state.importedStats,settings:{...settings},tasks:state.tasks};downloadText(`POD任务记录_V${APP_VERSION}_${stamp()}.json`,JSON.stringify(payload,null,2),'application/json;charset=utf-8');log('POD任务记录已导出','success');}
++  async function exportTasks(){const payload={version:APP_VERSION,flow:settings.flow,exportedAt:new Date().toISOString(),file:state.importedFileName,sheet:state.importedSheetName,headers:state.importedHeaders,importStats:state.importedStats,settings:{...settings},tasks:state.tasks};const name=`POD任务记录_V${APP_VERSION}_${stamp()}.json`,body=JSON.stringify(payload,null,2);try{const root=await getHandle(OUTPUT_KEY);if(root){const dir=await getTaskOutputDir(root,{create:true,requestPermission:true});await writeBlob(dir,name,new Blob([body],{type:'application/json;charset=utf-8'}));log(`POD任务记录已保存到输出文件夹：${name}`,'success');return;}}catch(e){log(`任务记录写入输出文件夹失败，改为浏览器下载：${e.message||e}`,'warn');}downloadText(name,body,'application/json;charset=utf-8');log('POD任务记录已通过浏览器下载','success');}
+ 
+   function renderLogPreview(force=false){const box=panel?.querySelector('[data-role="log"]');if(!box)return;const recent=logs.slice(-10),signature=recent.map(e=>`${e.time}|${e.type}|${e.message}`).join('||');if(!force&&signature===lastLogPreviewSignature)return;lastLogPreviewSignature=signature;box.innerHTML=recent.map(e=>`<div class="${e.type}">${escapeHtml(logLine(e))}</div>`).join('');box.scrollTop=box.scrollHeight;}
+ 
+@@ -664,7 +695,7 @@
+ 
+   function renderLogWindow(force=false){if(!logWindow)return;const b=logWindow.querySelector('[data-role="body"]');const last=logs.at(-1),signature=`${logs.length}|${last?.time||''}|${last?.type||''}|${last?.message||''}`;if(force||signature!==lastLogWindowSignature){lastLogWindowSignature=signature;b.innerHTML=logs.map(e=>`<div class="plw-line ${e.type}">${escapeHtml(logLine(e))}</div>`).join('');if(logAutoScroll)b.scrollTop=b.scrollHeight;}const m=logWindow.querySelector('[data-role="metrics"]');if(m)m.textContent=`${flowLabel()} ｜ 总运行 ${formatDuration(totalRunMs())} ｜ 第${state.batchNo}批 ｜ ${phaseLabel()} ｜ 生图 ${state.detectedGeneratedCount}/${state.expectedGeneratedCount}`;}
+ 
+-  async function updateFolderLabels(){if(!panel||settings.flow!=='batch_generation')return;const [s,t,o]=await Promise.all([getHandle(SOURCE_KEY),getHandle(TEMPLATE_KEY),getHandle(OUTPUT_KEY)]).catch(()=>[null,null,null]);const set=(role,val)=>panel.querySelectorAll(`[data-role="${role}"]`).forEach(n=>n.textContent=val);set('source',s?s.name:'未选择');set('template',settings.useTemplate?(t?t.name:'未选择'):'未启用');set('output',o?o.name:'未选择');const templateButton=panel.querySelector('[data-act="template"]');if(templateButton)templateButton.disabled=!settings.useTemplate;const templateRow=panel.querySelector('[data-role="template-row"]');if(templateRow)templateRow.classList.toggle('pod-muted',!settings.useTemplate);}
++  async function updateFolderLabels(){if(!panel||settings.flow!=='batch_generation')return;const [s,t,o]=await Promise.all([getHandle(SOURCE_KEY),getHandle(TEMPLATE_KEY),getHandle(OUTPUT_KEY)]).catch(()=>[null,null,null]);const set=(role,val)=>panel.querySelectorAll(`[data-role="${role}"]`).forEach(n=>n.textContent=val);set('source',s?s.name:'未选择');set('template',settings.useTemplate?(t?t.name:'未选择'):'未启用');set('output',outputDisplayName(o));const templateButton=panel.querySelector('[data-act="template"]');if(templateButton)templateButton.disabled=!settings.useTemplate;const templateRow=panel.querySelector('[data-role="template-row"]');if(templateRow)templateRow.classList.toggle('pod-muted',!settings.useTemplate);}
+ 
+   function updatePanel(){
+     if(!panel)return;

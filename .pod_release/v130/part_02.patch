@@ -1,0 +1,66 @@
+--- POD_ChatGPT.user.js
++++ POD_ChatGPT.user.js
+@@ -196,14 +179,8 @@
+   async function getHandle(key){const db=await openDb();const h=await new Promise((res,rej)=>{const tx=db.transaction(DB_STORE,'readonly');const r=tx.objectStore(DB_STORE).get(key);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)});db.close();return h;}
+   async function clearHandles(){const db=await openDb();await new Promise((res,rej)=>{const tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).clear();tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});db.close();}
+   async function permission(handle,mode='read',request=false){if(!handle)return'denied';const o={mode};try{if(await handle.queryPermission(o)==='granted')return'granted';if(request&&await handle.requestPermission(o)==='granted')return'granted';}catch(_){}return'denied';}
+-  async function chooseSource(){const picker=unsafeWindow.showDirectoryPicker||window.showDirectoryPicker;if(typeof picker!=='function')throw new Error('当前浏览器不支持选择文件夹，请使用最新版Chrome/Edge');const h=await picker.call(unsafeWindow,{mode:'readwrite'});await saveHandle(SOURCE_KEY,h);await updateFolderLabels();log(`参考图目录：${h.name}`,'success');await scanImages();}
+   async function chooseOutput(){const picker=unsafeWindow.showDirectoryPicker||window.showDirectoryPicker;if(typeof picker!=='function')throw new Error('当前浏览器不支持选择文件夹');const h=await picker.call(unsafeWindow,{mode:'readwrite'});await saveHandle(OUTPUT_KEY,h);if(excelBatchFolderName()){await ensureTaskOutputDir({requestPermission:true,logCreated:true});}else log(`输出目录：${h.name}`,'success');await updateFolderLabels();}
+-  async function chooseTemplate(){const picker=unsafeWindow.showOpenFilePicker||window.showOpenFilePicker;if(typeof picker!=='function')throw new Error('当前浏览器不支持选择模板图');const [h]=await picker.call(unsafeWindow,{multiple:false,types:[{description:'图片',accept:{'image/*':['.jpg','.jpeg','.png','.webp']}}]});if(!h)return;await saveHandle(TEMPLATE_KEY,h);settings.useTemplate=true;saveSettings();log(`模板图：${h.name}`,'success');updateFolderLabels();}
+-  function naturalCompare(a,b){return String(a).localeCompare(String(b),'zh-CN',{numeric:true,sensitivity:'base'});}
+-  function isImageName(n){return /\.(?:jpe?g|png|webp|gif|bmp)$/i.test(n||'');}
+-  async function listImages(dir,prefix=''){const arr=[];for await(const e of dir.values()){const p=prefix?`${prefix}/${e.name}`:e.name;if(e.kind==='file'&&isImageName(e.name))arr.push(p);else if(e.kind==='directory')arr.push(...await listImages(e,p));}return arr;}
+-  async function scanImages(){const h=await getHandle(SOURCE_KEY);if(!h)throw new Error('请先选择参考图目录');if(await permission(h,'read',true)!=='granted')throw new Error('没有参考图读取权限');state.imagePaths=(await listImages(h)).sort(naturalCompare);if(!state.imagePaths.length)throw new Error('参考图目录没有找到图片');state.phase='ready';resolveAllTasks();saveState();log(`已扫描 ${state.imagePaths.length} 张参考图`,'success');}
+-  async function getFileByPath(dir,path){const parts=String(path).split('/').filter(Boolean);let cur=dir;for(let i=0;i<parts.length-1;i++)cur=await cur.getDirectoryHandle(parts[i]);return (await cur.getFileHandle(parts.at(-1))).getFile();}
++  async function chooseTemplate(){const picker=unsafeWindow.showOpenFilePicker||window.showOpenFilePicker;if(typeof picker!=='function')throw new Error('当前浏览器不支持选择模板图');const [h]=await picker.call(unsafeWindow,{multiple:false,types:[{description:'图片',accept:{'image/*':['.jpg','.jpeg','.png','.webp']}}]});if(!h)return;await saveHandle(TEMPLATE_KEY,h);log(`公共模板图：${h.name}`,'success');await updateFolderLabels();}
+   async function writeBlob(dir,name,blob){if(await permission(dir,'readwrite',false)!=='granted')throw new Error('输出目录写入权限失效，请重新选择');const fh=await dir.getFileHandle(name,{create:true});const w=await fh.createWritable();await w.write(blob);await w.close();}
+ 
+   function norm(v){return String(v??'').trim().toLowerCase().replace(/[\s\n\r\t_\-—–（）()【】\[\]：:]/g,'');}
+@@ -222,11 +199,9 @@
+     ['prompt',185],
+     ['提示词',170],
+   ];
+-  const IMAGE_HEADERS=['参考图','参考图片','原图','图片文件','图片名','文件名','image','filename','file','主图'];
+-
+   function headerScore(v,list){
+     const h=norm(v);
+-    if(!h)return 0; // 关键修复：空字符串不能参与 includes，否则任何表头都会误命中空白单元格。
++    if(!h)return 0;
+     let s=0;
+     for(const x of list){
+       const k=norm(x);
+@@ -239,7 +214,7 @@
+ 
+   function promptHeaderScore(v){
+     const h=norm(v);
+-    if(!h)return 0; // 同上，禁止空白单元格成为“完整提示词”候选。
++    if(!h)return 0;
+     let best=0;
+     for(const [name,score] of PROMPT_HEADER_PRIORITY){
+       const k=norm(name);
+@@ -250,20 +225,17 @@
+     return best;
+   }
+ 
+-  function candidateDataStats(rows,headerRow,id,prompt,image){
+-    let idCount=0,promptCount=0,imageCount=0,taskRows=0;
+-    const end=rows.length;
+-    for(let r=headerRow+1;r<end;r++){
++  function candidateDataStats(rows,headerRow,id,prompt){
++    let idCount=0,promptCount=0,taskRows=0;
++    for(let r=headerRow+1;r<rows.length;r++){
+       const row=rows[r]||[];
+       const rid=id>=0?String(row[id]??'').trim():'';
+       const p=prompt>=0?String(row[prompt]??'').trim():'';
+-      const img=image>=0?String(row[image]??'').trim():'';
+       if(rid)idCount++;
+       if(p)promptCount++;
+-      if(img)imageCount++;
+-      if(rid||p||img)taskRows++;
++      if(rid||p)taskRows++;
+     }
+-    return {idCount,promptCount,imageCount,taskRows};
++    return {idCount,promptCount,taskRows};
+   }
+ 
+   function detectSheet(workbook){

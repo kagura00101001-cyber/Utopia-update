@@ -1,0 +1,61 @@
+name: Release POD V1.2.4 fallback
+
+on:
+  issues:
+    types: [reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore and validate exact V1.2.4
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .pod_v124_parts/part_*.txt | base64 -d | gzip -d > POD_ChatGPT.user.js
+          node --check POD_ChatGPT.user.js
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          s=Path('POD_ChatGPT.user.js').read_text(encoding='utf-8')
+          assert '// @version      1.2.4' in s
+          assert "const APP_VERSION = '1.2.4';" in s
+          Path('POD_ChatGPT.meta.js').write_text(s.split('// ==/UserScript==',1)[0]+'// ==/UserScript==\n',encoding='utf-8')
+          notes=[
+            '选择输出目录时，若已导入 Excel，自动按 Excel 文件名（去扩展名）创建或复用同名批次子文件夹。',
+            '正常生成图和生成数量异常的待确认图统一写入当前 Excel 批次子文件夹，避免不同批次混在同一目录。',
+            '导出任务记录时优先直接写入当前批次子文件夹；写入失败才回退为浏览器下载。',
+            '若先选择输出目录后再导入 Excel，导入完成后也会自动准备对应子文件夹；已有同名文件夹直接复用，不重复创建。',
+            '未导入 Excel 的临时任务保持原逻辑，直接使用用户选择的输出目录。',
+            '完整保留 V1.2.3 的 500 条 Excel 识别修复、母提示词可留空、日志按需刷新以及稳定 ChatGPT 上传/创建图片/发送确认/生图检测核心。'
+          ]
+          latest={'version':'1.2.4','install_url':'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js','download_url':'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js','published_at':'2026-08-20','changelog':notes}
+          Path('POD_ChatGPT.latest.json').write_text(json.dumps(latest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          legacy={'version':'1.2.4','name':'ChatGPT服装POD统一工作台','install_url':latest['install_url'],'download_url':latest['download_url'],'published_at':'2026-08-20','changelog':notes}
+          Path('POD_ChatGPT_latest.json').write_text(json.dumps(legacy,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          hp=Path('POD_ChatGPT.history.json')
+          hist=json.loads(hp.read_text(encoding='utf-8'))
+          hist['versions']=[v for v in hist.get('versions',[]) if v.get('version')!='1.2.4']
+          hist['versions'].insert(0,{'version':'1.2.4','date':'2026-08-20','notes':notes})
+          hp.write_text(json.dumps(hist,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          PY
+      - name: Commit and clean staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .pod_v124_parts
+          rm -f .github/workflows/pod_release_v124.yml .github/workflows/pod_release_v124_from_parts.yml .github/workflows/pod_release_v124_reopen.yml
+          git config user.name 'Kagura Update Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'release: POD V1.2.4 output batch folders'
+          git push

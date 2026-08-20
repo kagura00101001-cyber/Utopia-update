@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ChatGPT服装POD统一工作台 V1.2.2
-// @name:zh-CN   ChatGPT服装POD统一工作台 V1.2.4
+// @name:zh-CN   ChatGPT服装POD统一工作台 V1.3.0
 // @namespace    https://github.com/Kagura-userscripts
-// @version      1.2.4
-// @description  服装POD统一工作台：V1.2.4 新增按 Excel 文件名自动创建/复用输出子文件夹，正常图、待确认图和任务记录统一归档；保留稳定 ChatGPT 生图核心。
+// @version      1.3.0
+// @description  服装POD统一工作台：V1.3.0 将批量生图固定为 Excel完整提示词 + 1张公共模板图，不再需要参考图；公共规则可编辑，输出仍按 Excel 自动归档。
 // @author       Kagura
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js
@@ -29,7 +29,7 @@
 
   /*
    * ================================================================
-   * ChatGPT服装POD统一工作台 V1.2.3
+   * ChatGPT服装POD统一工作台 V1.3.0
    * ================================================================
    * 架构原则：
    * - 完全独立运行，不依赖 Ozon/洗图脚本，不动态加载/执行旧脚本。
@@ -41,11 +41,12 @@
  * - V1.2.2 调整运行参数布局、日志/任务列表按需重绘、母提示词可留空、Excel完整提示词列优先识别，并加入独立手动热更新提醒。
  * - V1.2.3 修复空白单元格被误判为表头导致只识别34条的问题；所有工作表按有效任务量评分，完整中文生图提示词最高优先；任务表改为按钮选择并显示实际识别信息。
  * - V1.2.4 新增输出归档：选择总输出目录后，若已导入 Excel，则自动按 Excel 文件名（去扩展名）创建/复用批次子文件夹；正常图、待确认图和任务记录统一写入。
+ * - V1.3.0 批量生图正式改为“Excel完整提示词 + 1张公共模板图”：删除参考图目录/扫描/匹配依赖；模板图必需；公共规则可编辑；每批仅上传1张模板图。
    * - 已确认发送后的任务遵循 at-most-once：优先恢复检测，不轻易重复发送。
    * ================================================================
    */
 
-  const APP_VERSION = '1.2.4';
+  const APP_VERSION = '1.3.0';
   const APP_NAME = `ChatGPT服装POD统一工作台 V${APP_VERSION}`;
 
   const STATE_KEY = 'kaguraPodStandaloneStateV120';
@@ -57,7 +58,6 @@
 
   const DB_NAME = 'kagura-pod-standalone-v1';
   const DB_STORE = 'handles';
-  const SOURCE_KEY = 'source-directory';
   const OUTPUT_KEY = 'output-directory';
   const TEMPLATE_KEY = 'template-file';
 
@@ -66,25 +66,10 @@
   const UPDATE_DOWNLOAD_FALLBACK = 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js';
   const UPDATE_SUPPRESS_KEY = 'kaguraPodUpdateSuppressVersionV1';
 
-  const BASE_REBUILD_PROMPT = [
-    '你将收到多张服装、成衣或模特展示参考图。每张参考图代表一个独立POD任务，必须严格一图对应一图处理，禁止不同参考图之间混用图案元素。',
-    '任务是高相似重建每张参考图中用于POD生产的印花/图案本体，而不是重做整件衣服或商品场景。',
-    '1. 只提取并重建衣服上的核心图案、文字、Logo、装饰纹样和与印花直接相关的视觉元素。',
-    '2. 忠实保持原图案主体、构图、比例、颜色、文字拼写、字体风格、线条、纹理、明暗、层次和整体视觉风格，不自行重新设计。',
-    '3. 删除衣服轮廓、布料底色、褶皱、缝线、领口、袖子、模特、人体、衣架、背景、桌面、环境、商品阴影和与图案无关的元素。',
-    '4. 若原图案因衣服褶皱、透视或弧面产生变形，按照合理的二维平面结构还原，不把布料变形复制进生产图。',
-    '5. 输出完整、正向、居中的二维平面图案，四周保留合理安全留白；不要生成T恤Mockup、模特穿着效果或场景图。',
-    '6. 不新增参考图中不存在的文字、Logo、符号或装饰；看不清的细节不要擅自编造。',
-    '7. 尽可能保留高清细节和清晰边缘。背景优先透明；若无法可靠透明，则使用纯白背景。',
-    '8. 本批上传几张参考图，就必须生成几张结果图；输出顺序严格对应上传顺序。'
-  ].join('\n');
-
-  const BASE_ENHANCE_PROMPT = [
-    '你将收到多张独立POD图案参考图。必须严格一图对应一图处理，禁止不同图片之间混用元素。',
-    '请对每张图案进行高保真高清重建，保持原图案内容、构图、比例、文字、Logo、颜色、线条、纹理和风格不变，不重新设计、不添加元素、不删除元素。',
-    '重点修复低清、锯齿、压缩噪点、模糊边缘和细节丢失，使轮廓与纹理更清晰，适合后续POD印花生产。',
-    '输出完整二维平面图案，不生成衣服、模特、Mockup、场景；优先透明背景，无法可靠透明时使用纯白背景。',
-    '本批上传几张参考图，就必须生成几张结果图；输出顺序严格对应上传顺序。'
+  const DEFAULT_PUBLIC_PROMPT = [
+    '模板图只用于约束产品版型、剪裁结构、领口、袖型、衣身比例、松紧程度、面料纹理/质感、模特展示方式和整体产品形态。',
+    '不得继承模板图中的衣服颜色、图案、配色、风格或其他视觉元素；每个任务的最终设计内容以对应 Excel 行的完整提示词为准。',
+    '不同任务之间禁止混用图案元素、文字、Logo、配色、风格或其他设计特征。'
   ].join('\n');
 
   const DEFAULT_STATE = {
@@ -93,7 +78,6 @@
     importedSheetName: '',
     importedHeaders: {},
     importedStats: {},
-    imagePaths: [],
     running: false,
     phase: 'idle',
     batchNo: 1,
@@ -114,14 +98,10 @@
 
   const DEFAULT_SETTINGS = {
     flow: 'batch_generation',
-    mode: 'rebuild',
-    rebuildPrompt: BASE_REBUILD_PROMPT,
-    enhancePrompt: BASE_ENHANCE_PROMPT,
-    customPrompt: '',
+    publicPrompt: DEFAULT_PUBLIC_PROMPT,
     batchSize: 3,
     rangeStart: 1,
     rangeEnd: 999999,
-    useTemplate: false,
     newChatEachBatch: true,
     uploadTimeout: 180000,
     generationTimeout: 900000,
@@ -137,6 +117,10 @@
   const savedLogs = GM_getValue(LOG_KEY, null) ?? GM_getValue(LEGACY_LOG_KEY, []);
   let state = normalizeState(savedState);
   let settings = { ...DEFAULT_SETTINGS, ...(savedSettings || {}) };
+  if (!Object.prototype.hasOwnProperty.call(savedSettings||{},'publicPrompt')) {
+    const migratedCustom=String(savedSettings?.customPrompt||'').trim();
+    settings.publicPrompt=migratedCustom||DEFAULT_PUBLIC_PROMPT;
+  }
   if (!['batch_generation', 'style_reverse', 'diecut_design'].includes(settings.flow)) settings.flow = 'batch_generation';
   let logs = Array.isArray(savedLogs) ? savedLogs.slice(-3000) : [];
 
@@ -154,7 +138,6 @@
   function normalizeState(saved) {
     const merged = saved && typeof saved === 'object' ? { ...DEFAULT_STATE, ...saved } : { ...DEFAULT_STATE };
     if (!Array.isArray(merged.tasks)) merged.tasks = [];
-    if (!Array.isArray(merged.imagePaths)) merged.imagePaths = [];
     if (!Array.isArray(merged.currentBatchKeys)) merged.currentBatchKeys = [];
     if (!Array.isArray(merged.currentBatchPaths)) merged.currentBatchPaths = [];
     return merged;
@@ -172,7 +155,7 @@
   function nowText(d=new Date()){ return d.toLocaleTimeString('zh-CN',{hour12:false}); }
   function stamp(d=new Date()) { const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`; }
   function formatDuration(ms){ const s=Math.max(0,Math.floor(Number(ms||0)/1000)); const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60; return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`; }
-  function phaseLabel(p=state.phase){ return ({idle:'等待配置',ready:'准备开始',preparing:'准备当前批次',uploading_source:'上传参考图',activating_create_image:'添加创建图片模式',uploading_template:'上传模板图',writing_prompt:'写入提示词',sending:'发送并确认提交',generating:'等待/检测生图',downloading:'下载保存',recovering:'恢复检测',refreshing:'刷新同步结果',batch_wait:'批次间等待',pending:'异常待确认',error:'异常暂停',done:'全部完成'})[p]||String(p||'未知'); }
+  function phaseLabel(p=state.phase){ return ({idle:'等待配置',ready:'准备开始',preparing:'准备当前批次',activating_create_image:'添加创建图片模式',uploading_template:'上传模板图',writing_prompt:'写入提示词',sending:'发送并确认提交',generating:'等待/检测生图',downloading:'下载保存',recovering:'恢复检测',refreshing:'刷新同步结果',batch_wait:'批次间等待',pending:'异常待确认',error:'异常暂停',done:'全部完成'})[p]||String(p||'未知'); }
   function totalRunMs(){ return Number(state.totalRunMs||0)+(state.runSegmentStartedAt?Math.max(0,Date.now()-state.runSegmentStartedAt):0); }
   function batchElapsed(){ return state.batchStartedAt?Date.now()-state.batchStartedAt:Number(state.lastBatchElapsedMs||0); }
   function generationElapsed(){ return state.generationStartedAt?Date.now()-state.generationStartedAt:Number(state.lastGenerationElapsedMs||0); }
@@ -196,14 +179,8 @@
   async function getHandle(key){const db=await openDb();const h=await new Promise((res,rej)=>{const tx=db.transaction(DB_STORE,'readonly');const r=tx.objectStore(DB_STORE).get(key);r.onsuccess=()=>res(r.result||null);r.onerror=()=>rej(r.error)});db.close();return h;}
   async function clearHandles(){const db=await openDb();await new Promise((res,rej)=>{const tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).clear();tx.oncomplete=res;tx.onerror=()=>rej(tx.error)});db.close();}
   async function permission(handle,mode='read',request=false){if(!handle)return'denied';const o={mode};try{if(await handle.queryPermission(o)==='granted')return'granted';if(request&&await handle.requestPermission(o)==='granted')return'granted';}catch(_){}return'denied';}
-  async function chooseSource(){const picker=unsafeWindow.showDirectoryPicker||window.showDirectoryPicker;if(typeof picker!=='function')throw new Error('当前浏览器不支持选择文件夹，请使用最新版Chrome/Edge');const h=await picker.call(unsafeWindow,{mode:'readwrite'});await saveHandle(SOURCE_KEY,h);await updateFolderLabels();log(`参考图目录：${h.name}`,'success');await scanImages();}
   async function chooseOutput(){const picker=unsafeWindow.showDirectoryPicker||window.showDirectoryPicker;if(typeof picker!=='function')throw new Error('当前浏览器不支持选择文件夹');const h=await picker.call(unsafeWindow,{mode:'readwrite'});await saveHandle(OUTPUT_KEY,h);if(excelBatchFolderName()){await ensureTaskOutputDir({requestPermission:true,logCreated:true});}else log(`输出目录：${h.name}`,'success');await updateFolderLabels();}
-  async function chooseTemplate(){const picker=unsafeWindow.showOpenFilePicker||window.showOpenFilePicker;if(typeof picker!=='function')throw new Error('当前浏览器不支持选择模板图');const [h]=await picker.call(unsafeWindow,{multiple:false,types:[{description:'图片',accept:{'image/*':['.jpg','.jpeg','.png','.webp']}}]});if(!h)return;await saveHandle(TEMPLATE_KEY,h);settings.useTemplate=true;saveSettings();log(`模板图：${h.name}`,'success');updateFolderLabels();}
-  function naturalCompare(a,b){return String(a).localeCompare(String(b),'zh-CN',{numeric:true,sensitivity:'base'});}
-  function isImageName(n){return /\.(?:jpe?g|png|webp|gif|bmp)$/i.test(n||'');}
-  async function listImages(dir,prefix=''){const arr=[];for await(const e of dir.values()){const p=prefix?`${prefix}/${e.name}`:e.name;if(e.kind==='file'&&isImageName(e.name))arr.push(p);else if(e.kind==='directory')arr.push(...await listImages(e,p));}return arr;}
-  async function scanImages(){const h=await getHandle(SOURCE_KEY);if(!h)throw new Error('请先选择参考图目录');if(await permission(h,'read',true)!=='granted')throw new Error('没有参考图读取权限');state.imagePaths=(await listImages(h)).sort(naturalCompare);if(!state.imagePaths.length)throw new Error('参考图目录没有找到图片');state.phase='ready';resolveAllTasks();saveState();log(`已扫描 ${state.imagePaths.length} 张参考图`,'success');}
-  async function getFileByPath(dir,path){const parts=String(path).split('/').filter(Boolean);let cur=dir;for(let i=0;i<parts.length-1;i++)cur=await cur.getDirectoryHandle(parts[i]);return (await cur.getFileHandle(parts.at(-1))).getFile();}
+  async function chooseTemplate(){const picker=unsafeWindow.showOpenFilePicker||window.showOpenFilePicker;if(typeof picker!=='function')throw new Error('当前浏览器不支持选择模板图');const [h]=await picker.call(unsafeWindow,{multiple:false,types:[{description:'图片',accept:{'image/*':['.jpg','.jpeg','.png','.webp']}}]});if(!h)return;await saveHandle(TEMPLATE_KEY,h);log(`公共模板图：${h.name}`,'success');await updateFolderLabels();}
   async function writeBlob(dir,name,blob){if(await permission(dir,'readwrite',false)!=='granted')throw new Error('输出目录写入权限失效，请重新选择');const fh=await dir.getFileHandle(name,{create:true});const w=await fh.createWritable();await w.write(blob);await w.close();}
 
   function norm(v){return String(v??'').trim().toLowerCase().replace(/[\s\n\r\t_\-—–（）()【】\[\]：:]/g,'');}
@@ -222,11 +199,9 @@
     ['prompt',185],
     ['提示词',170],
   ];
-  const IMAGE_HEADERS=['参考图','参考图片','原图','图片文件','图片名','文件名','image','filename','file','主图'];
-
   function headerScore(v,list){
     const h=norm(v);
-    if(!h)return 0; // 关键修复：空字符串不能参与 includes，否则任何表头都会误命中空白单元格。
+    if(!h)return 0;
     let s=0;
     for(const x of list){
       const k=norm(x);
@@ -239,7 +214,7 @@
 
   function promptHeaderScore(v){
     const h=norm(v);
-    if(!h)return 0; // 同上，禁止空白单元格成为“完整提示词”候选。
+    if(!h)return 0;
     let best=0;
     for(const [name,score] of PROMPT_HEADER_PRIORITY){
       const k=norm(name);
@@ -250,20 +225,17 @@
     return best;
   }
 
-  function candidateDataStats(rows,headerRow,id,prompt,image){
-    let idCount=0,promptCount=0,imageCount=0,taskRows=0;
-    const end=rows.length;
-    for(let r=headerRow+1;r<end;r++){
+  function candidateDataStats(rows,headerRow,id,prompt){
+    let idCount=0,promptCount=0,taskRows=0;
+    for(let r=headerRow+1;r<rows.length;r++){
       const row=rows[r]||[];
       const rid=id>=0?String(row[id]??'').trim():'';
       const p=prompt>=0?String(row[prompt]??'').trim():'';
-      const img=image>=0?String(row[image]??'').trim():'';
       if(rid)idCount++;
       if(p)promptCount++;
-      if(img)imageCount++;
-      if(rid||p||img)taskRows++;
+      if(rid||p)taskRows++;
     }
-    return {idCount,promptCount,imageCount,taskRows};
+    return {idCount,promptCount,taskRows};
   }
 
   function detectSheet(workbook){
@@ -273,31 +245,17 @@
       const rows=XLSX.utils.sheet_to_json(workbook.Sheets[sn],{header:1,raw:false,defval:'',blankrows:true});
       for(let r=0;r<Math.min(40,rows.length);r++){
         const row=rows[r]||[];
-        let id=-1,prompt=-1,image=-1,is=0,ps=0,ims=0;
+        let id=-1,prompt=-1,is=0,ps=0;
         for(let c=0;c<row.length;c++){
-          let q=headerScore(row[c],ID_HEADERS); if(q>is){is=q;id=c}
-          q=promptHeaderScore(row[c]); if(q>ps){ps=q;prompt=c}
-          q=headerScore(row[c],IMAGE_HEADERS); if(q>ims){ims=q;image=c}
+          let q=headerScore(row[c],ID_HEADERS);if(q>is){is=q;id=c}
+          q=promptHeaderScore(row[c]);if(q>ps){ps=q;prompt=c}
         }
-        if(!is||id<0)continue;
-        const stats=candidateDataStats(rows,r,id,prompt,image);
-        if(!stats.taskRows)continue;
-
-        /*
-         * 排名原则：
-         * 1) 有真实提示词列的任务表明显优先；
-         * 2) 其后比较实际非空提示词数量和有效任务行数量，而不是只看表头文字；
-         * 3) 最后才用表头匹配分数做细粒度决胜。
-         * 这样“500条提示词”会稳定胜过“规则说明/统计表”等辅助工作表。
-         */
-        const score=
-          (ps>0?100000000:0)
-          + stats.promptCount*100000
-          + stats.taskRows*1000
-          + stats.idCount*100
-          + stats.imageCount*10
-          + is*20 + ps*10 + ims;
-        const candidate={sheetName:sn,rows,headerRow:r,id,prompt,image,score,idScore:is,promptScore:ps,imageScore:ims,...stats};
+        // V1.3.0 的批量生图固定以 Excel 完整提示词为任务来源，因此编号列和提示词列都必须真实存在。
+        if(!is||!ps||id<0||prompt<0)continue;
+        const stats=candidateDataStats(rows,r,id,prompt);
+        if(!stats.taskRows||!stats.promptCount)continue;
+        const score=100000000+stats.promptCount*100000+stats.taskRows*1000+stats.idCount*100+is*20+ps*10;
+        const candidate={sheetName:sn,rows,headerRow:r,id,prompt,score,idScore:is,promptScore:ps,...stats};
         candidates.push(candidate);
         if(!best||candidate.score>best.score)best=candidate;
       }
@@ -307,8 +265,6 @@
   }
 
   function taskId(v,index){let s=String(v??'').trim();if(!s)s=String(index+1);if(/^\d+(?:\.0+)?$/.test(s))s=String(parseInt(s,10));return s;}
-  function basename(p){return String(p||'').split('/').pop()||'';}
-  function stem(p){return basename(p).replace(/\.[^.]+$/,'');}
   function sanitizeName(n){return String(n||'').replace(/[\\/:*?"<>|\x00-\x1F]/g,'_').replace(/[. ]+$/g,'').slice(0,150)||'POD';}
   function excelBatchFolderName(){
     const file=String(state.importedFileName||'').trim();
@@ -340,79 +296,82 @@
   async function importExcel(file){
     const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
     const m=detectSheet(wb);
-    if(!m) throw new Error('没有识别到有效任务表。请确认至少存在“编号 / 任务编号 / 序号 / ID”等编号列。');
+    if(!m)throw new Error('没有识别到有效批量生图任务表。请确认同时存在“编号”列和“完整中文生图提示词 / 完整提示词”等提示词列。');
     const tasks=[];
     for(let r=m.headerRow+1;r<m.rows.length;r++){
       const row=m.rows[r]||[];
-      const prompt=m.prompt>=0?String(row[m.prompt]??'').trim():'';
+      const prompt=String(row[m.prompt]??'').trim();
       const rawId=String(row[m.id]??'').trim();
-      const img=m.image>=0?String(row[m.image]??'').trim():'';
-      if(!prompt&&!rawId&&!img) continue;
+      if(!prompt&&!rawId)continue;
       const id=taskId(rawId,tasks.length);
-      tasks.push({key:`${id}::${r+1}`,id,imageName:img,prompt,status:'pending',sourcePath:'',outputFiles:[],error:'',attempts:0,row:r+1,updatedAt:new Date().toISOString()});
+      tasks.push({key:`${id}::${r+1}`,id,prompt,status:'pending',outputFiles:[],error:'',attempts:0,row:r+1,updatedAt:new Date().toISOString()});
     }
-    if(!tasks.length) throw new Error('任务表没有读取到有效任务行');
+    if(!tasks.length)throw new Error('任务表没有读取到有效任务行');
     state.tasks=tasks;
     state.importedFileName=file.name;
     state.importedSheetName=m.sheetName;
-    state.importedHeaders={
-      id:String(m.rows[m.headerRow][m.id]||''),
-      prompt:m.prompt>=0?String(m.rows[m.headerRow][m.prompt]||''):'',
-      image:m.image>=0?String(m.rows[m.headerRow][m.image]||''):''
-    };
-    state.importedStats={
-      headerRow:m.headerRow+1,
-      idCount:m.idCount||0,
-      promptCount:m.promptCount||0,
-      imageCount:m.imageCount||0,
-      taskRows:m.taskRows||tasks.length,
-      candidateCount:Array.isArray(m.candidates)?m.candidates.length:0,
-    };
+    state.importedHeaders={id:String(m.rows[m.headerRow][m.id]||''),prompt:String(m.rows[m.headerRow][m.prompt]||'')};
+    state.importedStats={headerRow:m.headerRow+1,idCount:m.idCount||0,promptCount:m.promptCount||0,taskRows:m.taskRows||tasks.length,candidateCount:Array.isArray(m.candidates)?m.candidates.length:0};
     state.batchNo=1;state.currentBatchKeys=[];state.currentBatchPaths=[];state.resumeContext=null;
-    resolveAllTasks();refreshMissingPromptStates();state.phase='ready';saveState();
-    const promptInfo=m.prompt>=0?`提示词列“${state.importedHeaders.prompt}”非空 ${m.promptCount||0} 条`:'未检测到提示词列';
-    log(`Excel导入成功：${file.name}｜工作表“${m.sheetName}”｜编号列“${state.importedHeaders.id}”｜${promptInfo}｜最终任务 ${tasks.length} 条`,'success');
+    refreshMissingPromptStates();state.phase='ready';saveState();
+    log(`Excel导入成功：${file.name}｜工作表“${m.sheetName}”｜编号列“${state.importedHeaders.id}”｜提示词列“${state.importedHeaders.prompt}”非空 ${m.promptCount||0} 条｜最终任务 ${tasks.length} 条`,'success');
     try{const root=await getHandle(OUTPUT_KEY);if(root)await ensureTaskOutputDir({requestPermission:false,logCreated:true});}catch(e){log(`Excel已导入，但输出子文件夹暂未创建：${e.message||e}`,'warn');}
     await updateFolderLabels();
   }
-  function resolveAllTasks(){if(!state.tasks.length||!state.imagePaths.length)return;const byBase=new Map(),byStem=new Map(),byNumeric=new Map();for(const path of state.imagePaths){const base=basename(path).toLowerCase(),st=stem(path).toLowerCase();byBase.set(base,path);if(!byStem.has(st))byStem.set(st,path);if(/^\d+$/.test(st)){const nk=String(Number(st));if(!byNumeric.has(nk))byNumeric.set(nk,path);}}for(const t of state.tasks){let p='';if(t.imageName){const ib=basename(t.imageName).toLowerCase(),is=stem(t.imageName).toLowerCase();p=byBase.get(ib)||byStem.get(is)||(/^\d+$/.test(is)?byNumeric.get(String(Number(is))):'')||'';}const tid=String(t.id).toLowerCase();if(!p)p=byStem.get(tid)||(/^\d+$/.test(tid)?byNumeric.get(String(Number(tid))):'')||'';t.sourcePath=p;if(!p&&t.status!=='done'){t.error='未匹配到参考图';}else if(t.error==='未匹配到参考图')t.error='';}}
   function activeTasks(){const a=Math.max(1,Number(settings.rangeStart)||1),b=Math.max(a,Number(settings.rangeEnd)||999999);return state.tasks.filter((t,i)=>i+1>=a&&i+1<=b);}
-  function pendingTasks(){return activeTasks().filter(t=>t.status!=='done'&&t.status!=='skipped'&&t.sourcePath);}
+  function pendingTasks(){return activeTasks().filter(t=>t.status==='pending'||t.status==='running');}
   function findTask(key){return state.tasks.find(t=>t.key===key)||null;}
   function currentBatchTasks(){return state.currentBatchKeys.map(findTask).filter(Boolean);}
 
-  function basePrompt(){if(settings.mode==='enhance')return String(settings.enhancePrompt||'').trim();if(settings.mode==='custom')return String(settings.customPrompt||'').trim();return String(settings.rebuildPrompt||'').trim();}
-  function taskHasEffectivePrompt(task){return Boolean(basePrompt()||String(task?.prompt||'').trim());}
+
+  function publicPrompt(){return String(settings.publicPrompt||'').trim();}
+  function taskHasEffectivePrompt(task){return Boolean(String(task?.prompt||'').trim());}
   function refreshMissingPromptStates(){
-    const hasBase=Boolean(basePrompt());
     for(const t of state.tasks){
       const hasRow=Boolean(String(t.prompt||'').trim());
-      const isPromptError=t.status==='error'&&/^缺少提示词/.test(String(t.error||''));
-      if(!hasBase&&!hasRow&&t.status!=='done'&&t.status!=='confirm'&&t.status!=='skipped'){
+      const isPromptError=t.status==='error'&&/^缺少Excel完整提示词/.test(String(t.error||''));
+      const oldReferenceError=/未匹配(?:到)?参考图/.test(String(t.error||''));
+      if(oldReferenceError){t.error='';if(t.status==='error')t.status='pending';}
+      if(!hasRow&&t.status!=='done'&&t.status!=='confirm'&&t.status!=='skipped'){
         t.status='error';
-        t.error='缺少提示词：母提示词和Excel当前行提示词均为空';
+        t.error='缺少Excel完整提示词：本流程每个任务必须有独立完整提示词';
         t.updatedAt=new Date().toISOString();
-      }else if((hasBase||hasRow)&&isPromptError){
-        t.status='pending';
-        t.error='';
-        t.updatedAt=new Date().toISOString();
+      }else if(hasRow&&isPromptError){
+        t.status='pending';t.error='';t.updatedAt=new Date().toISOString();
       }
+      delete t.sourcePath;delete t.imageName;
     }
   }
   function buildBatchPrompt(tasks){
-    const base=basePrompt();
+    const common=publicPrompt();
     const lines=[];
-    if(base) lines.push(base);
-    lines.push('【本批任务映射】');
+    if(common){lines.push('【公共规则】',common,'');}
+    lines.push('【本批任务】');
     tasks.forEach((t,i)=>{
-      lines.push(`第${i+1}张参考图｜任务编号：${t.id}`);
-      if(String(t.prompt||'').trim()) lines.push(`${base?'该图补充要求':'该图完整要求'}：${String(t.prompt).trim()}`);
+      lines.push(`第${i+1}张结果｜任务编号：${t.id}`);
+      lines.push('完整要求：');
+      lines.push(String(t.prompt||'').trim());
+      lines.push('');
     });
-    lines.push(`请严格生成 ${tasks.length} 张结果图，顺序与上传的 ${tasks.length} 张参考图完全一致。`);
-    return lines.filter(Boolean).join('\n');
+    lines.push('【固定执行要求】');
+    lines.push('你会收到 1 张公共模板图，该模板图是本批所有任务共同使用的产品载体。');
+    lines.push(`本批共有 ${tasks.length} 个独立任务，必须严格生成 ${tasks.length} 张结果图；第1张对应第1个任务、第2张对应第2个任务，依此类推。`);
+    lines.push('不同任务之间禁止混用任何设计内容；不要把多个任务合并到同一张图中。');
+    return lines.filter((x,i,a)=>!(x===''&&a[i-1]==='')).join('\n').trim();
   }
 
-  async function validateHandles(request=true){const source=await getHandle(SOURCE_KEY),outputRoot=await getHandle(OUTPUT_KEY),template=await getHandle(TEMPLATE_KEY);if(!source)throw new Error('请先选择参考图目录');if(!outputRoot)throw new Error('请先选择输出目录');if(await permission(source,'read',request)!=='granted')throw new Error('没有参考图目录读取权限');if(await permission(outputRoot,'readwrite',request)!=='granted')throw new Error('没有输出目录写入权限');const output=await getTaskOutputDir(outputRoot,{create:true,requestPermission:request});if(settings.useTemplate){if(!template)throw new Error('已启用模板图，但尚未选择模板图');if(await permission(template,'read',request)!=='granted')throw new Error('没有模板图读取权限');}return{source,output,outputRoot,template};}
+  async function validateHandles(request=true){
+    if(!state.importedFileName||!state.tasks.length)throw new Error('请先导入 Excel 任务表');
+    refreshMissingPromptStates();
+    const template=await getHandle(TEMPLATE_KEY),outputRoot=await getHandle(OUTPUT_KEY);
+    if(!template)throw new Error('请先选择公共模板图');
+    if(!outputRoot)throw new Error('请先选择输出目录');
+    if(await permission(template,'read',request)!=='granted')throw new Error('没有公共模板图读取权限');
+    if(await permission(outputRoot,'readwrite',request)!=='granted')throw new Error('没有输出目录写入权限');
+    const output=await getTaskOutputDir(outputRoot,{create:true,requestPermission:request});
+    return{output,outputRoot,template};
+  }
+
 
   // ========================== 稳定 ChatGPT 交互层 ==========================
   function isVisible(el){if(!(el instanceof Element))return false;const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>1&&r.height>1&&s.visibility!=='hidden'&&s.display!=='none'&&Number(s.opacity||1)>0;}
@@ -465,20 +424,20 @@
   function fetchBlob(url,timeout=120000){if(/^(blob:|data:)/i.test(url))return fetch(url).then(r=>{if(!r.ok)throw new Error(`图片读取失败 HTTP ${r.status}`);return r.blob()});return new Promise((res,rej)=>GM_xmlhttpRequest({method:'GET',url,responseType:'blob',timeout,headers:{Referer:location.href,Accept:'image/*,*/*;q=0.8'},onload:r=>r.status>=200&&r.status<300&&r.response instanceof Blob&&r.response.size?res(r.response):rej(new Error(`生成图下载失败 HTTP ${r.status||'未知'}`)),onerror:()=>rej(new Error('生成图下载网络错误')),ontimeout:()=>rej(new Error('生成图下载超时'))}));}
   function extOf(blob,url){if(/png/i.test(blob.type))return'png';if(/webp/i.test(blob.type))return'webp';if(/jpe?g/i.test(blob.type))return'jpg';const m=String(url).match(/\.(png|webp|jpe?g)(?:[?#]|$)/i);return m?m[1].toLowerCase().replace('jpeg','jpg'):'png';}
 
-  async function downloadNormal(items,tasks,output){const saved=[];for(let i=0;i<items.length;i++){if(!state.running)throw new PausedError();const blob=await fetchBlob(items[i].url),ext=extOf(blob,items[i].url),task=tasks[i],base=sanitizeName(task.id||stem(task.sourcePath)||`任务${i+1}`),name=`${base}_POD.${ext}`;await writeBlob(output,name,blob);task.status='done';task.outputFiles=[name];task.error='';task.updatedAt=new Date().toISOString();saved.push(name);log(`${name} 已保存`,'success')}return saved;}
+  async function downloadNormal(items,tasks,output){const saved=[];for(let i=0;i<items.length;i++){if(!state.running)throw new PausedError();const blob=await fetchBlob(items[i].url),ext=extOf(blob,items[i].url),task=tasks[i],base=sanitizeName(task.id||`任务${i+1}`),name=`${base}_POD.${ext}`;await writeBlob(output,name,blob);task.status='done';task.outputFiles=[name];task.error='';task.updatedAt=new Date().toISOString();saved.push(name);log(`${name} 已保存`,'success')}return saved;}
   async function downloadAbnormal(items,batchNo,output){const saved=[];for(let i=0;i<items.length;i++){const blob=await fetchBlob(items[i].url),ext=extOf(blob,items[i].url),name=`待确认_批次${String(batchNo).padStart(3,'0')}_生成${String(i+1).padStart(2,'0')}_POD_${stamp()}.${ext}`;await writeBlob(output,name,blob);saved.push(name);log(`${name} 已作为待确认图片保存`,'warn')}return saved;}
 
-  async function processBatch(){const handles=await validateHandles(false);let tasks=currentBatchTasks();let detectOnly=Boolean(state.resumeContext?.kind==='generation-refresh'&&state.currentBatchKeys.length);if(!tasks.length){tasks=pendingTasks().slice(0,Math.max(1,Math.min(10,Number(settings.batchSize)||3)));if(!tasks.length)return false;state.currentBatchKeys=tasks.map(t=>t.key);state.currentBatchPaths=tasks.map(t=>t.sourcePath);state.batchStartedAt=Date.now();state.generationStartedAt=0;state.detectedGeneratedCount=0;state.expectedGeneratedCount=tasks.length;state.generatedCountChangedAt=Date.now();state.phase='preparing';for(const t of tasks){t.status='running';t.attempts=Number(t.attempts||0)+1;t.error='';t.updatedAt=new Date().toISOString();}saveState();}
+  async function processBatch(){const handles=await validateHandles(false);let tasks=currentBatchTasks();let detectOnly=Boolean(state.resumeContext?.kind==='generation-refresh'&&state.currentBatchKeys.length);if(!tasks.length){tasks=pendingTasks().slice(0,Math.max(1,Math.min(10,Number(settings.batchSize)||3)));if(!tasks.length)return false;state.currentBatchKeys=tasks.map(t=>t.key);state.currentBatchPaths=[];state.batchStartedAt=Date.now();state.generationStartedAt=0;state.detectedGeneratedCount=0;state.expectedGeneratedCount=tasks.length;state.generatedCountChangedAt=Date.now();state.phase='preparing';for(const t of tasks){t.status='running';t.attempts=Number(t.attempts||0)+1;t.error='';t.updatedAt=new Date().toISOString();}saveState();}
     const prompt=state.resumeContext?.prompt||buildBatchPrompt(tasks);let uploadRetries=0;let execution=0;
-    while(true){execution++;let sent=detectOnly;try{log(`${detectOnly?'恢复检测':'开始处理'}第 ${state.batchNo} 批：${tasks.map(t=>t.id).join('–')}`,'success');let baseline=new Set();if(!detectOnly){if(settings.newChatEachBatch)await goNewChat();baseline=new Set(generatedImages().map(i=>i.key));const files=[];for(const t of tasks)files.push(await getFileByPath(handles.source,t.sourcePath));state.phase='uploading_source';saveState();await uploadFiles(files,'参考图');await activateCreate();let expected=countAttachments();if(settings.useTemplate){state.phase='uploading_template';saveState();expected=await uploadFiles([await handles.template.getFile()],'模板图');}state.phase='writing_prompt';saveState();await setPromptValue(prompt);state.phase='sending';saveState();await sendPrompt(expected,prompt);sent=true;state.generationStartedAt=Date.now();state.phase='generating';saveState();}else{baseline=new Set();state.phase='recovering';state.generationStartedAt=state.generationStartedAt||Date.now();saveState();log('当前批次此前已发送成功，本次只恢复检测，不会重新发送','warn');await sleep(8000);}
-      const imgs=await waitGenerated(baseline,tasks.length,prompt);state.resumeContext=null;state.detectedGeneratedCount=imgs.length;state.phase='downloading';saveState();if(imgs.length!==tasks.length){const saved=await downloadAbnormal(imgs,state.batchNo,handles.output);for(const t of tasks){t.status='confirm';t.error=`生成数量不一致：计划${tasks.length}张，实际${imgs.length}张；已保存待确认文件 ${saved.join('、')}`;t.updatedAt=new Date().toISOString();}log(`第${state.batchNo}批进入待确认：输入${tasks.length}张，生成${imgs.length}张；不按顺序强行配图`,'warn');}else await downloadNormal(imgs,tasks,handles.output);
+    while(true){execution++;let sent=detectOnly;try{log(`${detectOnly?'恢复检测':'开始处理'}第 ${state.batchNo} 批：${tasks.map(t=>t.id).join('–')}`,'success');let baseline=new Set();if(!detectOnly){if(settings.newChatEachBatch)await goNewChat();baseline=new Set(generatedImages().map(i=>i.key));state.phase='uploading_template';saveState();const expected=await uploadFiles([await handles.template.getFile()],'公共模板图');await activateCreate();state.phase='writing_prompt';saveState();await setPromptValue(prompt);state.phase='sending';saveState();await sendPrompt(expected,prompt);sent=true;state.generationStartedAt=Date.now();state.phase='generating';saveState();}else{baseline=new Set();state.phase='recovering';state.generationStartedAt=state.generationStartedAt||Date.now();saveState();log('当前批次此前已发送成功，本次只恢复检测，不会重新发送','warn');await sleep(8000);}
+      const imgs=await waitGenerated(baseline,tasks.length,prompt);state.resumeContext=null;state.detectedGeneratedCount=imgs.length;state.phase='downloading';saveState();if(imgs.length!==tasks.length){const saved=await downloadAbnormal(imgs,state.batchNo,handles.output);for(const t of tasks){t.status='confirm';t.error=`生成数量不一致：计划${tasks.length}张，实际${imgs.length}张；已保存待确认文件 ${saved.join('、')}`;t.updatedAt=new Date().toISOString();}log(`第${state.batchNo}批进入待确认：任务${tasks.length}条，生成${imgs.length}张；不按顺序强行配图`,'warn');}else await downloadNormal(imgs,tasks,handles.output);
       finishBatchTimers();state.currentBatchKeys=[];state.currentBatchPaths=[];state.resumeContext=null;state.batchNo++;state.phase=pendingTasks().length?'ready':'done';saveState();return true;
-    }catch(e){if(e instanceof PausedError)throw e;if(e instanceof UploadRetryableError&&uploadRetries<2&&!sent){uploadRetries++;log(`附件上传失败，整批清理/重试 ${uploadRetries}/2：${e.message}`,'warn');await clearComposer();detectOnly=false;await sleep(1200);continue;}if(sent){const partial=normalizeGallery(generatedImages(prompt),0);const saved=await downloadAbnormal(partial,state.batchNo,handles.output).catch(()=>[]);for(const t of tasks){t.status='confirm';t.error=`已发送后异常：${e.message}；为避免重复生成不自动重发${saved.length?`；临时图：${saved.join('、')}`:''}`;t.updatedAt=new Date().toISOString();}state.resumeContext=null;finishBatchTimers();state.currentBatchKeys=[];state.currentBatchPaths=[];state.batchNo++;state.phase='ready';saveState();log(`第${state.batchNo-1}批发送后异常，已转待确认，不自动重发`,'warn');return true;}for(const t of tasks){t.status='error';t.error=e.message||String(e);t.updatedAt=new Date().toISOString();}state.running=false;state.phase='error';saveState();throw e;}}
+    }catch(e){if(e instanceof PausedError)throw e;if(e instanceof UploadRetryableError&&uploadRetries<2&&!sent){uploadRetries++;log(`模板图上传失败，整批清理/重试 ${uploadRetries}/2：${e.message}`,'warn');await clearComposer();detectOnly=false;await sleep(1200);continue;}if(sent){const partial=normalizeGallery(generatedImages(prompt),0);const saved=await downloadAbnormal(partial,state.batchNo,handles.output).catch(()=>[]);for(const t of tasks){t.status='confirm';t.error=`已发送后异常：${e.message}；为避免重复生成不自动重发${saved.length?`；临时图：${saved.join('、')}`:''}`;t.updatedAt=new Date().toISOString();}state.resumeContext=null;finishBatchTimers();state.currentBatchKeys=[];state.currentBatchPaths=[];state.batchNo++;state.phase='ready';saveState();log(`第${state.batchNo-1}批发送后异常，已转待确认，不自动重发`,'warn');return true;}for(const t of tasks){t.status='error';t.error=e.message||String(e);t.updatedAt=new Date().toISOString();}state.running=false;state.phase='error';saveState();throw e;}}
   }
   async function clearComposer(){const c=findComposer();for(let n=0;n<10&&countAttachments()>0;n++){const b=[...c.querySelectorAll('button[aria-label*="移除"],button[aria-label*="Remove"],button[aria-label*="删除附件"],button[aria-label*="Delete attachment"]')].filter(isVisible);if(!b.length)break;for(const x of b){smartClick(x);await sleep(150)}}const e=findPromptEditor();if(e){try{if(e instanceof HTMLTextAreaElement||e instanceof HTMLInputElement)setNativeValue(e,'');else{e.focus();document.execCommand('selectAll',false);document.execCommand('delete',false)}}catch(_){}}await sleep(500);}
   async function betweenBatches(){const min=Math.max(0,Number(settings.intervalMin)||0),max=Math.max(min,Number(settings.intervalMax)||min),ms=Math.floor(min+Math.random()*(max-min+1)),end=Date.now()+ms;log(`本批完成，随机等待 ${Math.ceil(ms/1000)} 秒后进入下一批`);while(state.running&&Date.now()<end){state.phase='batch_wait';updatePanel();await sleep(Math.min(1000,end-Date.now()))}if(!state.running)return false;state.phase='ready';saveState();return true;}
   async function worker(){if(workerActive||!state.running)return;workerActive=true;try{while(state.running&&pendingTasks().length){const ok=await processBatch();if(!ok)break;if(state.running&&pendingTasks().length&&!await betweenBatches())break;}if(state.running&&!pendingTasks().length){stopRunClock();state.running=false;state.phase='done';saveState();log(`全部完成：${activeTasks().filter(t=>t.status==='done').length} 条已完成，${activeTasks().filter(t=>t.status==='confirm').length} 条待确认`,'success')}}catch(e){if(e instanceof PausedError)log('任务已暂停','warn');else{stopRunClock();state.running=false;state.phase='error';saveState();log(e.message||String(e),'error')}}finally{workerActive=false;updatePanel();}}
-  async function start(){readUiSettings();if(settings.flow!=='batch_generation')throw new Error('当前流程尚未启用执行器，请切换到“批量生图”');await validateHandles(true);if(!state.imagePaths.length)await scanImages();if(!state.tasks.length){state.tasks=state.imagePaths.map((p,i)=>({key:`folder::${i+1}`,id:stem(p),imageName:basename(p),prompt:'',status:'pending',sourcePath:p,outputFiles:[],error:'',attempts:0,row:i+1,updatedAt:new Date().toISOString()}));saveState();log('未导入Excel：已按参考图文件生成临时POD任务队列','warn');}resolveAllTasks();refreshMissingPromptStates();saveState();renderTaskList(true);const p=pendingTasks();if(!p.length){const missing=activeTasks().filter(t=>t.status==='error'&&/^缺少提示词/.test(String(t.error||''))).length;if(missing)log(`当前范围没有可执行任务；其中 ${missing} 条同时缺少母提示词和Excel行提示词`,'warn');else log('当前范围没有待处理任务','warn');return;}state.running=true;state.phase='ready';startRunClock();saveState();log(`任务开始：待处理 ${p.length} 条，每批 ${settings.batchSize} 条`,'success');worker();}
+  async function start(){readUiSettings();if(settings.flow!=='batch_generation')throw new Error('当前流程尚未启用执行器，请切换到“批量生图”');refreshMissingPromptStates();saveState(false);await validateHandles(true);renderTaskList(true);const p=pendingTasks();if(!p.length){const missing=activeTasks().filter(t=>t.status==='error'&&/^缺少Excel完整提示词/.test(String(t.error||''))).length;if(missing)log(`当前范围没有可执行任务；其中 ${missing} 条缺少 Excel 完整提示词`,'warn');else log('当前范围没有待处理任务','warn');return;}state.running=true;state.phase='ready';startRunClock();saveState();log(`任务开始：待处理 ${p.length} 条，每批 ${settings.batchSize} 条；每批只上传 1 张公共模板图`,'success');worker();}
   function pause(){stopRunClock();state.running=false;saveState();log('已请求暂停；当前页面操作结束后停止','warn');}
   function skipCurrent(){const tasks=currentBatchTasks();if(!tasks.length)return;for(const t of tasks){t.status='skipped';t.error='用户跳过当前批';t.updatedAt=new Date().toISOString();}finishBatchTimers();state.currentBatchKeys=[];state.currentBatchPaths=[];state.resumeContext=null;state.batchNo++;state.running=false;state.phase='ready';saveState();log(`已跳过当前批：${tasks.map(t=>t.id).join('、')}`,'warn');}
   function resetProgress(){if(!confirm('确定把任务状态全部重置为待处理吗？已保存图片不会删除。'))return;for(const t of state.tasks){t.status='pending';t.outputFiles=[];t.error='';t.attempts=0;}stopRunClock();state.running=false;state.phase='ready';state.batchNo=1;state.currentBatchKeys=[];state.currentBatchPaths=[];state.resumeContext=null;state.totalRunMs=0;state.startedAt=0;finishBatchTimers();saveState();log('任务状态和运行进度已重置','warn');}
@@ -551,7 +510,6 @@
     for(const k of ['intervalMinSeconds','intervalMaxSeconds']){const e=panel.querySelector(`[data-setting="${k}"]`);if(e)settings[k==='intervalMinSeconds'?'intervalMin':'intervalMax']=Math.max(0,(Number(e.value)||0)*1000)}
     if(settings.intervalMax<settings.intervalMin)[settings.intervalMin,settings.intervalMax]=[settings.intervalMax,settings.intervalMin];
     const nc=panel.querySelector('[data-setting="newChatEachBatch"]');if(nc)settings.newChatEachBatch=nc.checked;
-    const ut=panel.querySelector('[data-setting="useTemplate"]');if(ut)settings.useTemplate=ut.checked;
     saveSettings();
     updateFolderLabels().catch(()=>{});
     updatePanel();
@@ -559,7 +517,7 @@
 
   function compactBatch(){const t=currentBatchTasks();if(!t.length)return'-';const ids=t.map(x=>x.id);if(ids.length>1&&ids.every(x=>/^\d+$/.test(x))&&ids.every((x,i)=>i===0||Number(x)===Number(ids[i-1])+1))return `${ids[0]}–${ids.at(-1)}`;return ids.join('、');}
   function statusLabel(s){return({pending:'待处理',running:'处理中',done:'已完成',error:'失败',confirm:'待确认',skipped:'已跳过'})[s]||s;}
-  function filteredTasks(){const q=String(settings.search||'').trim().toLowerCase(),f=settings.filter||'all';return state.tasks.filter(t=>(f==='all'||t.status===f)&&(!q||`${t.id} ${t.imageName} ${t.sourcePath} ${t.prompt}`.toLowerCase().includes(q)));}
+  function filteredTasks(){const q=String(settings.search||'').trim().toLowerCase(),f=settings.filter||'all';return state.tasks.filter(t=>(f==='all'||t.status===f)&&(!q||`${t.id} ${t.prompt}`.toLowerCase().includes(q)));}
   function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
   function escapeAttr(v){return escapeHtml(v).replace(/`/g,'&#96;');}
 
@@ -583,26 +541,20 @@
           <div class="pod-row"><span class="pod-label">提示词列</span><span class="pod-value" data-role="excel-prompt-header">-</span></div>
           <div class="pod-row"><span class="pod-label">识别任务</span><span class="pod-value pod-progress" data-role="excel-task-count">0 条</span></div>
         </div>
-        <div style="font-size:10.5px;color:#758196;margin:5px 0 8px">脚本会扫描所有工作表并按实际有效任务量选择主任务表；“完整中文生图提示词”优先级最高。导入成功后会在上方明确显示工作表、编号列、提示词列和识别条数。</div>
-        <div class="pod-row"><span class="pod-label">参考图目录</span><span class="pod-value" data-role="source">未选择</span></div>
-        <div class="pod-row ${settings.useTemplate?'':'pod-muted'}" data-role="template-row"><span class="pod-label">模板图</span><span class="pod-value" data-role="template">${settings.useTemplate?'未选择':'未启用'}</span></div>
+        <div style="font-size:10.5px;color:#758196;margin:5px 0 8px">脚本会扫描所有工作表并按实际有效任务量选择主任务表；“完整中文生图提示词”优先级最高。批量生图不再匹配参考图。</div>
+        <div class="pod-row"><span class="pod-label">公共模板图</span><span class="pod-value" data-role="template">未选择</span></div>
         <div class="pod-row"><span class="pod-label">输出目录</span><span class="pod-value" data-role="output">未选择</span></div>
-        <div style="font-size:10.5px;color:#758196;margin:-2px 0 7px">若已导入 Excel，选择的目录作为“总输出目录”，脚本会自动创建/复用“Excel文件名（去扩展名）”子文件夹；生成图、待确认图和任务记录统一写入该批次文件夹。</div>
+        <div style="font-size:10.5px;color:#758196;margin:-2px 0 7px">公共模板图为必需项，每一批只上传这 1 张模板图；Excel 每行完整提示词决定该任务的设计内容。输出仍按 Excel 文件名自动创建/复用批次子文件夹。</div>
         <div class="pod-buttons">
-          <button class="pod-btn success" data-act="source">选择参考图</button><button class="pod-btn success" data-act="template" ${settings.useTemplate?'':'disabled'}>选择模板图</button><button class="pod-btn success" data-act="output">选择输出</button>
-          <button class="pod-btn" data-act="scan">扫描参考图</button><button class="pod-btn success" data-act="exportTasks">导出任务记录</button><button class="pod-btn danger" data-act="forget">清除授权</button>
+          <button class="pod-btn success" data-act="template">选择模板图</button><button class="pod-btn success" data-act="output">选择输出</button><button class="pod-btn success" data-act="exportTasks">导出任务记录</button>
         </div>
+        <div class="pod-buttons" style="grid-template-columns:1fr"><button class="pod-btn danger" data-act="forget">清除模板图/输出授权</button></div>
       </div>
 
       <div class="pod-section">
         <div class="pod-section-title"><span>2. 批量生图规则</span><span class="pod-section-sub">POD业务逻辑已经合并在本流程内</span></div>
-        <div class="pod-settings" style="grid-template-columns:1fr">
-          <label>生成模式<select data-role="mode"><option value="rebuild">图案复刻</option><option value="enhance">图案高清重建</option><option value="custom">自定义</option></select></label>
-        </div>
-        <label class="pod-check"><input data-setting="useTemplate" type="checkbox" ${settings.useTemplate?'checked':''}> 使用模板图（可选）</label>
-        <div style="font-size:10.5px;color:#758196;margin:-2px 0 7px">开启后，每批参考图上传完成后会额外上传同一张固定模板图；关闭时模板图不会参与任务。</div>
-        <textarea class="pod-textarea" data-role="basePrompt" placeholder="母提示词（可选）｜留空时仅使用 Excel 当前任务提示词"></textarea>
-        <div style="font-size:10.5px;color:#758196;margin-top:5px">母提示词可以留空。Excel 会优先识别“完整中文提示词 / 完整提示词”等列；母提示词和当前行提示词至少有一个即可执行，两边都为空的任务会标记为“缺少提示词”并跳过发送。</div>
+        <textarea class="pod-textarea" data-role="publicPrompt" placeholder="公共提示词（可选，可编辑）｜用于说明模板图的共同使用规则"></textarea>
+        <div style="font-size:10.5px;color:#758196;margin-top:5px">公共提示词可以留空并会自动保存。Excel 每行“完整中文生图提示词 / 完整提示词”会原样作为该任务的完整要求；每个任务都必须有自己的 Excel 完整提示词。</div>
       </div>
 
       <div class="pod-section">
@@ -642,7 +594,7 @@
 
       <div class="pod-section">
         <div class="pod-section-title"><span>5. 任务记录</span><span class="pod-section-sub" data-role="task-stats"></span></div>
-        <div class="pod-task-tools"><input data-role="taskSearch" placeholder="搜索编号/文件/提示词" value="${escapeAttr(settings.search||'')}"><select data-role="taskFilter"><option value="all">全部</option><option value="pending">待处理</option><option value="running">处理中</option><option value="done">已完成</option><option value="error">失败</option><option value="confirm">待确认</option><option value="skipped">已跳过</option></select></div>
+        <div class="pod-task-tools"><input data-role="taskSearch" placeholder="搜索编号/提示词" value="${escapeAttr(settings.search||'')}"><select data-role="taskFilter"><option value="all">全部</option><option value="pending">待处理</option><option value="running">处理中</option><option value="done">已完成</option><option value="error">失败</option><option value="confirm">待确认</option><option value="skipped">已跳过</option></select></div>
         <div class="pod-task-list" data-role="task-list"></div>
         <div class="pod-buttons"><button class="pod-btn danger" data-act="resetTasks">任务状态全重置</button></div>
       </div>
@@ -652,8 +604,7 @@
         <div class="pod-log" data-role="log"></div>
       </div>`;
     bindWorkspaceEvents(workspace);
-    const mode=workspace.querySelector('[data-role="mode"]');if(mode)mode.value=settings.mode;
-    const prompt=workspace.querySelector('[data-role="basePrompt"]');if(prompt)prompt.value=basePrompt();
+    const prompt=workspace.querySelector('[data-role="publicPrompt"]');if(prompt)prompt.value=publicPrompt();
     const filter=workspace.querySelector('[data-role="taskFilter"]');if(filter)filter.value=settings.filter||'all';
     lastTaskListSignature='';lastLogPreviewSignature='';
     renderTaskList(true);renderLogPreview(true);
@@ -664,15 +615,14 @@
   function bindWorkspaceEvents(v){
     const excel=v.querySelector('[data-role="excel"]');
     excel?.addEventListener('change',e=>{const f=e.target.files?.[0];if(f)importExcel(f).then(()=>{lastTaskListSignature='';renderTaskList(true);updatePanel();}).catch(x=>{log(x.message||String(x),'error');alert(x.message||x)});e.target.value=''});
-    v.querySelector('[data-role="mode"]')?.addEventListener('change',e=>{settings.mode=e.target.value;saveSettings();refreshMissingPromptStates();saveState(false);const p=v.querySelector('[data-role="basePrompt"]');if(p)p.value=basePrompt();lastTaskListSignature='';renderTaskList(true);updatePanel();});
-    v.querySelector('[data-role="basePrompt"]')?.addEventListener('change',e=>{if(settings.mode==='enhance')settings.enhancePrompt=e.target.value;else if(settings.mode==='custom')settings.customPrompt=e.target.value;else settings.rebuildPrompt=e.target.value;saveSettings();refreshMissingPromptStates();saveState(false);lastTaskListSignature='';renderTaskList(true);updatePanel();});
+    v.querySelector('[data-role="publicPrompt"]')?.addEventListener('change',e=>{settings.publicPrompt=e.target.value;saveSettings();lastTaskListSignature='';renderTaskList(true);updatePanel();});
     v.querySelector('[data-role="taskSearch"]')?.addEventListener('input',e=>{settings.search=e.target.value;saveSettings();renderTaskList();});
     v.querySelector('[data-role="taskFilter"]')?.addEventListener('change',e=>{settings.filter=e.target.value;saveSettings();renderTaskList();});
     v.querySelectorAll('[data-setting]').forEach(e=>e.addEventListener('change',()=>readUiSettings()));
     const actions={
-      excel:()=>excel?.click(),source:chooseSource,template:chooseTemplate,output:chooseOutput,scan:scanImages,start,pause:()=>pause(),skip:()=>skipCurrent(),logs:openLogWindow,exportLogs:()=>exportLogs(),exportTasks,reset:()=>resetProgress(),
-      forget:async()=>{if(confirm('清除参考图/模板图/输出目录授权？')){await clearHandles();await updateFolderLabels();log('文件授权已清除','warn');}},
-      resetTasks:()=>{if(!confirm('全部任务状态重置为待处理？已保存图片不会删除。'))return;for(const t of state.tasks){t.status='pending';t.outputFiles=[];t.error='';t.attempts=0;t.updatedAt=new Date().toISOString();}saveState();renderTaskList();log('任务状态已全部重置','warn');},
+      excel:()=>excel?.click(),template:chooseTemplate,output:chooseOutput,start,pause:()=>pause(),skip:()=>skipCurrent(),logs:openLogWindow,exportLogs:()=>exportLogs(),exportTasks,reset:()=>resetProgress(),
+      forget:async()=>{if(confirm('清除公共模板图和输出目录授权？')){await clearHandles();await updateFolderLabels();log('模板图/输出目录授权已清除','warn');}},
+      resetTasks:()=>{if(!confirm('全部任务状态重置为待处理？已保存图片不会删除。'))return;for(const t of state.tasks){t.status='pending';t.outputFiles=[];t.error='';t.attempts=0;t.updatedAt=new Date().toISOString();}refreshMissingPromptStates();saveState();renderTaskList();log('任务状态已全部重置','warn');},
     };
     v.querySelectorAll('[data-act]').forEach(b=>b.addEventListener('click',()=>Promise.resolve(actions[b.dataset.act]?.()).then(()=>{updatePanel();renderTaskList();}).catch(e=>{log(e.message||String(e),'error');if(e?.name!=='AbortError')alert(e.message||e)})));
   }
@@ -681,10 +631,10 @@
     if(!panel||settings.flow!=='batch_generation')return;
     const box=panel.querySelector('[data-role="task-list"]');if(!box)return;
     const tasks=filteredTasks();
-    const signature=JSON.stringify(tasks.map(t=>[t.key,t.id,t.sourcePath,t.imageName,t.prompt,t.status,t.error,(t.outputFiles||[]).join('|')]));
+    const signature=JSON.stringify(tasks.map(t=>[t.key,t.id,t.row,t.prompt,t.status,t.error,(t.outputFiles||[]).join('|')]));
     if(!force&&signature===lastTaskListSignature)return;
     lastTaskListSignature=signature;
-    box.innerHTML=tasks.length?tasks.map(t=>`<div class="pod-task"><b>${escapeHtml(t.id)}</b><div class="pod-task-main"><div class="pod-task-file" title="${escapeAttr(t.sourcePath||t.imageName||'')}">${escapeHtml(t.sourcePath||t.imageName||'未匹配参考图')}</div><div class="pod-task-prompt" title="${escapeAttr(t.error||t.prompt||'')}">${escapeHtml(t.error||t.prompt||(basePrompt()?'使用母提示词':'缺少提示词'))}</div></div><span class="pod-badge s-${t.status}">${statusLabel(t.status)}</span></div>`).join(''):'<div style="padding:15px;text-align:center;color:#98a2b3">暂无任务</div>';
+    box.innerHTML=tasks.length?tasks.map(t=>`<div class="pod-task"><b>${escapeHtml(t.id)}</b><div class="pod-task-main"><div class="pod-task-file">Excel 第${escapeHtml(t.row||'-')}行 · 完整提示词</div><div class="pod-task-prompt" title="${escapeAttr(t.error||t.prompt||'')}">${escapeHtml(t.error||t.prompt||'缺少Excel完整提示词')}</div></div><span class="pod-badge s-${t.status}">${statusLabel(t.status)}</span></div>`).join(''):'<div style="padding:15px;text-align:center;color:#98a2b3">暂无任务</div>';
   }
 
   async function exportTasks(){const payload={version:APP_VERSION,flow:settings.flow,exportedAt:new Date().toISOString(),file:state.importedFileName,sheet:state.importedSheetName,headers:state.importedHeaders,importStats:state.importedStats,settings:{...settings},tasks:state.tasks};const name=`POD任务记录_V${APP_VERSION}_${stamp()}.json`,body=JSON.stringify(payload,null,2);try{const root=await getHandle(OUTPUT_KEY);if(root){const dir=await getTaskOutputDir(root,{create:true,requestPermission:true});await writeBlob(dir,name,new Blob([body],{type:'application/json;charset=utf-8'}));log(`POD任务记录已保存到输出文件夹：${name}`,'success');return;}}catch(e){log(`任务记录写入输出文件夹失败，改为浏览器下载：${e.message||e}`,'warn');}downloadText(name,body,'application/json;charset=utf-8');log('POD任务记录已通过浏览器下载','success');}
@@ -695,7 +645,7 @@
 
   function renderLogWindow(force=false){if(!logWindow)return;const b=logWindow.querySelector('[data-role="body"]');const last=logs.at(-1),signature=`${logs.length}|${last?.time||''}|${last?.type||''}|${last?.message||''}`;if(force||signature!==lastLogWindowSignature){lastLogWindowSignature=signature;b.innerHTML=logs.map(e=>`<div class="plw-line ${e.type}">${escapeHtml(logLine(e))}</div>`).join('');if(logAutoScroll)b.scrollTop=b.scrollHeight;}const m=logWindow.querySelector('[data-role="metrics"]');if(m)m.textContent=`${flowLabel()} ｜ 总运行 ${formatDuration(totalRunMs())} ｜ 第${state.batchNo}批 ｜ ${phaseLabel()} ｜ 生图 ${state.detectedGeneratedCount}/${state.expectedGeneratedCount}`;}
 
-  async function updateFolderLabels(){if(!panel||settings.flow!=='batch_generation')return;const [s,t,o]=await Promise.all([getHandle(SOURCE_KEY),getHandle(TEMPLATE_KEY),getHandle(OUTPUT_KEY)]).catch(()=>[null,null,null]);const set=(role,val)=>panel.querySelectorAll(`[data-role="${role}"]`).forEach(n=>n.textContent=val);set('source',s?s.name:'未选择');set('template',settings.useTemplate?(t?t.name:'未选择'):'未启用');set('output',outputDisplayName(o));const templateButton=panel.querySelector('[data-act="template"]');if(templateButton)templateButton.disabled=!settings.useTemplate;const templateRow=panel.querySelector('[data-role="template-row"]');if(templateRow)templateRow.classList.toggle('pod-muted',!settings.useTemplate);}
+  async function updateFolderLabels(){if(!panel||settings.flow!=='batch_generation')return;const [t,o]=await Promise.all([getHandle(TEMPLATE_KEY),getHandle(OUTPUT_KEY)]).catch(()=>[null,null]);const set=(role,val)=>panel.querySelectorAll(`[data-role="${role}"]`).forEach(n=>n.textContent=val);set('template',t?t.name:'未选择');set('output',outputDisplayName(o));}
 
   function updatePanel(){
     if(!panel)return;
@@ -705,7 +655,7 @@
     const done=all.filter(t=>t.status==='done').length,confirm=all.filter(t=>t.status==='confirm').length,error=all.filter(t=>t.status==='error').length,skipped=all.filter(t=>t.status==='skipped').length;
     const expected=Number(state.expectedGeneratedCount||0),det=Number(state.detectedGeneratedCount||0);
     const set=(role,val)=>{const el=panel.querySelector(`[data-role="${role}"]`);if(el)el.textContent=val;};
-    set('task-source-summary',state.importedFileName?`已导入 · ${state.tasks.length}条`:(state.tasks.length?`${state.tasks.length}条临时任务`:'未建立任务'));
+    set('task-source-summary',state.importedFileName?`已导入 · ${state.tasks.length}条`:'未导入');
     set('excel-file',state.importedFileName||'未导入');
     set('excel-sheet',state.importedSheetName||'-');
     set('excel-id-header',state.importedHeaders?.id||'-');
@@ -721,9 +671,8 @@
     set('status-summary',`完成 ${done} · 待确认 ${confirm} · 失败 ${error}`);
     set('task-stats',`待处理 ${state.tasks.filter(t=>t.status==='pending').length} · 完成 ${state.tasks.filter(t=>t.status==='done').length} · 待确认 ${state.tasks.filter(t=>t.status==='confirm').length}`);
     const status=panel.querySelector('[data-role="status"]');
-    if(status){if(!state.tasks.length&&!state.imagePaths.length)status.textContent='请选择参考图目录；Excel任务表可选';else if(state.running&&state.phase==='batch_wait')status.textContent='批次完成，正在等待下一批';else if(state.running&&state.phase==='generating')status.textContent=`正在生图：${det}/${expected||'?'} · 当前批次 ${compactBatch()}`;else if(state.running)status.textContent=`运行中：${phaseLabel()} · 当前 ${compactBatch()}`;else if(state.phase==='done')status.textContent=confirm?`全部可执行任务已结束；待确认 ${confirm} 条`:'全部完成';else if(state.phase==='error')status.textContent='发生错误，已暂停';else status.textContent='等待/已暂停';}
+    if(status){if(!state.tasks.length)status.textContent='请先导入 Excel 任务表，再选择公共模板图和输出目录';else if(state.running&&state.phase==='batch_wait')status.textContent='批次完成，正在等待下一批';else if(state.running&&state.phase==='generating')status.textContent=`正在生图：${det}/${expected||'?'} · 当前批次 ${compactBatch()}`;else if(state.running)status.textContent=`运行中：${phaseLabel()} · 当前 ${compactBatch()}`;else if(state.phase==='done')status.textContent=confirm?`全部可执行任务已结束；待确认 ${confirm} 条`:'全部完成';else if(state.phase==='error')status.textContent='发生错误，已暂停';else status.textContent='等待/已暂停';}
     const startBtn=panel.querySelector('[data-act="start"]');if(startBtn)startBtn.textContent=state.running?'运行中':'开始/继续';
-    const useTemplate=panel.querySelector('[data-setting="useTemplate"]');if(useTemplate)useTemplate.checked=Boolean(settings.useTemplate);const templateButton=panel.querySelector('[data-act="template"]');if(templateButton)templateButton.disabled=!settings.useTemplate;const templateRow=panel.querySelector('[data-role="template-row"]');if(templateRow)templateRow.classList.toggle('pod-muted',!settings.useTemplate);
     renderTaskList();
     renderLogWindow(); // 只更新日志窗口顶部计时；正文仅在日志内容变化时重绘
   }
@@ -807,7 +756,7 @@
     }
   }catch(_){}
 
-  async function boot(){createPanel();resolveAllTasks();saveState(false);saveSettings();GM_setValue(LOG_KEY,logs);await updateFolderLabels();setTimeout(()=>checkUpdate(false),1600);setInterval(()=>{try{updatePanel()}catch(_){}},1000);if(state.running&&state.resumeContext?.kind==='generation-refresh'){log(`检测到刷新恢复：第${state.batchNo}批只恢复检测，不重新发送`,'warn');setTimeout(()=>worker(),1500);}else if(state.running){stopRunClock();state.running=false;state.phase='ready';saveState();log('页面重新加载后已自动暂停；点击“开始/继续”可继续未完成任务','warn');}else{log(`POD统一工作台已启动 V${APP_VERSION}；当前流程：${flowLabel()}；不依赖任何旧洗图脚本`,'success');}}
+  async function boot(){refreshMissingPromptStates();saveState(false);saveSettings();createPanel();GM_setValue(LOG_KEY,logs);await updateFolderLabels();setTimeout(()=>checkUpdate(false),1600);setInterval(()=>{try{updatePanel()}catch(_){}},1000);if(state.running&&state.resumeContext?.kind==='generation-refresh'){log(`检测到刷新恢复：第${state.batchNo}批只恢复检测，不重新发送`,'warn');setTimeout(()=>worker(),1500);}else if(state.running){stopRunClock();state.running=false;state.phase='ready';saveState();log('页面重新加载后已自动暂停；点击“开始/继续”可继续未完成任务','warn');}else{log(`POD统一工作台已启动 V${APP_VERSION}；当前流程：${flowLabel()}；批量生图模式：Excel完整提示词 + 公共模板图`,'success');}}
 
   boot().catch(e=>{console.error(e);alert(`POD统一工作台启动失败：${e.message||e}`)});
 })();

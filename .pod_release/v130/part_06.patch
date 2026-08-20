@@ -1,0 +1,62 @@
+--- POD_ChatGPT.user.js
++++ POD_ChatGPT.user.js
+@@ -551,7 +510,6 @@
+     for(const k of ['intervalMinSeconds','intervalMaxSeconds']){const e=panel.querySelector(`[data-setting="${k}"]`);if(e)settings[k==='intervalMinSeconds'?'intervalMin':'intervalMax']=Math.max(0,(Number(e.value)||0)*1000)}
+     if(settings.intervalMax<settings.intervalMin)[settings.intervalMin,settings.intervalMax]=[settings.intervalMax,settings.intervalMin];
+     const nc=panel.querySelector('[data-setting="newChatEachBatch"]');if(nc)settings.newChatEachBatch=nc.checked;
+-    const ut=panel.querySelector('[data-setting="useTemplate"]');if(ut)settings.useTemplate=ut.checked;
+     saveSettings();
+     updateFolderLabels().catch(()=>{});
+     updatePanel();
+@@ -559,7 +517,7 @@
+ 
+   function compactBatch(){const t=currentBatchTasks();if(!t.length)return'-';const ids=t.map(x=>x.id);if(ids.length>1&&ids.every(x=>/^\d+$/.test(x))&&ids.every((x,i)=>i===0||Number(x)===Number(ids[i-1])+1))return `${ids[0]}–${ids.at(-1)}`;return ids.join('、');}
+   function statusLabel(s){return({pending:'待处理',running:'处理中',done:'已完成',error:'失败',confirm:'待确认',skipped:'已跳过'})[s]||s;}
+-  function filteredTasks(){const q=String(settings.search||'').trim().toLowerCase(),f=settings.filter||'all';return state.tasks.filter(t=>(f==='all'||t.status===f)&&(!q||`${t.id} ${t.imageName} ${t.sourcePath} ${t.prompt}`.toLowerCase().includes(q)));}
++  function filteredTasks(){const q=String(settings.search||'').trim().toLowerCase(),f=settings.filter||'all';return state.tasks.filter(t=>(f==='all'||t.status===f)&&(!q||`${t.id} ${t.prompt}`.toLowerCase().includes(q)));}
+   function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+   function escapeAttr(v){return escapeHtml(v).replace(/`/g,'&#96;');}
+ 
+@@ -583,26 +541,20 @@
+           <div class="pod-row"><span class="pod-label">提示词列</span><span class="pod-value" data-role="excel-prompt-header">-</span></div>
+           <div class="pod-row"><span class="pod-label">识别任务</span><span class="pod-value pod-progress" data-role="excel-task-count">0 条</span></div>
+         </div>
+-        <div style="font-size:10.5px;color:#758196;margin:5px 0 8px">脚本会扫描所有工作表并按实际有效任务量选择主任务表；“完整中文生图提示词”优先级最高。导入成功后会在上方明确显示工作表、编号列、提示词列和识别条数。</div>
+-        <div class="pod-row"><span class="pod-label">参考图目录</span><span class="pod-value" data-role="source">未选择</span></div>
+-        <div class="pod-row ${settings.useTemplate?'':'pod-muted'}" data-role="template-row"><span class="pod-label">模板图</span><span class="pod-value" data-role="template">${settings.useTemplate?'未选择':'未启用'}</span></div>
++        <div style="font-size:10.5px;color:#758196;margin:5px 0 8px">脚本会扫描所有工作表并按实际有效任务量选择主任务表；“完整中文生图提示词”优先级最高。批量生图不再匹配参考图。</div>
++        <div class="pod-row"><span class="pod-label">公共模板图</span><span class="pod-value" data-role="template">未选择</span></div>
+         <div class="pod-row"><span class="pod-label">输出目录</span><span class="pod-value" data-role="output">未选择</span></div>
+-        <div style="font-size:10.5px;color:#758196;margin:-2px 0 7px">若已导入 Excel，选择的目录作为“总输出目录”，脚本会自动创建/复用“Excel文件名（去扩展名）”子文件夹；生成图、待确认图和任务记录统一写入该批次文件夹。</div>
++        <div style="font-size:10.5px;color:#758196;margin:-2px 0 7px">公共模板图为必需项，每一批只上传这 1 张模板图；Excel 每行完整提示词决定该任务的设计内容。输出仍按 Excel 文件名自动创建/复用批次子文件夹。</div>
+         <div class="pod-buttons">
+-          <button class="pod-btn success" data-act="source">选择参考图</button><button class="pod-btn success" data-act="template" ${settings.useTemplate?'':'disabled'}>选择模板图</button><button class="pod-btn success" data-act="output">选择输出</button>
+-          <button class="pod-btn" data-act="scan">扫描参考图</button><button class="pod-btn success" data-act="exportTasks">导出任务记录</button><button class="pod-btn danger" data-act="forget">清除授权</button>
++          <button class="pod-btn success" data-act="template">选择模板图</button><button class="pod-btn success" data-act="output">选择输出</button><button class="pod-btn success" data-act="exportTasks">导出任务记录</button>
+         </div>
++        <div class="pod-buttons" style="grid-template-columns:1fr"><button class="pod-btn danger" data-act="forget">清除模板图/输出授权</button></div>
+       </div>
+ 
+       <div class="pod-section">
+         <div class="pod-section-title"><span>2. 批量生图规则</span><span class="pod-section-sub">POD业务逻辑已经合并在本流程内</span></div>
+-        <div class="pod-settings" style="grid-template-columns:1fr">
+-          <label>生成模式<select data-role="mode"><option value="rebuild">图案复刻</option><option value="enhance">图案高清重建</option><option value="custom">自定义</option></select></label>
+-        </div>
+-        <label class="pod-check"><input data-setting="useTemplate" type="checkbox" ${settings.useTemplate?'checked':''}> 使用模板图（可选）</label>
+-        <div style="font-size:10.5px;color:#758196;margin:-2px 0 7px">开启后，每批参考图上传完成后会额外上传同一张固定模板图；关闭时模板图不会参与任务。</div>
+-        <textarea class="pod-textarea" data-role="basePrompt" placeholder="母提示词（可选）｜留空时仅使用 Excel 当前任务提示词"></textarea>
+-        <div style="font-size:10.5px;color:#758196;margin-top:5px">母提示词可以留空。Excel 会优先识别“完整中文提示词 / 完整提示词”等列；母提示词和当前行提示词至少有一个即可执行，两边都为空的任务会标记为“缺少提示词”并跳过发送。</div>
++        <textarea class="pod-textarea" data-role="publicPrompt" placeholder="公共提示词（可选，可编辑）｜用于说明模板图的共同使用规则"></textarea>
++        <div style="font-size:10.5px;color:#758196;margin-top:5px">公共提示词可以留空并会自动保存。Excel 每行“完整中文生图提示词 / 完整提示词”会原样作为该任务的完整要求；每个任务都必须有自己的 Excel 完整提示词。</div>
+       </div>
+ 
+       <div class="pod-section">
+@@ -642,7 +594,7 @@
+ 
+       <div class="pod-section">
+         <div class="pod-section-title"><span>5. 任务记录</span><span class="pod-section-sub" data-role="task-stats"></span></div>
+-        <div class="pod-task-tools"><input data-role="taskSearch" placeholder="搜索编号/文件/提示词" value="${escapeAttr(settings.search||'')}"><select data-role="taskFilter"><option value="all">全部</option><option value="pending">待处理</option><option value="running">处理中</option><option value="done">已完成</option><option value="error">失败</option><option value="confirm">待确认</option><option value="skipped">已跳过</option></select></div>
++        <div class="pod-task-tools"><input data-role="taskSearch" placeholder="搜索编号/提示词" value="${escapeAttr(settings.search||'')}"><select data-role="taskFilter"><option value="all">全部</option><option value="pending">待处理</option><option value="running">处理中</option><option value="done">已完成</option><option value="error">失败</option><option value="confirm">待确认</option><option value="skipped">已跳过</option></select></div>
+         <div class="pod-task-list" data-role="task-list"></div>
+         <div class="pod-buttons"><button class="pod-btn danger" data-act="resetTasks">任务状态全重置</button></div>
+       </div>

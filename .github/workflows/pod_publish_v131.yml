@@ -1,0 +1,81 @@
+name: Publish POD V1.3.1
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  publish:
+    if: github.event.issue.title == '[internal] publish POD V1.3.1'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify base and apply patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object POD_ChatGPT.user.js)" = "ee0b9aa95e0ea3c47b23393925d5e08ea3a53de0"
+          base64 -d .pod_release/POD_v131.patch.gz.b64 | gzip -d > /tmp/POD_v131.patch
+          git apply --check /tmp/POD_v131.patch
+          git apply /tmp/POD_v131.patch
+          node --check POD_ChatGPT.user.js
+          echo "d268326b71b51183c0f362de93b3ddedf88e5a5b05fc4bafcc56db50fc492730  POD_ChatGPT.user.js" | sha256sum -c -
+          test "$(git hash-object POD_ChatGPT.user.js)" = "a0ee3e170e48af1d294290c8ea3ed78d9476e38d"
+
+      - name: Build metadata and manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          src=Path('POD_ChatGPT.user.js').read_text(encoding='utf-8')
+          marker='// ==/UserScript=='
+          Path('POD_ChatGPT.meta.js').write_text(src[:src.index(marker)+len(marker)]+'\n',encoding='utf-8')
+
+          notes=[
+            '新增可选公共Logo图；选择后每批会在公共模板图之外额外上传同一张Logo图一次。',
+            '新增选择Logo图与清除Logo图按钮；未选择Logo图时继续使用原有“Excel完整提示词 + 公共模板图”流程。',
+            '公共提示词可用于说明模板图与Logo图的共同使用规则；Excel每行完整提示词保持原文。',
+            '固定执行要求会明确区分模板图与Logo图，避免把Logo图误当产品主体或主图案。',
+            '保留稳定ChatGPT上传、创建图片、发送确认、生图检测、断点恢复和按Excel文件名输出归档核心。'
+          ]
+          install='https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js'
+          manifest={'version':'1.3.1','install_url':install,'download_url':install,'published_at':'2026-08-20','changelog':notes}
+          Path('POD_ChatGPT.latest.json').write_text(json.dumps(manifest,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          compat={'version':'1.3.1','name':'ChatGPT服装POD统一工作台',**{k:v for k,v in manifest.items() if k!='version'}}
+          Path('POD_ChatGPT_latest.json').write_text(json.dumps(compat,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+
+          hp=Path('POD_ChatGPT.history.json')
+          history=json.loads(hp.read_text(encoding='utf-8'))
+          versions=[v for v in history.get('versions',[]) if str(v.get('version'))!='1.3.1']
+          versions.insert(0,{'version':'1.3.1','date':'2026-08-20','notes':notes})
+          history['versions']=versions
+          hp.write_text(json.dumps(history,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          PY
+
+      - name: Commit release and clean staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .pod_release/POD_v131.patch.gz.b64 .github/workflows/pod_publish_v131.yml
+          rmdir .pod_release 2>/dev/null || true
+          git config user.name 'Kagura Update Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'release: POD ChatGPT V1.3.1'
+          git push
+
+      - name: Close trigger issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: gh issue close "${{ github.event.issue.number }}" --reason completed --comment 'POD V1.3.1 published and verified.'

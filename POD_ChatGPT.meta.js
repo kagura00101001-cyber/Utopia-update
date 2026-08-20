@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ChatGPT服装POD统一工作台 V1.2.2
-// @name:zh-CN   ChatGPT服装POD统一工作台 V1.2.3
+// @name:zh-CN   ChatGPT服装POD统一工作台 V1.2.4
 // @namespace    https://github.com/Kagura-userscripts
-// @version      1.2.3
-// @description  服装POD统一工作台：V1.2.3 修复Excel空白表头误判和34条问题，按有效任务量选择工作表，完整中文生图提示词最高优先，并优化任务表导入显示。
+// @version      1.2.4
+// @description  服装POD统一工作台：V1.2.4 新增按 Excel 文件名自动创建/复用输出子文件夹，正常图、待确认图和任务记录统一归档；保留稳定 ChatGPT 生图核心。
 // @author       Kagura
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js

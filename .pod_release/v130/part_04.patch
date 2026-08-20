@@ -1,0 +1,127 @@
+--- POD_ChatGPT.user.js
++++ POD_ChatGPT.user.js
+@@ -340,79 +296,82 @@
+   async function importExcel(file){
+     const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
+     const m=detectSheet(wb);
+-    if(!m) throw new Error('没有识别到有效任务表。请确认至少存在“编号 / 任务编号 / 序号 / ID”等编号列。');
++    if(!m)throw new Error('没有识别到有效批量生图任务表。请确认同时存在“编号”列和“完整中文生图提示词 / 完整提示词”等提示词列。');
+     const tasks=[];
+     for(let r=m.headerRow+1;r<m.rows.length;r++){
+       const row=m.rows[r]||[];
+-      const prompt=m.prompt>=0?String(row[m.prompt]??'').trim():'';
++      const prompt=String(row[m.prompt]??'').trim();
+       const rawId=String(row[m.id]??'').trim();
+-      const img=m.image>=0?String(row[m.image]??'').trim():'';
+-      if(!prompt&&!rawId&&!img) continue;
++      if(!prompt&&!rawId)continue;
+       const id=taskId(rawId,tasks.length);
+-      tasks.push({key:`${id}::${r+1}`,id,imageName:img,prompt,status:'pending',sourcePath:'',outputFiles:[],error:'',attempts:0,row:r+1,updatedAt:new Date().toISOString()});
++      tasks.push({key:`${id}::${r+1}`,id,prompt,status:'pending',outputFiles:[],error:'',attempts:0,row:r+1,updatedAt:new Date().toISOString()});
+     }
+-    if(!tasks.length) throw new Error('任务表没有读取到有效任务行');
++    if(!tasks.length)throw new Error('任务表没有读取到有效任务行');
+     state.tasks=tasks;
+     state.importedFileName=file.name;
+     state.importedSheetName=m.sheetName;
+-    state.importedHeaders={
+-      id:String(m.rows[m.headerRow][m.id]||''),
+-      prompt:m.prompt>=0?String(m.rows[m.headerRow][m.prompt]||''):'',
+-      image:m.image>=0?String(m.rows[m.headerRow][m.image]||''):''
+-    };
+-    state.importedStats={
+-      headerRow:m.headerRow+1,
+-      idCount:m.idCount||0,
+-      promptCount:m.promptCount||0,
+-      imageCount:m.imageCount||0,
+-      taskRows:m.taskRows||tasks.length,
+-      candidateCount:Array.isArray(m.candidates)?m.candidates.length:0,
+-    };
++    state.importedHeaders={id:String(m.rows[m.headerRow][m.id]||''),prompt:String(m.rows[m.headerRow][m.prompt]||'')};
++    state.importedStats={headerRow:m.headerRow+1,idCount:m.idCount||0,promptCount:m.promptCount||0,taskRows:m.taskRows||tasks.length,candidateCount:Array.isArray(m.candidates)?m.candidates.length:0};
+     state.batchNo=1;state.currentBatchKeys=[];state.currentBatchPaths=[];state.resumeContext=null;
+-    resolveAllTasks();refreshMissingPromptStates();state.phase='ready';saveState();
+-    const promptInfo=m.prompt>=0?`提示词列“${state.importedHeaders.prompt}”非空 ${m.promptCount||0} 条`:'未检测到提示词列';
+-    log(`Excel导入成功：${file.name}｜工作表“${m.sheetName}”｜编号列“${state.importedHeaders.id}”｜${promptInfo}｜最终任务 ${tasks.length} 条`,'success');
++    refreshMissingPromptStates();state.phase='ready';saveState();
++    log(`Excel导入成功：${file.name}｜工作表“${m.sheetName}”｜编号列“${state.importedHeaders.id}”｜提示词列“${state.importedHeaders.prompt}”非空 ${m.promptCount||0} 条｜最终任务 ${tasks.length} 条`,'success');
+     try{const root=await getHandle(OUTPUT_KEY);if(root)await ensureTaskOutputDir({requestPermission:false,logCreated:true});}catch(e){log(`Excel已导入，但输出子文件夹暂未创建：${e.message||e}`,'warn');}
+     await updateFolderLabels();
+   }
+-  function resolveAllTasks(){if(!state.tasks.length||!state.imagePaths.length)return;const byBase=new Map(),byStem=new Map(),byNumeric=new Map();for(const path of state.imagePaths){const base=basename(path).toLowerCase(),st=stem(path).toLowerCase();byBase.set(base,path);if(!byStem.has(st))byStem.set(st,path);if(/^\d+$/.test(st)){const nk=String(Number(st));if(!byNumeric.has(nk))byNumeric.set(nk,path);}}for(const t of state.tasks){let p='';if(t.imageName){const ib=basename(t.imageName).toLowerCase(),is=stem(t.imageName).toLowerCase();p=byBase.get(ib)||byStem.get(is)||(/^\d+$/.test(is)?byNumeric.get(String(Number(is))):'')||'';}const tid=String(t.id).toLowerCase();if(!p)p=byStem.get(tid)||(/^\d+$/.test(tid)?byNumeric.get(String(Number(tid))):'')||'';t.sourcePath=p;if(!p&&t.status!=='done'){t.error='未匹配到参考图';}else if(t.error==='未匹配到参考图')t.error='';}}
+   function activeTasks(){const a=Math.max(1,Number(settings.rangeStart)||1),b=Math.max(a,Number(settings.rangeEnd)||999999);return state.tasks.filter((t,i)=>i+1>=a&&i+1<=b);}
+-  function pendingTasks(){return activeTasks().filter(t=>t.status!=='done'&&t.status!=='skipped'&&t.sourcePath);}
++  function pendingTasks(){return activeTasks().filter(t=>t.status==='pending'||t.status==='running');}
+   function findTask(key){return state.tasks.find(t=>t.key===key)||null;}
+   function currentBatchTasks(){return state.currentBatchKeys.map(findTask).filter(Boolean);}
+ 
+-  function basePrompt(){if(settings.mode==='enhance')return String(settings.enhancePrompt||'').trim();if(settings.mode==='custom')return String(settings.customPrompt||'').trim();return String(settings.rebuildPrompt||'').trim();}
+-  function taskHasEffectivePrompt(task){return Boolean(basePrompt()||String(task?.prompt||'').trim());}
++
++  function publicPrompt(){return String(settings.publicPrompt||'').trim();}
++  function taskHasEffectivePrompt(task){return Boolean(String(task?.prompt||'').trim());}
+   function refreshMissingPromptStates(){
+-    const hasBase=Boolean(basePrompt());
+     for(const t of state.tasks){
+       const hasRow=Boolean(String(t.prompt||'').trim());
+-      const isPromptError=t.status==='error'&&/^缺少提示词/.test(String(t.error||''));
+-      if(!hasBase&&!hasRow&&t.status!=='done'&&t.status!=='confirm'&&t.status!=='skipped'){
++      const isPromptError=t.status==='error'&&/^缺少Excel完整提示词/.test(String(t.error||''));
++      const oldReferenceError=/未匹配(?:到)?参考图/.test(String(t.error||''));
++      if(oldReferenceError){t.error='';if(t.status==='error')t.status='pending';}
++      if(!hasRow&&t.status!=='done'&&t.status!=='confirm'&&t.status!=='skipped'){
+         t.status='error';
+-        t.error='缺少提示词：母提示词和Excel当前行提示词均为空';
+-        t.updatedAt=new Date().toISOString();
+-      }else if((hasBase||hasRow)&&isPromptError){
+-        t.status='pending';
+-        t.error='';
++        t.error='缺少Excel完整提示词：本流程每个任务必须有独立完整提示词';
+         t.updatedAt=new Date().toISOString();
++      }else if(hasRow&&isPromptError){
++        t.status='pending';t.error='';t.updatedAt=new Date().toISOString();
+       }
++      delete t.sourcePath;delete t.imageName;
+     }
+   }
+   function buildBatchPrompt(tasks){
+-    const base=basePrompt();
++    const common=publicPrompt();
+     const lines=[];
+-    if(base) lines.push(base);
+-    lines.push('【本批任务映射】');
++    if(common){lines.push('【公共规则】',common,'');}
++    lines.push('【本批任务】');
+     tasks.forEach((t,i)=>{
+-      lines.push(`第${i+1}张参考图｜任务编号：${t.id}`);
+-      if(String(t.prompt||'').trim()) lines.push(`${base?'该图补充要求':'该图完整要求'}：${String(t.prompt).trim()}`);
++      lines.push(`第${i+1}张结果｜任务编号：${t.id}`);
++      lines.push('完整要求：');
++      lines.push(String(t.prompt||'').trim());
++      lines.push('');
+     });
+-    lines.push(`请严格生成 ${tasks.length} 张结果图，顺序与上传的 ${tasks.length} 张参考图完全一致。`);
+-    return lines.filter(Boolean).join('\n');
++    lines.push('【固定执行要求】');
++    lines.push('你会收到 1 张公共模板图，该模板图是本批所有任务共同使用的产品载体。');
++    lines.push(`本批共有 ${tasks.length} 个独立任务，必须严格生成 ${tasks.length} 张结果图；第1张对应第1个任务、第2张对应第2个任务，依此类推。`);
++    lines.push('不同任务之间禁止混用任何设计内容；不要把多个任务合并到同一张图中。');
++    return lines.filter((x,i,a)=>!(x===''&&a[i-1]==='')).join('\n').trim();
++  }
++
++  async function validateHandles(request=true){
++    if(!state.importedFileName||!state.tasks.length)throw new Error('请先导入 Excel 任务表');
++    refreshMissingPromptStates();
++    const template=await getHandle(TEMPLATE_KEY),outputRoot=await getHandle(OUTPUT_KEY);
++    if(!template)throw new Error('请先选择公共模板图');
++    if(!outputRoot)throw new Error('请先选择输出目录');
++    if(await permission(template,'read',request)!=='granted')throw new Error('没有公共模板图读取权限');
++    if(await permission(outputRoot,'readwrite',request)!=='granted')throw new Error('没有输出目录写入权限');
++    const output=await getTaskOutputDir(outputRoot,{create:true,requestPermission:request});
++    return{output,outputRoot,template};
+   }
+ 
+-  async function validateHandles(request=true){const source=await getHandle(SOURCE_KEY),outputRoot=await getHandle(OUTPUT_KEY),template=await getHandle(TEMPLATE_KEY);if(!source)throw new Error('请先选择参考图目录');if(!outputRoot)throw new Error('请先选择输出目录');if(await permission(source,'read',request)!=='granted')throw new Error('没有参考图目录读取权限');if(await permission(outputRoot,'readwrite',request)!=='granted')throw new Error('没有输出目录写入权限');const output=await getTaskOutputDir(outputRoot,{create:true,requestPermission:request});if(settings.useTemplate){if(!template)throw new Error('已启用模板图，但尚未选择模板图');if(await permission(template,'read',request)!=='granted')throw new Error('没有模板图读取权限');}return{source,output,outputRoot,template};}
+ 
+   // ========================== 稳定 ChatGPT 交互层 ==========================
+   function isVisible(el){if(!(el instanceof Element))return false;const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>1&&r.height>1&&s.visibility!=='hidden'&&s.display!=='none'&&Number(s.opacity||1)>0;}

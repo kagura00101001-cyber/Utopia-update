@@ -1,0 +1,92 @@
+name: Publish POD V1.2.4
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  publish:
+    if: github.event.issue.title == '[internal] publish POD V1.2.4'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply V1.2.4 patch and verify source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git apply --check .pod_v124.patch
+          git apply .pod_v124.patch
+          node --check POD_ChatGPT.user.js
+          ACTUAL="$(sha256sum POD_ChatGPT.user.js | awk '{print $1}')"
+          EXPECTED="1adf2abb7172a414f66b2a3fc6349fb0818cb7eea8073d8b5b09db932525d43d"
+          test "$ACTUAL" = "$EXPECTED"
+
+      - name: Build metadata and manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          src = Path('POD_ChatGPT.user.js').read_text(encoding='utf-8')
+          end = src.index('// ==/UserScript==') + len('// ==/UserScript==')
+          Path('POD_ChatGPT.meta.js').write_text(src[:end] + '\n', encoding='utf-8')
+
+          notes = [
+              '选择总输出目录后，已导入 Excel 时自动按 Excel 文件名（去扩展名）创建或复用批次子文件夹。',
+              '正常生成图和生成数量异常的待确认图统一写入当前 Excel 对应的批次子文件夹，避免不同系列混放。',
+              '导出任务记录时优先直接保存到当前批次子文件夹；仅在目录写入失败时回退为浏览器下载。',
+              '如果没有导入 Excel，则继续直接使用用户选择的输出目录，不强制创建额外文件夹。',
+              '保留 V1.2.3 的 500 条 Excel 识别修复、母提示词可留空、日志按需刷新以及稳定 ChatGPT 上传/发送/生图检测核心。'
+          ]
+          install = 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js'
+          latest = {
+              'version': '1.2.4',
+              'install_url': install,
+              'download_url': install,
+              'published_at': '2026-08-20',
+              'changelog': notes,
+          }
+          Path('POD_ChatGPT.latest.json').write_text(json.dumps(latest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          compat = dict(latest)
+          compat['name'] = 'ChatGPT服装POD统一工作台'
+          compat = {'version': compat.pop('version'), 'name': compat.pop('name'), **compat}
+          Path('POD_ChatGPT_latest.json').write_text(json.dumps(compat, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          hist_path = Path('POD_ChatGPT.history.json')
+          hist = json.loads(hist_path.read_text(encoding='utf-8'))
+          versions = [x for x in hist.get('versions', []) if str(x.get('version')) != '1.2.4']
+          versions.insert(0, {'version': '1.2.4', 'date': '2026-08-20', 'notes': notes})
+          hist['versions'] = versions
+          hist_path.write_text(json.dumps(hist, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+
+      - name: Clean temporary publish files
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .pod_v124_upload .pod_v124.patch .github/workflows/pod_publish_v124.yml
+
+      - name: Commit release
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Kagura Update Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'release: POD ChatGPT V1.2.4'
+          git push
+
+      - name: Close trigger issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue close "${{ github.event.issue.number }}" --reason completed --comment 'POD V1.2.4 published and verified.'

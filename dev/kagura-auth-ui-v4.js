@@ -82,11 +82,28 @@
       if (state.authenticated) resetPasswordField();
     }
 
-    function rejectPasswordTransfer(event) {
+    function allowPasswordPaste(event) {
+      const text = event.clipboardData?.getData('text');
+      if (typeof text !== 'string') return;
+
+      event.preventDefault();
+      passwordInput.readOnly = false;
+
+      const start = Number.isInteger(passwordInput.selectionStart) ? passwordInput.selectionStart : passwordInput.value.length;
+      const end = Number.isInteger(passwordInput.selectionEnd) ? passwordInput.selectionEnd : passwordInput.value.length;
+      try {
+        passwordInput.setRangeText(text, start, end, 'end');
+      } catch (_) {
+        passwordInput.value = passwordInput.value.slice(0, start) + text + passwordInput.value.slice(end);
+      }
+      message.textContent = '';
+      passwordInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    function blockPasswordCopy(event) {
       event.preventDefault();
       event.stopPropagation();
-      message.textContent = '密码仅支持手动输入';
-      passwordInput.focus();
+      message.textContent = '密码内容不可复制';
     }
 
     async function handleLogin() {
@@ -127,13 +144,6 @@
     logoutButton.addEventListener('click', handleLogout);
 
     passwordInput.addEventListener('keydown', event => {
-      const key = String(event.key || '').toLowerCase();
-      const pasteShortcut = ((event.ctrlKey || event.metaKey) && key === 'v') || (event.shiftKey && key === 'insert');
-      if (pasteShortcut) {
-        rejectPasswordTransfer(event);
-        return;
-      }
-
       if (event.key === 'Enter') {
         handleLogin();
         return;
@@ -143,16 +153,13 @@
       if (permitsManualEditing && passwordInput.readOnly) passwordInput.readOnly = false;
     });
 
-    passwordInput.addEventListener('paste', rejectPasswordTransfer);
-    passwordInput.addEventListener('drop', rejectPasswordTransfer);
-    passwordInput.addEventListener('beforeinput', event => {
-      if (event.inputType === 'insertFromPaste' || event.inputType === 'insertFromDrop') {
-        rejectPasswordTransfer(event);
-      }
-    });
-    passwordInput.addEventListener('contextmenu', event => event.preventDefault());
-    passwordInput.addEventListener('copy', event => event.preventDefault());
-    passwordInput.addEventListener('cut', event => event.preventDefault());
+    // Allow pasting into the password field, including Ctrl/Cmd+V and context-menu paste.
+    passwordInput.addEventListener('paste', allowPasswordPaste);
+
+    // Do not allow the password value to be copied or cut back out of the field.
+    passwordInput.addEventListener('copy', blockPasswordCopy);
+    passwordInput.addEventListener('cut', blockPasswordCopy);
+
     passwordInput.addEventListener('blur', () => {
       passwordInput.readOnly = true;
     });
@@ -161,7 +168,7 @@
     });
 
     // Browsers/password managers sometimes attempt delayed autofill after mount.
-    // Clear only while the field is still readonly, so genuine keyboard entry is never erased.
+    // Clear only while the field is still readonly, so genuine keyboard entry or paste is never erased.
     [0, 100, 500, 1500].forEach(delay => {
       setTimeout(() => {
         if (passwordInput.readOnly && passwordInput.value) passwordInput.value = '';

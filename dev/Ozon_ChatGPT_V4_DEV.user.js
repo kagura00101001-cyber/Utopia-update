@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Ozon主图下载 + ChatGPT批量生图助手 V4 DEV
 // @namespace    https://github.com/Kagura-userscripts/v4-dev
-// @version      4.0.0-dev.1
-// @description  V4账号授权开发测试版：在V3.2.0稳定功能外接入登录、Token刷新、心跳和任务启动授权Gate。
+// @version      4.0.0-dev.2
+// @description  V4账号授权开发测试版：未登录仅显示独立授权页，登录后解锁完整工作台；支持Token刷新、心跳和任务启动授权Gate。
 // @author       Kagura
 // @match        https://www.ozon.ru/*
 // @match        https://ozon.ru/*
@@ -36,7 +36,10 @@
 (() => {
   'use strict';
 
+  const DEV_VERSION = '4.0.0-dev.2';
   const AUTH_PANEL_ID = 'kagura-auth-v4-host';
+  const MEMBER_CHIP_ID = 'kagura-auth-v4-member-chip';
+  const STYLE_ID = 'kagura-auth-v4-shell-style';
   const BYPASS_ATTR = 'data-kagura-auth-start-bypass';
   const validatingButtons = new WeakSet();
 
@@ -55,6 +58,11 @@
       panel;
   }
 
+  function findPanelHeader(panel) {
+    if (!panel) return null;
+    return panel.querySelector('.kagura-gpt-header, .kagura-ozon-header') || panel.firstElementChild;
+  }
+
   async function waitForMainPanel(timeoutMs = 30000) {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
@@ -63,6 +71,50 @@
       await sleep(200);
     }
     return null;
+  }
+
+  function ensureShellStyle() {
+    if (document.getElementById(STYLE_ID)) return;
+    const style = document.createElement('style');
+    style.id = STYLE_ID;
+    style.textContent = `
+      #kagura-gpt-panel[data-kagura-auth="guest"] .kagura-gpt-body > *:not(#${AUTH_PANEL_ID}),
+      #kagura-ozon-panel[data-kagura-auth="guest"] .kagura-ozon-body > *:not(#${AUTH_PANEL_ID}) {
+        display:none !important;
+      }
+      #${AUTH_PANEL_ID} { display:block; padding:6px 0 2px; }
+      #${AUTH_PANEL_ID}[hidden] { display:none !important; }
+      #${AUTH_PANEL_ID} .kagura-auth-v4 {
+        margin:0; padding:22px 18px 18px; border:1px solid #d8e3df; border-radius:13px;
+        background:linear-gradient(180deg,#ffffff 0%,#f7fbf9 100%); box-shadow:0 6px 22px rgba(15,23,42,.06);
+      }
+      #${AUTH_PANEL_ID} .kagura-auth-v4-shell-title {
+        margin:0 0 4px; text-align:center; color:#15211d; font-size:19px; font-weight:850; letter-spacing:.2px;
+      }
+      #${AUTH_PANEL_ID} .kagura-auth-v4-shell-subtitle {
+        margin:0 0 18px; text-align:center; color:#72817c; font-size:11px;
+      }
+      #${AUTH_PANEL_ID} .kagura-auth-v4-row { margin:9px 0; }
+      #${AUTH_PANEL_ID} .kagura-auth-v4-label { width:46px; flex-basis:46px; }
+      #${AUTH_PANEL_ID} .kagura-auth-v4-input { padding:9px 10px; }
+      #${AUTH_PANEL_ID} .kagura-auth-v4-actions { margin-top:12px; }
+      #${AUTH_PANEL_ID} .kagura-auth-v4-button { min-width:88px; padding:9px 14px; }
+      #${AUTH_PANEL_ID} .kagura-auth-v4-shell-footer {
+        display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:15px; padding-top:12px;
+        border-top:1px solid #e6ece9; color:#84918c; font-size:10px;
+      }
+      #${AUTH_PANEL_ID} .kagura-auth-v4-shell-update {
+        border:0; border-radius:999px; padding:6px 10px; cursor:pointer; background:#edf5f2; color:#25715e; font-weight:750;
+      }
+      #${MEMBER_CHIP_ID} {
+        display:inline-flex; align-items:center; gap:6px; margin-left:auto; padding:3px 5px 3px 8px;
+        border-radius:999px; background:rgba(255,255,255,.17); color:#fff; font:10px/1.2 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+      }
+      #${MEMBER_CHIP_ID}[hidden] { display:none !important; }
+      #${MEMBER_CHIP_ID} [data-role="name"] { max-width:90px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:700; }
+      #${MEMBER_CHIP_ID} button { border:0; border-radius:999px; padding:3px 7px; cursor:pointer; background:rgba(255,255,255,.2); color:#fff; font:10px/1 inherit; }
+    `;
+    document.documentElement.appendChild(style);
   }
 
   function setAuthMessage(text, ok = false) {
@@ -94,7 +146,7 @@
   }
 
   function isAuthButton(button) {
-    return Boolean(button?.closest?.('.kagura-auth-v4'));
+    return Boolean(button?.closest?.('.kagura-auth-v4, #' + MEMBER_CHIP_ID));
   }
 
   function isProtectedTaskButton(button) {
@@ -105,7 +157,6 @@
     const text = normalizeButtonText(button);
     if (!text) return false;
 
-    // 只保护真正会启动/继续自动任务的入口；文件夹、导入、设置等按钮仍可在未登录时配置。
     return /^(开始|开始任务|开始下载|开始批量|开始运行|继续|继续任务|继续下载|继续未完成|恢复|恢复任务|运行|执行)$/.test(text) ||
       /开始.*(任务|下载|批量|运行|采集)|继续.*(任务|下载|未完成)|恢复.*任务/.test(text);
   }
@@ -158,9 +209,110 @@
     }, true);
   }
 
+  function triggerOriginalUpdateCheck(panel) {
+    const buttons = [...panel.querySelectorAll('button')]
+      .filter(button => !button.closest('#' + AUTH_PANEL_ID));
+    const exact = buttons.find(button => /检查更新/.test(normalizeButtonText(button)));
+    const fallback = buttons.find(button => button.classList.contains('kagura-gpt-version-button'));
+    const target = exact || fallback;
+    if (!target) {
+      setAuthMessage('暂未找到更新入口，请登录后从工作台检查更新');
+      return;
+    }
+    target.click();
+  }
+
+  function decorateLoginShell(host, panel) {
+    const root = host.querySelector('.kagura-auth-v4');
+    if (!root || root.querySelector('.kagura-auth-v4-shell-title')) return;
+
+    const title = document.createElement('div');
+    title.className = 'kagura-auth-v4-shell-title';
+    title.textContent = 'Kagura 授权登录';
+
+    const subtitle = document.createElement('div');
+    subtitle.className = 'kagura-auth-v4-shell-subtitle';
+    subtitle.textContent = '登录后使用完整工作台';
+
+    root.prepend(subtitle);
+    root.prepend(title);
+
+    const footer = document.createElement('div');
+    footer.className = 'kagura-auth-v4-shell-footer';
+    footer.innerHTML = `<span>V${DEV_VERSION}</span><button type="button" class="kagura-auth-v4-shell-update">检查更新</button>`;
+    root.appendChild(footer);
+    footer.querySelector('button').addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      triggerOriginalUpdateCheck(panel);
+    });
+  }
+
+  function decorateDevTitle(panel) {
+    const title = panel.querySelector('.kagura-gpt-header-title, .kagura-ozon-header-title');
+    if (!title) return;
+    title.textContent = String(title.textContent || '')
+      .replace(/V\d+(?:\.\d+){2}(?:[-.\w]*)?/i, 'V4 DEV');
+  }
+
+  function ensureMemberChip(panel) {
+    let chip = document.getElementById(MEMBER_CHIP_ID);
+    if (chip) return chip;
+
+    const header = findPanelHeader(panel);
+    if (!header) return null;
+
+    chip = document.createElement('span');
+    chip.id = MEMBER_CHIP_ID;
+    chip.hidden = true;
+    chip.innerHTML = `<span data-role="name">-</span><button type="button">退出</button>`;
+    header.appendChild(chip);
+
+    chip.addEventListener('mousedown', event => event.stopPropagation());
+    chip.addEventListener('click', event => event.stopPropagation());
+    chip.querySelector('button').addEventListener('click', async event => {
+      event.preventDefault();
+      event.stopPropagation();
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        await globalThis.KaguraAuth.logout();
+      } finally {
+        button.disabled = false;
+      }
+    });
+    return chip;
+  }
+
+  function applyPanelMode(state) {
+    const panel = findMainPanel();
+    if (!panel) return;
+    const host = document.getElementById(AUTH_PANEL_ID);
+    const chip = ensureMemberChip(panel);
+    const authenticated = Boolean(state?.authenticated);
+
+    panel.dataset.kaguraAuth = authenticated ? 'member' : 'guest';
+
+    if (!authenticated) {
+      panel.classList.remove('kagura-collapsed');
+      if (host) host.hidden = false;
+      if (chip) chip.hidden = true;
+    } else {
+      if (host) host.hidden = true;
+      if (chip) {
+        chip.hidden = false;
+        const name = chip.querySelector('[data-role="name"]');
+        if (name) name.textContent = state?.username || '已授权';
+      }
+    }
+  }
+
   async function mountAuthUI() {
     const panel = await waitForMainPanel();
     if (!panel || document.getElementById(AUTH_PANEL_ID)) return;
+
+    ensureShellStyle();
+    decorateDevTitle(panel);
 
     const body = findPanelBody(panel);
     if (!body) return;
@@ -172,7 +324,6 @@
     globalThis.KaguraAuthUI.mount(host, {
       onAuthorized(state) {
         setAuthMessage('授权验证通过', true);
-        setTimeout(() => setAuthMessage('', true), 1200);
         console.log('[Kagura V4 DEV] 登录成功：', state?.username || '');
       },
       onUnauthorized(error) {
@@ -180,17 +331,15 @@
         console.warn('[Kagura V4 DEV] 授权不可用：', error?.code || 'UNKNOWN');
       },
     });
+
+    decorateLoginShell(host, panel);
+    ensureMemberChip(panel);
+    applyPanelMode(globalThis.KaguraAuth.getPublicState());
   }
 
   function installAuthStateWatcher() {
     globalThis.KaguraAuth?.onChange?.(state => {
-      if (!state?.authenticated) {
-        const panel = findMainPanel();
-        if (panel) panel.dataset.kaguraAuth = 'guest';
-      } else {
-        const panel = findMainPanel();
-        if (panel) panel.dataset.kaguraAuth = 'member';
-      }
+      applyPanelMode(state);
     });
   }
 
@@ -201,17 +350,21 @@
     }
 
     installStartGate();
-    installAuthStateWatcher();
     await mountAuthUI();
+    installAuthStateWatcher();
 
-    // 如果已经存在本地Token，启动时强制向服务器确认一次，失败则Auth模块会清理会话。
     const state = globalThis.KaguraAuth.getPublicState();
+    applyPanelMode(state);
+
     if (state.authenticated) {
       const result = await globalThis.KaguraAuthGate.check({ force: true, reason: 'startup' });
-      if (!result?.ok) setAuthMessage(result?.message || '登录状态已失效，请重新登录');
+      if (!result?.ok) {
+        setAuthMessage(result?.message || '登录状态已失效，请重新登录');
+        applyPanelMode(globalThis.KaguraAuth.getPublicState());
+      }
     }
 
-    console.log('[Kagura V4 DEV] Auth集成已启动');
+    console.log('[Kagura V4 DEV] 独立登录壳已启动');
   }
 
   setTimeout(() => void boot(), 400);

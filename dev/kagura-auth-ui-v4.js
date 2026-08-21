@@ -27,12 +27,20 @@
     if (!auth) throw new Error('KaguraAuth module missing');
     ensureStyle();
 
+    const fieldNonce = (() => {
+      try {
+        return crypto.randomUUID();
+      } catch (_) {
+        return Math.random().toString(36).slice(2) + Date.now().toString(36);
+      }
+    })();
+
     const root = document.createElement('section');
     root.className = 'kagura-auth-v4';
     root.innerHTML = `
       <div data-role="guest">
-        <div class="kagura-auth-v4-row"><span class="kagura-auth-v4-label">账号</span><input class="kagura-auth-v4-input" data-role="username" autocomplete="username"></div>
-        <div class="kagura-auth-v4-row"><span class="kagura-auth-v4-label">密码</span><input class="kagura-auth-v4-input" data-role="password" type="password" autocomplete="current-password"></div>
+        <div class="kagura-auth-v4-row"><span class="kagura-auth-v4-label">账号</span><input class="kagura-auth-v4-input" data-role="username" name="kagura-user-${fieldNonce}" autocomplete="off" autocapitalize="off" spellcheck="false" data-1p-ignore="true" data-lpignore="true" data-bwignore="true" data-form-type="other"></div>
+        <div class="kagura-auth-v4-row"><span class="kagura-auth-v4-label">密码</span><input class="kagura-auth-v4-input" data-role="password" name="kagura-secret-${fieldNonce}" type="password" autocomplete="new-password" autocapitalize="off" spellcheck="false" readonly data-1p-ignore="true" data-lpignore="true" data-bwignore="true" data-form-type="other"></div>
         <div class="kagura-auth-v4-actions"><button type="button" class="kagura-auth-v4-button" data-role="login">登录</button></div>
       </div>
       <div data-role="member" hidden>
@@ -61,11 +69,24 @@
       logoutButton.disabled = busy;
     }
 
+    function resetPasswordField() {
+      passwordInput.value = '';
+      passwordInput.readOnly = true;
+    }
+
     function render(state = auth.getPublicState()) {
       guest.hidden = state.authenticated;
       member.hidden = !state.authenticated;
       memberName.textContent = state.username || '-';
       if (!state.authenticated && !busy) message.textContent = '';
+      if (state.authenticated) resetPasswordField();
+    }
+
+    function rejectPasswordTransfer(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      message.textContent = '密码仅支持手动输入';
+      passwordInput.focus();
     }
 
     async function handleLogin() {
@@ -74,12 +95,12 @@
       message.textContent = '正在验证…';
       try {
         await auth.login(usernameInput.value, passwordInput.value);
-        passwordInput.value = '';
+        resetPasswordField();
         message.textContent = '';
         render();
         options.onAuthorized?.(auth.getPublicState());
       } catch (error) {
-        passwordInput.value = '';
+        resetPasswordField();
         message.textContent = auth.userMessage(error);
         options.onUnauthorized?.(error);
       } finally {
@@ -93,6 +114,7 @@
       message.textContent = '正在退出…';
       try {
         await auth.logout();
+        resetPasswordField();
         message.textContent = '';
         render();
         options.onUnauthorized?.({ code: 'LOGOUT' });
@@ -103,8 +125,47 @@
 
     loginButton.addEventListener('click', handleLogin);
     logoutButton.addEventListener('click', handleLogout);
+
     passwordInput.addEventListener('keydown', event => {
-      if (event.key === 'Enter') handleLogin();
+      const key = String(event.key || '').toLowerCase();
+      const pasteShortcut = ((event.ctrlKey || event.metaKey) && key === 'v') || (event.shiftKey && key === 'insert');
+      if (pasteShortcut) {
+        rejectPasswordTransfer(event);
+        return;
+      }
+
+      if (event.key === 'Enter') {
+        handleLogin();
+        return;
+      }
+
+      const permitsManualEditing = event.key?.length === 1 || ['Backspace', 'Delete'].includes(event.key);
+      if (permitsManualEditing && passwordInput.readOnly) passwordInput.readOnly = false;
+    });
+
+    passwordInput.addEventListener('paste', rejectPasswordTransfer);
+    passwordInput.addEventListener('drop', rejectPasswordTransfer);
+    passwordInput.addEventListener('beforeinput', event => {
+      if (event.inputType === 'insertFromPaste' || event.inputType === 'insertFromDrop') {
+        rejectPasswordTransfer(event);
+      }
+    });
+    passwordInput.addEventListener('contextmenu', event => event.preventDefault());
+    passwordInput.addEventListener('copy', event => event.preventDefault());
+    passwordInput.addEventListener('cut', event => event.preventDefault());
+    passwordInput.addEventListener('blur', () => {
+      passwordInput.readOnly = true;
+    });
+    passwordInput.addEventListener('input', () => {
+      if (passwordInput.readOnly && passwordInput.value) passwordInput.value = '';
+    });
+
+    // Browsers/password managers sometimes attempt delayed autofill after mount.
+    // Clear only while the field is still readonly, so genuine keyboard entry is never erased.
+    [0, 100, 500, 1500].forEach(delay => {
+      setTimeout(() => {
+        if (passwordInput.readOnly && passwordInput.value) passwordInput.value = '';
+      }, delay);
     });
 
     const unsubscribe = auth.onChange(render);
@@ -113,7 +174,7 @@
     if (auth.getPublicState().authenticated) {
       auth.me({ force: true }).then(render).catch(error => {
         render();
-        message.textContent = auth.userMessage(error);
+        message.textContent = '';
         options.onUnauthorized?.(error);
       });
     }

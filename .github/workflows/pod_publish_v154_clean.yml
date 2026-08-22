@@ -1,0 +1,62 @@
+name: POD publish V1.5.4 clean
+
+on:
+  push:
+    paths:
+      - '.pod_release/v154_clean/READY'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble verified bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .pod_release/v154_clean/part_*.b64 > /tmp/pod_v154_release.tgz.b64
+          echo 'c86d06cc34e7e9781aef9fbb6e09056f3c0454992c1aa918ccb0ff87003bd646  /tmp/pod_v154_release.tgz.b64' | sha256sum -c -
+          base64 -d /tmp/pod_v154_release.tgz.b64 > /tmp/pod_v154_release.tgz
+          echo 'fdd5b8858b731f05e8f46697cddafba36c33b704804946e5597694604edfd2cf  /tmp/pod_v154_release.tgz' | sha256sum -c -
+          tar -xzf /tmp/pod_v154_release.tgz -C .
+
+      - name: Validate release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '1f9f25c21bafa10dd02d30aaec8cd787039882ce9e4b6382e9c014c5cb3babb9  POD_ChatGPT.user.js' | sha256sum -c -
+          echo 'b964ce96cbcbb6a5827e8f4f97aa39dd3bfd4dfda441441817220800a03fc2da  POD_ChatGPT.meta.js' | sha256sum -c -
+          echo '5205d1b70c9b9b80ca2e71fb6def173e01a9dd4b0f0d254e1d38aabca1484849  POD_ChatGPT.latest.json' | sha256sum -c -
+          echo '5205d1b70c9b9b80ca2e71fb6def173e01a9dd4b0f0d254e1d38aabca1484849  POD_ChatGPT_latest.json' | sha256sum -c -
+          echo '6fcb12cfa01166e1446020c8b58ca5c2bb318c251b6372708f476898c076fb07  POD_ChatGPT.history.json' | sha256sum -c -
+          node --check POD_ChatGPT.user.js
+          grep -q '^// @name         ChatGPT服装POD统一工作台 V1.2.2$' POD_ChatGPT.user.js
+          grep -q '^// @version      1.5.4$' POD_ChatGPT.user.js
+          grep -q '^// @version      1.5.4$' POD_ChatGPT.meta.js
+          python - <<'PY'
+          import json
+          for p in ['POD_ChatGPT.latest.json','POD_ChatGPT_latest.json']:
+              with open(p, encoding='utf-8') as f:
+                  assert json.load(f)['version'] == '1.5.4', p
+          with open('POD_ChatGPT.history.json', encoding='utf-8') as f:
+              assert json.load(f)['versions'][0]['version'] == '1.5.4'
+          PY
+
+      - name: Publish and clean staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm -rf .pod_release/v154_clean .pod_release/v154 .pod_release/v154_fixed
+          rm -f .github/workflows/pod_publish_v154.yml .github/workflows/pod_publish_v154_clean.yml .github/workflows/pod_publish_v153.yml
+          git add -A POD_ChatGPT.user.js POD_ChatGPT.meta.js POD_ChatGPT.latest.json POD_ChatGPT_latest.json POD_ChatGPT.history.json .pod_release .github/workflows
+          git commit -m 'release: POD ChatGPT V1.5.4'
+          git push origin HEAD:main

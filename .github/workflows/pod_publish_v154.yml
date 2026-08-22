@@ -1,22 +1,16 @@
-name: POD publish V1.5.4
+name: POD publish V1.5.4 diagnostic
 
 on:
-  workflow_dispatch:
   push:
     paths:
       - '.pod_release/v154/READY'
-  issues:
-    types: [opened]
-  schedule:
-    - cron: '*/5 * * * *'
+  workflow_dispatch:
 
 permissions:
   contents: write
-  issues: write
 
 jobs:
   publish:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || github.event_name == 'push' || (github.event_name == 'issues' && github.event.issue.title == '[internal] publish POD V1.5.4')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -24,66 +18,62 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check release marker
-        shell: bash
-        run: test -f .pod_release/v154/READY
-
-      - name: Assemble release bundle
+      - name: Diagnose staged release
         shell: bash
         run: |
-          set -euo pipefail
+          set +e
+          OUT=.pod_release/v154/diagnostic.txt
+          : > "$OUT"
+          echo "=== POD V1.5.4 diagnostic ===" >> "$OUT"
+          echo "event=$GITHUB_EVENT_NAME" >> "$OUT"
+          echo "sha=$GITHUB_SHA" >> "$OUT"
+          echo >> "$OUT"
+          echo "[files]" >> "$OUT"
+          ls -l .pod_release/v154 >> "$OUT" 2>&1
+          echo >> "$OUT"
+          echo "[assemble]" >> "$OUT"
           cat .pod_release/v154/part_00.b64 .pod_release/v154/part_01.b64 .pod_release/v154/part_02.b64 .pod_release/v154/part_03.b64 .pod_release/v154/part_04.b64 .pod_release/v154/part_05.b64 > /tmp/pod_v154_release.tgz.b64
-          echo 'Staged base64 bytes:' $(wc -c < /tmp/pod_v154_release.tgz.b64)
-          echo 'Staged base64 sha256:'
-          sha256sum /tmp/pod_v154_release.tgz.b64
-          base64 -d /tmp/pod_v154_release.tgz.b64 > /tmp/pod_v154_release.tgz
-          echo 'Decoded bundle bytes:' $(wc -c < /tmp/pod_v154_release.tgz)
-          echo 'Decoded bundle sha256:'
-          sha256sum /tmp/pod_v154_release.tgz
-          tar -xzf /tmp/pod_v154_release.tgz -C .
+          echo "cat_rc=$?" >> "$OUT"
+          wc -c /tmp/pod_v154_release.tgz.b64 >> "$OUT" 2>&1
+          sha256sum /tmp/pod_v154_release.tgz.b64 >> "$OUT" 2>&1
+          echo >> "$OUT"
+          echo "[decode]" >> "$OUT"
+          base64 -d /tmp/pod_v154_release.tgz.b64 > /tmp/pod_v154_release.tgz 2>> "$OUT"
+          DECODE_RC=$?
+          echo "decode_rc=$DECODE_RC" >> "$OUT"
+          if [ -f /tmp/pod_v154_release.tgz ]; then
+            wc -c /tmp/pod_v154_release.tgz >> "$OUT" 2>&1
+            sha256sum /tmp/pod_v154_release.tgz >> "$OUT" 2>&1
+          fi
+          echo >> "$OUT"
+          echo "[tar]" >> "$OUT"
+          mkdir -p /tmp/pod_v154_extract
+          tar -xzf /tmp/pod_v154_release.tgz -C /tmp/pod_v154_extract 2>> "$OUT"
+          TAR_RC=$?
+          echo "tar_rc=$TAR_RC" >> "$OUT"
+          find /tmp/pod_v154_extract -maxdepth 2 -type f -printf '%P %s bytes\n' >> "$OUT" 2>&1
+          echo >> "$OUT"
+          echo "[release files]" >> "$OUT"
+          for f in POD_ChatGPT.user.js POD_ChatGPT.meta.js POD_ChatGPT.latest.json POD_ChatGPT_latest.json POD_ChatGPT.history.json; do
+            if [ -f "/tmp/pod_v154_extract/$f" ]; then
+              sha256sum "/tmp/pod_v154_extract/$f" >> "$OUT"
+              grep -m1 '^// @version' "/tmp/pod_v154_extract/$f" >> "$OUT" 2>/dev/null || true
+            else
+              echo "MISSING $f" >> "$OUT"
+            fi
+          done
+          echo >> "$OUT"
+          if [ -f /tmp/pod_v154_extract/POD_ChatGPT.user.js ]; then
+            node --check /tmp/pod_v154_extract/POD_ChatGPT.user.js >> "$OUT" 2>&1
+            echo "node_check_rc=$?" >> "$OUT"
+          fi
 
-      - name: Validate release
-        shell: bash
-        run: |
-          set -euo pipefail
-          node --check POD_ChatGPT.user.js
-          grep -q '^// @name         ChatGPT服装POD统一工作台 V1.2.2$' POD_ChatGPT.user.js
-          grep -q '^// @version      1.5.4$' POD_ChatGPT.user.js
-          grep -q '^// @version      1.5.4$' POD_ChatGPT.meta.js
-          python - <<'PY'
-          import json
-          for p in ['POD_ChatGPT.latest.json','POD_ChatGPT_latest.json']:
-              with open(p, encoding='utf-8') as f:
-                  assert json.load(f)['version'] == '1.5.4', p
-          with open('POD_ChatGPT.history.json', encoding='utf-8') as f:
-              h=json.load(f)
-          assert h['versions'][0]['version'] == '1.5.4'
-          PY
-          echo '1f9f25c21bafa10dd02d30aaec8cd787039882ce9e4b6382e9c014c5cb3babb9  POD_ChatGPT.user.js' | sha256sum -c -
-          echo 'b964ce96cbcbb6a5827e8f4f97aa39dd3bfd4dfda441441817220800a03fc2da  POD_ChatGPT.meta.js' | sha256sum -c -
-          echo '43512b6ce2c6342ba967a53252e40d9f49a6e05d20c1d5a8baefd4af7ddb8849  POD_ChatGPT.latest.json' | sha256sum -c -
-          echo '5c40f78237629d8af226fb6503adb7a07af0fd6dfee073f9e282e3bae1bfaac9  POD_ChatGPT_latest.json' | sha256sum -c -
-          echo 'c217a168ec641f5003dedf89ecd73ec3cec33049b577a1aad19426aa53799e03  POD_ChatGPT.history.json' | sha256sum -c -
-
-      - name: Commit release and clean staging
+      - name: Commit diagnostic
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          rm -rf .pod_release/v154 .pod_release/v153
-          rm -f .github/workflows/pod_publish_v154.yml .github/workflows/pod_publish_v153.yml
-          git add -A POD_ChatGPT.user.js POD_ChatGPT.meta.js POD_ChatGPT.latest.json POD_ChatGPT_latest.json POD_ChatGPT.history.json .pod_release .github/workflows
-          git commit -m 'release: POD ChatGPT V1.5.4'
+          git add .pod_release/v154/diagnostic.txt
+          git commit -m 'diag: POD V1.5.4 staged bundle' || exit 0
           git push origin HEAD:main
-
-      - name: Close old internal trigger issues
-        if: success()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        shell: bash
-        run: |
-          gh issue close 8 -R "$GH_REPO" --reason completed || true
-          gh issue close 9 -R "$GH_REPO" --reason completed || true
-          gh issue close 10 -R "$GH_REPO" --reason completed || true

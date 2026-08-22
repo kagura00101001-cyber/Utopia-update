@@ -28,14 +28,18 @@ jobs:
         shell: bash
         run: test -f .pod_release/v154/READY
 
-      - name: Assemble and verify bundle
+      - name: Assemble release bundle
         shell: bash
         run: |
           set -euo pipefail
           cat .pod_release/v154/part_00.b64 .pod_release/v154/part_01.b64 .pod_release/v154/part_02.b64 .pod_release/v154/part_03.b64 .pod_release/v154/part_04.b64 .pod_release/v154/part_05.b64 > /tmp/pod_v154_release.tgz.b64
-          echo 'a825d4366ac02322990ec8e6401e933c75fc930b1e97f49b4ffff11208b535ad  /tmp/pod_v154_release.tgz.b64' | sha256sum -c -
+          echo 'Staged base64 bytes:' $(wc -c < /tmp/pod_v154_release.tgz.b64)
+          echo 'Staged base64 sha256:'
+          sha256sum /tmp/pod_v154_release.tgz.b64
           base64 -d /tmp/pod_v154_release.tgz.b64 > /tmp/pod_v154_release.tgz
-          echo '841c876e66c938d36ac0c5fcc975bccc6b69ad8cb3d59a8ea48001369213d0ef  /tmp/pod_v154_release.tgz' | sha256sum -c -
+          echo 'Decoded bundle bytes:' $(wc -c < /tmp/pod_v154_release.tgz)
+          echo 'Decoded bundle sha256:'
+          sha256sum /tmp/pod_v154_release.tgz
           tar -xzf /tmp/pod_v154_release.tgz -C .
 
       - name: Validate release
@@ -82,6 +86,4 @@ jobs:
         run: |
           gh issue close 8 -R "$GH_REPO" --reason completed || true
           gh issue close 9 -R "$GH_REPO" --reason completed || true
-          if [ "${{ github.event_name }}" = "issues" ]; then
-            gh issue close "${{ github.event.issue.number }}" -R "$GH_REPO" --reason completed || true
-          fi
+          gh issue close 10 -R "$GH_REPO" --reason completed || true

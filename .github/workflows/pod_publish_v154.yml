@@ -18,55 +18,45 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Diagnose staged release
+      - name: Diagnose remainder placement
         shell: bash
         run: |
           set +e
           OUT=.pod_release/v154/diagnostic.txt
           : > "$OUT"
-          echo "=== POD V1.5.4 diagnostic ===" >> "$OUT"
-          echo "event=$GITHUB_EVENT_NAME" >> "$OUT"
-          echo "sha=$GITHUB_SHA" >> "$OUT"
+          echo "=== POD V1.5.4 remainder placement diagnostic ===" >> "$OUT"
+          echo "event=$GITHUB_EVENT_NAME sha=$GITHUB_SHA" >> "$OUT"
           echo >> "$OUT"
-          echo "[files]" >> "$OUT"
-          ls -l .pod_release/v154 >> "$OUT" 2>&1
-          echo >> "$OUT"
-          echo "[assemble]" >> "$OUT"
-          cat .pod_release/v154/part_00.b64 .pod_release/v154/part_01.b64 .pod_release/v154/part_02.b64 .pod_release/v154/part_03.b64 .pod_release/v154/part_04.b64 .pod_release/v154/part_05.b64 > /tmp/pod_v154_release.tgz.b64
-          echo "cat_rc=$?" >> "$OUT"
-          wc -c /tmp/pod_v154_release.tgz.b64 >> "$OUT" 2>&1
-          sha256sum /tmp/pod_v154_release.tgz.b64 >> "$OUT" 2>&1
-          echo >> "$OUT"
-          echo "[decode]" >> "$OUT"
-          base64 -d /tmp/pod_v154_release.tgz.b64 > /tmp/pod_v154_release.tgz 2>> "$OUT"
-          DECODE_RC=$?
-          echo "decode_rc=$DECODE_RC" >> "$OUT"
-          if [ -f /tmp/pod_v154_release.tgz ]; then
-            wc -c /tmp/pod_v154_release.tgz >> "$OUT" 2>&1
-            sha256sum /tmp/pod_v154_release.tgz >> "$OUT" 2>&1
-          fi
-          echo >> "$OUT"
-          echo "[tar]" >> "$OUT"
-          mkdir -p /tmp/pod_v154_extract
-          tar -xzf /tmp/pod_v154_release.tgz -C /tmp/pod_v154_extract 2>> "$OUT"
-          TAR_RC=$?
-          echo "tar_rc=$TAR_RC" >> "$OUT"
-          find /tmp/pod_v154_extract -maxdepth 2 -type f -printf '%P %s bytes\n' >> "$OUT" 2>&1
-          echo >> "$OUT"
-          echo "[release files]" >> "$OUT"
-          for f in POD_ChatGPT.user.js POD_ChatGPT.meta.js POD_ChatGPT.latest.json POD_ChatGPT_latest.json POD_ChatGPT.history.json; do
-            if [ -f "/tmp/pod_v154_extract/$f" ]; then
-              sha256sum "/tmp/pod_v154_extract/$f" >> "$OUT"
-              grep -m1 '^// @version' "/tmp/pod_v154_extract/$f" >> "$OUT" 2>/dev/null || true
-            else
-              echo "MISSING $f" >> "$OUT"
-            fi
+          files=(.pod_release/v154/part_00.b64 .pod_release/v154/part_01.b64 .pod_release/v154/part_02.b64 .pod_release/v154/part_03.b64 .pod_release/v154/part_04.b64 .pod_release/v154/part_05.b64)
+          rem=.pod_release/v154/rem_00.b64
+          for pos in 0 1 2 3 4 5 6; do
+            B=/tmp/candidate_${pos}.b64
+            : > "$B"
+            for i in 0 1 2 3 4 5 6; do
+              if [ "$i" = "$pos" ]; then cat "$rem" >> "$B"; fi
+              if [ "$i" -lt 6 ]; then cat "${files[$i]}" >> "$B"; fi
+            done
+            T=/tmp/candidate_${pos}.tgz
+            D=/tmp/extract_${pos}
+            rm -rf "$D"; mkdir -p "$D"
+            base64 -d "$B" > "$T" 2>/tmp/decode_${pos}.err
+            dec=$?
+            tar -xzf "$T" -C "$D" 2>/tmp/tar_${pos}.err
+            trc=$?
+            echo "--- pos=$pos ---" >> "$OUT"
+            echo "b64_bytes=$(wc -c < "$B") b64_sha=$(sha256sum "$B" | awk '{print $1}')" >> "$OUT"
+            echo "decode_rc=$dec tgz_bytes=$(wc -c < "$T") tgz_sha=$(sha256sum "$T" | awk '{print $1}') tar_rc=$trc" >> "$OUT"
+            [ -s /tmp/decode_${pos}.err ] && { echo "decode_err:" >> "$OUT"; cat /tmp/decode_${pos}.err >> "$OUT"; }
+            [ -s /tmp/tar_${pos}.err ] && { echo "tar_err:" >> "$OUT"; cat /tmp/tar_${pos}.err >> "$OUT"; }
+            for f in POD_ChatGPT.user.js POD_ChatGPT.meta.js POD_ChatGPT.latest.json POD_ChatGPT_latest.json POD_ChatGPT.history.json; do
+              if [ -f "$D/$f" ]; then
+                echo "$f bytes=$(wc -c < "$D/$f") sha=$(sha256sum "$D/$f" | awk '{print $1}')" >> "$OUT"
+              else
+                echo "MISSING $f" >> "$OUT"
+              fi
+            done
+            echo >> "$OUT"
           done
-          echo >> "$OUT"
-          if [ -f /tmp/pod_v154_extract/POD_ChatGPT.user.js ]; then
-            node --check /tmp/pod_v154_extract/POD_ChatGPT.user.js >> "$OUT" 2>&1
-            echo "node_check_rc=$?" >> "$OUT"
-          fi
 
       - name: Commit diagnostic
         shell: bash
@@ -75,5 +65,5 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add .pod_release/v154/diagnostic.txt
-          git commit -m 'diag: POD V1.5.4 staged bundle' || exit 0
+          git commit -m 'diag: test POD V1.5.4 remainder placement' || exit 0
           git push origin HEAD:main

@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ChatGPT服装POD统一工作台 V1.2.2
-// @name:zh-CN   ChatGPT服装POD统一工作台 V1.3.1
+// @name:zh-CN   ChatGPT服装POD统一工作台 V1.5.4
 // @namespace    https://github.com/Kagura-userscripts
-// @version      1.3.1
-// @description  服装POD统一工作台：V1.3.1 在批量生图中新增可选公共Logo图；每批可上传模板图 + Logo图，Excel完整提示词保持原文，输出仍按 Excel 自动归档。
+// @version      1.5.4
+// @description  服装POD统一工作台：V1.5.4 增强长期挂机恢复，并修复版本弹窗无可见“检查更新”按钮的问题；仍保持手动确认更新。
 // @author       Kagura
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js

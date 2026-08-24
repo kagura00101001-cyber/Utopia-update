@@ -30,6 +30,7 @@ jobs:
           test -f .pod_release/current/READY
           test -f .pod_release/current/MANIFEST.env
           source .pod_release/current/MANIFEST.env
+          export VERSION
           mapfile -t PARTS < <(find .pod_release/current -maxdepth 1 -type f -name 'part_*.b64' | sort)
           test "${#PARTS[@]}" -gt 0
           cat "${PARTS[@]}" > /tmp/pod_release.tgz.b64
@@ -46,14 +47,12 @@ jobs:
           grep -F '// @name         ChatGPT服装POD统一工作台 V1.2.2' /tmp/pod_release/POD_ChatGPT.user.js
           grep -F "// @version      $VERSION" /tmp/pod_release/POD_ChatGPT.user.js
           grep -F "// @version      $VERSION" /tmp/pod_release/POD_ChatGPT.meta.js
-          node -e "const fs=require('fs'); for (const f of ['POD_ChatGPT.latest.json','POD_ChatGPT_latest.json']) { const j=JSON.parse(fs.readFileSync('/tmp/pod_release/'+f,'utf8')); if(j.version!==process.env.VERSION) process.exit(2); }" 
+          node -e "const fs=require('fs'); for (const f of ['POD_ChatGPT.latest.json','POD_ChatGPT_latest.json']) { const j=JSON.parse(fs.readFileSync('/tmp/pod_release/'+f,'utf8')); if(j.version!==process.env.VERSION) process.exit(2); }"
           echo "$USER_SHA256  /tmp/pod_release/POD_ChatGPT.user.js" | sha256sum -c -
           echo "$META_SHA256  /tmp/pod_release/POD_ChatGPT.meta.js" | sha256sum -c -
           echo "$LATEST_SHA256  /tmp/pod_release/POD_ChatGPT.latest.json" | sha256sum -c -
           echo "$COMPAT_SHA256  /tmp/pod_release/POD_ChatGPT_latest.json" | sha256sum -c -
           echo "$HISTORY_SHA256  /tmp/pod_release/POD_ChatGPT.history.json" | sha256sum -c -
-        env:
-          VERSION: 1.6.0
 
       - name: Publish atomically to main
         shell: bash

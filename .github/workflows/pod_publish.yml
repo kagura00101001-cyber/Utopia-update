@@ -23,52 +23,97 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Assemble and verify release bundle
+      - name: Verify and apply release patch
         shell: bash
         run: |
           set -euo pipefail
           test -f .pod_release/current/READY
-          test -f .pod_release/current/MANIFEST.env
-          source .pod_release/current/MANIFEST.env
-          mapfile -t PARTS < <(find .pod_release/current -maxdepth 1 -type f -name 'part_*.b64' | sort)
-          test "${#PARTS[@]}" -gt 0
-          cat "${PARTS[@]}" > /tmp/pod_release.tgz.b64
-          echo "$B64_SHA256  /tmp/pod_release.tgz.b64" | sha256sum -c -
-          base64 -d /tmp/pod_release.tgz.b64 > /tmp/pod_release.tgz
-          echo "$TGZ_SHA256  /tmp/pod_release.tgz" | sha256sum -c -
-          rm -rf /tmp/pod_release
-          mkdir -p /tmp/pod_release
-          tar -xzf /tmp/pod_release.tgz -C /tmp/pod_release
-          for f in POD_ChatGPT.user.js POD_ChatGPT.meta.js POD_ChatGPT.latest.json POD_ChatGPT_latest.json POD_ChatGPT.history.json; do
-            test -f "/tmp/pod_release/$f"
-          done
-          node --check /tmp/pod_release/POD_ChatGPT.user.js
-          grep -F '// @name         ChatGPT服装POD统一工作台 V1.2.2' /tmp/pod_release/POD_ChatGPT.user.js
-          grep -F "// @version      $VERSION" /tmp/pod_release/POD_ChatGPT.user.js
-          grep -F "// @version      $VERSION" /tmp/pod_release/POD_ChatGPT.meta.js
-          node -e "const fs=require('fs'); for (const f of ['POD_ChatGPT.latest.json','POD_ChatGPT_latest.json']) { const j=JSON.parse(fs.readFileSync('/tmp/pod_release/'+f,'utf8')); if(j.version!==process.env.VERSION) process.exit(2); }" 
-          echo "$USER_SHA256  /tmp/pod_release/POD_ChatGPT.user.js" | sha256sum -c -
-          echo "$META_SHA256  /tmp/pod_release/POD_ChatGPT.meta.js" | sha256sum -c -
-          echo "$LATEST_SHA256  /tmp/pod_release/POD_ChatGPT.latest.json" | sha256sum -c -
-          echo "$COMPAT_SHA256  /tmp/pod_release/POD_ChatGPT_latest.json" | sha256sum -c -
-          echo "$HISTORY_SHA256  /tmp/pod_release/POD_ChatGPT.history.json" | sha256sum -c -
-        env:
-          VERSION: 1.6.0
+          test -f .pod_release/current/release.json
+          python - <<'PY'
+          from pathlib import Path
+          import base64, gzip, hashlib, json, subprocess
 
-      - name: Publish atomically to main
+          stage = Path('.pod_release/current')
+          rel = json.loads((stage / 'release.json').read_text('utf-8'))
+          version = str(rel['version'])
+          parts = sorted(stage.glob('patch_*.b64'))
+          if not parts:
+              raise SystemExit('no patch chunks')
+
+          b64 = ''.join(p.read_text('utf-8') for p in parts)
+          if hashlib.sha256(b64.encode()).hexdigest() != rel['patch_b64_sha256']:
+              raise SystemExit('patch base64 sha256 mismatch')
+          gz = base64.b64decode(b64)
+          if hashlib.sha256(gz).hexdigest() != rel['patch_gz_sha256']:
+              raise SystemExit('patch gzip sha256 mismatch')
+          patch = gzip.decompress(gz)
+          if hashlib.sha256(patch).hexdigest() != rel['patch_sha256']:
+              raise SystemExit('patch sha256 mismatch')
+
+          user = Path('POD_ChatGPT.user.js')
+          current = user.read_bytes()
+          current_sha = hashlib.sha256(current).hexdigest()
+          if current_sha == rel['base_user_sha256']:
+              proc = subprocess.run(['patch', '--batch', '--forward', '-p0'], input=patch, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+              print(proc.stdout.decode('utf-8', 'replace'))
+              if proc.returncode != 0:
+                  raise SystemExit('patch apply failed')
+          elif current_sha == rel['target_user_sha256']:
+              print('target script already present; continuing idempotently')
+          else:
+              raise SystemExit(f'unexpected base script sha256: {current_sha}')
+
+          target = user.read_bytes()
+          if hashlib.sha256(target).hexdigest() != rel['target_user_sha256']:
+              raise SystemExit('target user.js sha256 mismatch')
+          subprocess.run(['node', '--check', str(user)], check=True)
+
+          text = user.read_text('utf-8')
+          if '// @name         ChatGPT服装POD统一工作台 V1.2.2' not in text:
+              raise SystemExit('frozen userscript identity missing')
+          if f'// @version      {version}' not in text:
+              raise SystemExit('target userscript version missing')
+          end = text.find('// ==/UserScript==')
+          if end < 0:
+              raise SystemExit('userscript metadata terminator missing')
+          meta = text[:end + len('// ==/UserScript==')] + '\n'
+          Path('POD_ChatGPT.meta.js').write_text(meta, 'utf-8')
+          if hashlib.sha256(meta.encode()).hexdigest() != rel['target_meta_sha256']:
+              raise SystemExit('target meta.js sha256 mismatch')
+
+          latest = {
+              'version': version,
+              'install_url': rel['install_url'],
+              'download_url': rel['download_url'],
+              'published_at': rel['published_at'],
+              'changelog': rel['changelog'],
+          }
+          latest_text = json.dumps(latest, ensure_ascii=False, indent=2) + '\n'
+          Path('POD_ChatGPT.latest.json').write_text(latest_text, 'utf-8')
+          Path('POD_ChatGPT_latest.json').write_text(latest_text, 'utf-8')
+
+          history_path = Path('POD_ChatGPT.history.json')
+          history = json.loads(history_path.read_text('utf-8'))
+          versions = [v for v in history.get('versions', []) if str(v.get('version')) != version]
+          versions.insert(0, {'version': version, 'date': rel['published_at'], 'notes': rel['changelog']})
+          history['versions'] = versions
+          history_path.write_text(json.dumps(history, ensure_ascii=False, indent=2) + '\n', 'utf-8')
+          print(f'validated POD release {version}')
+          PY
+
+      - name: Publish verified release
         shell: bash
         run: |
           set -euo pipefail
-          source .pod_release/current/MANIFEST.env
-          cp /tmp/pod_release/POD_ChatGPT.user.js .
-          cp /tmp/pod_release/POD_ChatGPT.meta.js .
-          cp /tmp/pod_release/POD_ChatGPT.latest.json .
-          cp /tmp/pod_release/POD_ChatGPT_latest.json .
-          cp /tmp/pod_release/POD_ChatGPT.history.json .
+          VERSION="$(python -c "import json;print(json.load(open('.pod_release/current/release.json'))['version'])")"
           rm -rf .pod_release/current
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add POD_ChatGPT.user.js POD_ChatGPT.meta.js POD_ChatGPT.latest.json POD_ChatGPT_latest.json POD_ChatGPT.history.json .pod_release/current
+          if git diff --cached --quiet; then
+            echo 'Nothing to publish.'
+            exit 0
+          fi
           git commit -m "release: POD ChatGPT $VERSION"
           git pull --rebase origin main
           git push origin HEAD:main

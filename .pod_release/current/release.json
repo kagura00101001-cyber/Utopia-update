@@ -1,0 +1,20 @@
+{
+  "version": "1.6.0",
+  "published_at": "2026-08-24",
+  "base_user_sha256": "1f9f25c21bafa10dd02d30aaec8cd787039882ce9e4b6382e9c014c5cb3babb9",
+  "target_user_sha256": "f3a334b15965541e701bf8663f046f3508612022e048317357770493bf46498c",
+  "target_meta_sha256": "c8df67c4ced32971819241c0c58b46a0b145e90fb3af12bdd163ee2e4f7aaa98",
+  "patch_b64_sha256": "2b9c42ee9ea997e543aa7c328497ed24fe3fba9fccee5b2725c2a1a5eb80e8b6",
+  "patch_gz_sha256": "e1de84074266635215ee666dca67b41fe174d604f113331f6b2326fed21885c1",
+  "patch_sha256": "c06799ea19a0d009a7a7673cf6acfc84868766d76612ddf4ab37f79e09ba2ccb",
+  "changelog": [
+    "一级流程正式统一为“图片生成自动化 / 视觉风格解析 / 生产文件设计”。",
+    "视觉风格解析新增独立输出文件夹；导出 Excel 优先写入所选目录，并按当前项目建立项目子文件夹。",
+    "新增“生产文件设计”一级流程，复用母版 Excel 动态步骤工作流，可自由选择步骤并支持自动/手动连续执行。",
+    "视觉风格解析与生产文件设计分别保存独立输出目录、项目状态与流程配置，避免互相污染。",
+    "生产文件设计不写死步骤内容，由导入母版定义流程；可识别参考图、效果图、设计图、印花图、生产模板、版型模板等素材角色。",
+    "保留 V1.5.4 已验证的上传、创建图片、发送确认、生成检测、图片映射、下载隔离和暂停恢复核心。"
+  ],
+  "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
+  "download_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js"
+}

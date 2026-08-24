@@ -1,0 +1,74 @@
+name: POD publish
+
+on:
+  push:
+    paths:
+      - '.pod_release/current/READY'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pod-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'release: POD ChatGPT ')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Assemble and verify release bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .pod_release/current/READY
+          test -f .pod_release/current/MANIFEST.env
+          source .pod_release/current/MANIFEST.env
+          mapfile -t PARTS < <(find .pod_release/current -maxdepth 1 -type f -name 'part_*.b64' | sort)
+          test "${#PARTS[@]}" -gt 0
+          cat "${PARTS[@]}" > /tmp/pod_release.tgz.b64
+          echo "$B64_SHA256  /tmp/pod_release.tgz.b64" | sha256sum -c -
+          base64 -d /tmp/pod_release.tgz.b64 > /tmp/pod_release.tgz
+          echo "$TGZ_SHA256  /tmp/pod_release.tgz" | sha256sum -c -
+          rm -rf /tmp/pod_release
+          mkdir -p /tmp/pod_release
+          tar -xzf /tmp/pod_release.tgz -C /tmp/pod_release
+          for f in POD_ChatGPT.user.js POD_ChatGPT.meta.js POD_ChatGPT.latest.json POD_ChatGPT_latest.json POD_ChatGPT.history.json; do
+            test -f "/tmp/pod_release/$f"
+          done
+          node --check /tmp/pod_release/POD_ChatGPT.user.js
+          grep -F '// @name         ChatGPT服装POD统一工作台 V1.2.2' /tmp/pod_release/POD_ChatGPT.user.js
+          grep -F "// @version      $VERSION" /tmp/pod_release/POD_ChatGPT.user.js
+          grep -F "// @version      $VERSION" /tmp/pod_release/POD_ChatGPT.meta.js
+          node -e "const fs=require('fs'); for (const f of ['POD_ChatGPT.latest.json','POD_ChatGPT_latest.json']) { const j=JSON.parse(fs.readFileSync('/tmp/pod_release/'+f,'utf8')); if(j.version!==process.env.VERSION) process.exit(2); }" 
+          echo "$USER_SHA256  /tmp/pod_release/POD_ChatGPT.user.js" | sha256sum -c -
+          echo "$META_SHA256  /tmp/pod_release/POD_ChatGPT.meta.js" | sha256sum -c -
+          echo "$LATEST_SHA256  /tmp/pod_release/POD_ChatGPT.latest.json" | sha256sum -c -
+          echo "$COMPAT_SHA256  /tmp/pod_release/POD_ChatGPT_latest.json" | sha256sum -c -
+          echo "$HISTORY_SHA256  /tmp/pod_release/POD_ChatGPT.history.json" | sha256sum -c -
+        env:
+          VERSION: 1.6.0
+
+      - name: Publish atomically to main
+        shell: bash
+        run: |
+          set -euo pipefail
+          source .pod_release/current/MANIFEST.env
+          cp /tmp/pod_release/POD_ChatGPT.user.js .
+          cp /tmp/pod_release/POD_ChatGPT.meta.js .
+          cp /tmp/pod_release/POD_ChatGPT.latest.json .
+          cp /tmp/pod_release/POD_ChatGPT_latest.json .
+          cp /tmp/pod_release/POD_ChatGPT.history.json .
+          rm -rf .pod_release/current
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add POD_ChatGPT.user.js POD_ChatGPT.meta.js POD_ChatGPT.latest.json POD_ChatGPT_latest.json POD_ChatGPT.history.json .pod_release/current
+          git commit -m "release: POD ChatGPT $VERSION"
+          git pull --rebase origin main
+          git push origin HEAD:main

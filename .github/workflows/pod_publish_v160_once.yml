@@ -1,0 +1,128 @@
+name: POD V1.6.0 one-shot publish
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pod-v160-one-shot
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify and publish staged V1.6.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .pod_release/current/READY
+          test -f .pod_release/current/release.json
+          python - <<'PY'
+          from pathlib import Path
+          import base64, gzip, hashlib, json, subprocess
+
+          stage = Path('.pod_release/current')
+          rel = json.loads((stage / 'release.json').read_text('utf-8'))
+          version = str(rel['version'])
+          if version != '1.6.0':
+              raise SystemExit(f'unexpected release version: {version}')
+          parts = sorted(stage.glob('patch_*.b64'))
+          if [p.name for p in parts] != ['patch_00.b64','patch_01.b64','patch_02.b64','patch_03.b64']:
+              raise SystemExit('patch chunk set incomplete')
+          b64 = ''.join(p.read_text('utf-8') for p in parts)
+          if hashlib.sha256(b64.encode()).hexdigest() != rel['patch_b64_sha256']:
+              raise SystemExit('patch base64 sha256 mismatch')
+          gz = base64.b64decode(b64)
+          if hashlib.sha256(gz).hexdigest() != rel['patch_gz_sha256']:
+              raise SystemExit('patch gzip sha256 mismatch')
+          patch = gzip.decompress(gz)
+          if hashlib.sha256(patch).hexdigest() != rel['patch_sha256']:
+              raise SystemExit('patch sha256 mismatch')
+
+          user = Path('POD_ChatGPT.user.js')
+          current_sha = hashlib.sha256(user.read_bytes()).hexdigest()
+          if current_sha == rel['base_user_sha256']:
+              proc = subprocess.run(['patch','--batch','--forward','-p0'], input=patch, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+              print(proc.stdout.decode('utf-8','replace'))
+              if proc.returncode != 0:
+                  raise SystemExit('patch apply failed')
+          elif current_sha == rel['target_user_sha256']:
+              print('target script already present')
+          else:
+              raise SystemExit(f'unexpected base script sha256: {current_sha}')
+
+          target = user.read_bytes()
+          if hashlib.sha256(target).hexdigest() != rel['target_user_sha256']:
+              raise SystemExit('target user.js sha256 mismatch')
+          subprocess.run(['node','--check',str(user)], check=True)
+          text = user.read_text('utf-8')
+          if '// @name         ChatGPT服装POD统一工作台 V1.2.2' not in text:
+              raise SystemExit('frozen userscript identity missing')
+          if '// @name:zh-CN   ChatGPT服装POD统一工作台 V1.6.0' not in text:
+              raise SystemExit('display version missing')
+          if '// @version      1.6.0' not in text:
+              raise SystemExit('userscript version missing')
+
+          end = text.find('// ==/UserScript==')
+          if end < 0:
+              raise SystemExit('metadata terminator missing')
+          meta = text[:end + len('// ==/UserScript==')] + '\n'
+          Path('POD_ChatGPT.meta.js').write_text(meta,'utf-8')
+          if hashlib.sha256(meta.encode()).hexdigest() != rel['target_meta_sha256']:
+              raise SystemExit('target meta.js sha256 mismatch')
+
+          latest = {
+              'version': version,
+              'install_url': rel['install_url'],
+              'download_url': rel['download_url'],
+              'published_at': rel['published_at'],
+              'changelog': rel['changelog'],
+          }
+          latest_text = json.dumps(latest,ensure_ascii=False,indent=2) + '\n'
+          Path('POD_ChatGPT.latest.json').write_text(latest_text,'utf-8')
+          Path('POD_ChatGPT_latest.json').write_text(latest_text,'utf-8')
+
+          hp = Path('POD_ChatGPT.history.json')
+          history = json.loads(hp.read_text('utf-8'))
+          versions = [v for v in history.get('versions',[]) if str(v.get('version')) != version]
+          versions.insert(0,{'version':version,'date':rel['published_at'],'notes':rel['changelog']})
+          history['versions'] = versions
+          hp.write_text(json.dumps(history,ensure_ascii=False,indent=2) + '\n','utf-8')
+          print('V1.6.0 verification passed')
+          PY
+
+          rm -rf .pod_release/current
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add POD_ChatGPT.user.js POD_ChatGPT.meta.js POD_ChatGPT.latest.json POD_ChatGPT_latest.json POD_ChatGPT.history.json .pod_release/current
+          git commit -m 'release: POD ChatGPT V1.6.0'
+          git pull --rebase origin main
+          git push origin HEAD:main
+
+      - name: Remove one-shot publisher
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git reset --hard origin/main
+          rm -f .github/workflows/pod_publish_v160_once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/pod_publish_v160_once.yml
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m 'chore: remove POD V1.6.0 one-shot publisher'
+          git pull --rebase origin main
+          git push origin HEAD:main

@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ChatGPT服装POD统一工作台 V1.2.2
-// @name:zh-CN   ChatGPT服装POD统一工作台 V1.6.0
+// @name:zh-CN   ChatGPT服装POD统一工作台 V1.6.1
 // @namespace    https://github.com/Kagura-userscripts
-// @version      1.6.0
-// @description  服装POD统一工作台：V1.6.0 正式统一三大流程名称；视觉风格解析新增独立输出文件夹；新增母版驱动的生产文件设计流程。
+// @version      1.6.1
+// @description  服装POD统一工作台：V1.6.1 修复长对话中“添加创建图片模式”阶段因全页DOM高频扫描导致浏览器无响应的问题。
 // @author       Kagura
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js

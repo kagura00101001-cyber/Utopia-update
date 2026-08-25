@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Ozon主图下载 + ChatGPT批量生图助手 V4 DEV
 // @namespace    https://github.com/Kagura-userscripts/v4-dev
-// @version      4.0.0-dev.8
-// @description  私有源码单文件保护测试版：页面重开、任务启动及本次任务结束/暂停后进行服务端校验；网络异常自动重试且不清除登录状态；客户端代码进入混淆构建流程。
+// @version      4.0.0-dev.10
+// @description  Kagura AI 电商图片助手 V4 DEV：Ozon 主图下载 + ChatGPT 批量生图自动化；接入 Auth v2 的账号、应用授权、设备审批与会话校验，并使用受保护混淆构建。
 // @author       Kagura
 // @match        https://www.ozon.ru/*
 // @match        https://ozon.ru/*
@@ -22,7 +22,7 @@
 // @connect      *.ozon.ru
 // @connect      raw.githubusercontent.com
 // @connect      api.github.com
-// @connect      kagura-license-api.1715396266.workers.dev
+// @connect      kagura-auth-v2-staging.1715396266.workers.dev
 // @connect      *
 // @run-at       document-idle
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/dev/protected/Ozon_ChatGPT_DEV.meta.js

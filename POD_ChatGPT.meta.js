@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ChatGPT服装POD统一工作台 V1.2.2
-// @name:zh-CN   ChatGPT服装POD统一工作台 V1.6.2
+// @name:zh-CN   ChatGPT服装POD统一工作台 V1.6.3
 // @namespace    https://github.com/Kagura-userscripts
-// @version      1.6.2
-// @description  服装POD统一工作台：V1.6.2 修复“创建图片”入口误匹配聊天/项目标题导致切换会话的问题，并将入口严格绑定当前输入框菜单。
+// @version      1.6.3
+// @description  服装POD统一工作台：V1.6.3 增加损坏附件快速检测与上传失败自动恢复，避免偶发坏图/卡死导致整夜任务暂停。
 // @author       Kagura
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js

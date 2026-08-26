@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ChatGPT服装POD统一工作台 V1.2.2
-// @name:zh-CN   ChatGPT服装POD统一工作台 V1.6.2
+// @name:zh-CN   ChatGPT服装POD统一工作台 V1.6.3
 // @namespace    https://github.com/Kagura-userscripts
-// @version      1.6.2
-// @description  服装POD统一工作台：V1.6.2 修复“创建图片”入口误匹配聊天/项目标题导致切换会话的问题，并将入口严格绑定当前输入框菜单。
+// @version      1.6.3
+// @description  服装POD统一工作台：V1.6.3 增加损坏附件快速检测与上传失败自动恢复，避免偶发坏图/卡死导致整夜任务暂停。
 // @author       Kagura
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js
@@ -55,6 +55,7 @@
  * - V1.5.3 长期挂机恢复增强：生成检测期间若发现浏览器定时器出现明显休眠/后台节流断层，当前已发送批次优先刷新同步且绝不重发。
  * - V1.5.4 更新模块小修：版本弹窗始终提供“检查更新/重新检查”按钮；有新版时继续保留“立刻更新”，不改变手动确认覆盖规则。
  * - V1.6.2 创建图片入口修复：仅在当前 composer 的“+”按钮新打开菜单中匹配以“创建图片/创作图片/生成图片”开头的真实菜单项；排除侧边栏、历史与项目区域，并增加会话路径跳转保护，避免误点“替换人物生成图片”等聊天标题。
+ * - V1.6.3 上传恢复增强：附件缩略图 complete=true 且 naturalWidth=0 连续8秒即判定损坏；无进度的不完整附件连续25秒判定卡死；上传超时也进入可恢复错误。首次原页面清理重试，第二次失败刷新当前会话后恢复同批，刷新后仍失败才暂停。
  * - V1.6.1 性能修复：创建图片菜单项只在当前可见菜单/弹层内检索；创建图片标签只在输入框区域检测，并降低轮询频率，避免长对话全页DOM重复布局导致浏览器无响应。
  * - V1.6.0 流程体系升级：一级流程正式命名为“图片生成自动化 / 视觉风格解析 / 生产文件设计”；视觉风格解析与生产文件设计各自拥有独立输出文件夹；生产文件设计复用母版Excel驱动的动态步骤、自动/手动连续执行、项目保存/恢复与同对话上下文机制。
  * - V1.5.3 “页面显示完成但0图”不再直接判异常：先刷新一次恢复同批结果；刷新后仍0图才按原异常规则处理。
@@ -63,7 +64,7 @@
    * ================================================================
    */
 
-  const APP_VERSION = '1.6.2';
+  const APP_VERSION = '1.6.3';
   const APP_NAME = `ChatGPT服装POD统一工作台 V${APP_VERSION}`;
 
   const STATE_KEY = 'kaguraPodStandaloneStateV120';
@@ -643,8 +644,36 @@
   async function ensureFileInput(){let i=findFileInput();if(i)return i;const add=document.querySelector('button[data-testid*="composer-plus"],button[aria-label*="添加照片"],button[aria-label*="添加文件"],button[aria-label*="Attach"],button[aria-label*="Upload"]')||findClickable(['添加照片','添加文件','上传文件','Attach','Upload','Add photos']);if(add){add.click();await sleep(500)}i=findFileInput();if(i)return i;const m=findClickable(['添加照片和文件','上传文件','Add photos and files','Upload file','Attach files']);if(m){m.click();await sleep(500)}i=findFileInput();if(!i)throw new Error('未找到ChatGPT上传控件，页面结构可能变化');return i;}
   function countAttachments(){const c=findComposer();const rm=[...c.querySelectorAll('button[aria-label*="移除"],button[aria-label*="Remove"],button[aria-label*="删除附件"],button[aria-label*="Delete attachment"]')].filter(isVisible);if(rm.length)return rm.length;const explicit=[...c.querySelectorAll('[data-testid="composer-attachment"],[data-testid="attachment"],[data-testid*="attachment-item"]')].filter(isVisible);if(explicit.length)return explicit.length;return [...c.querySelectorAll('img')].filter(img=>{const r=img.getBoundingClientRect();return isVisible(img)&&r.width>=32&&r.height>=32&&r.width<=240&&r.height<=240}).length;}
   function detectUploadFailure(){const retry=/(?:上传到\s*files\.oaiusercontent\.com\s*失败|files\.oaiusercontent\.com[^\n]{0,120}(?:失败|failed)|文件上传失败|上传失败|Upload failed|Failed to upload|Network error|网络(?:错误|问题)|你已上传过此文件|already uploaded this file)/i;const limit=/(?:上传限制|上传次数.*上限|达到.*上传.*限制|upload limit|too many files|rate limit)/i;const nodes=[...document.querySelectorAll('[role="alert"],[role="dialog"],[aria-live="assertive"],[aria-live="polite"],[data-testid*="toast"],[class*="toast"],[class*="error"]')].filter(n=>isVisible(n)&&!n.closest('#kagura-pod-panel'));for(const n of nodes){const m=text(n).replace(/\s+/g,' ').trim();if(limit.test(m))return{failed:true,retryable:false,message:m};if(retry.test(m))return{failed:true,retryable:true,message:m};}return{failed:false,retryable:false,message:''};}
-  function uploadState(){const c=findComposer(),t=text(c),f=detectUploadFailure();const local=/上传失败|文件上传失败|Upload failed|Failed to upload|无法上传/i.test(t);const previews=[...c.querySelectorAll('img')].filter(img=>{const r=img.getBoundingClientRect();return isVisible(img)&&r.width>=32&&r.height>=32&&r.width<=240&&r.height<=240});const ready=previews.filter(i=>i.complete&&i.naturalWidth).length;const ind=['[role="progressbar"]','[aria-busy="true"]','[data-testid*="upload-progress"]','[data-testid*="attachment-loading"]','[data-state="loading"]','.animate-spin'].some(s=>[...c.querySelectorAll(s)].some(isVisible));return{failed:f.failed||local,retryable:f.failed?f.retryable:local,failureMessage:f.message||'',uploading:/上传中|正在上传|正在处理(?:文件|图片)?|Uploading|Processing (?:file|image)|Preparing upload/i.test(t)||ind||ready<previews.length,previewTotal:previews.length,previewReady:ready,count:countAttachments()};}
-  async function waitUploads(expected,label,stableMs=4000){const timeout=Number(settings.uploadTimeout)||180000;let since=0,last=-1;const r=await waitUntil(()=>{const s=uploadState();if(s.failed){const m=`${label}上传失败${s.failureMessage?`：${s.failureMessage}`:''}`;if(s.retryable)throw new UploadRetryableError(m);throw new Error(m);}if(!s.uploading&&s.count>=expected){if(s.count!==last){last=s.count;since=Date.now()}if(!since)since=Date.now();if(Date.now()-since>=stableMs)return s.count;}else{since=0;last=s.count;}return null;},timeout,500);if(!r)throw new Error(`${label}未在 ${Math.round(timeout/1000)} 秒内稳定完成`);log(`${label}全部上传完成：${r} 张附件已稳定`,'success');return r;}
+  function uploadState(){
+    const c=findComposer(),t=text(c),f=detectUploadFailure();
+    const local=/上传失败|文件上传失败|Upload failed|Failed to upload|无法上传/i.test(t);
+    const previews=[...c.querySelectorAll('img')].filter(img=>{const r=img.getBoundingClientRect();return isVisible(img)&&r.width>=32&&r.height>=32&&r.width<=240&&r.height<=240});
+    const ready=previews.filter(i=>i.complete&&i.naturalWidth>0).length;
+    const broken=previews.filter(i=>i.complete&&!(i.naturalWidth>0)).length;
+    const ind=['[role="progressbar"]','[aria-busy="true"]','[data-testid*="upload-progress"]','[data-testid*="attachment-loading"]','[data-state="loading"]','.animate-spin'].some(s=>[...c.querySelectorAll(s)].some(isVisible));
+    const textProgress=/上传中|正在上传|正在处理(?:文件|图片)?|Uploading|Processing (?:file|image)|Preparing upload/i.test(t);
+    return{failed:f.failed||local,retryable:f.failed?f.retryable:local,failureMessage:f.message||'',uploading:textProgress||ind||ready<previews.length,progressActive:textProgress||ind,previewTotal:previews.length,previewReady:ready,brokenPreviewCount:broken,count:countAttachments()};
+  }
+  async function waitUploads(expected,label,stableMs=4000){
+    const timeout=Number(settings.uploadTimeout)||180000;let since=0,last=-1,badSince=0,stalledSince=0;
+    const r=await waitUntil(()=>{
+      const s=uploadState();
+      if(s.failed){const m=`${label}上传失败${s.failureMessage?`：${s.failureMessage}`:''}`;if(s.retryable)throw new UploadRetryableError(m);throw new Error(m);}
+      if(s.brokenPreviewCount>0){
+        if(!badSince)badSince=Date.now();
+        if(Date.now()-badSince>=8000)throw new UploadRetryableError(`${label}检测到损坏附件预览：${s.brokenPreviewCount} 张图片已结束加载但 naturalWidth=0`);
+      }else badSince=0;
+      const incompleteAttached=s.count>=expected&&s.previewTotal>0&&s.previewReady<s.previewTotal&&s.brokenPreviewCount===0;
+      if(incompleteAttached&&!s.progressActive){
+        if(!stalledSince)stalledSince=Date.now();
+        if(Date.now()-stalledSince>=25000)throw new UploadRetryableError(`${label}附件预览连续25秒无有效上传进展，判定上传卡死`);
+      }else stalledSince=0;
+      if(!s.uploading&&s.count>=expected){if(s.count!==last){last=s.count;since=Date.now()}if(!since)since=Date.now();if(Date.now()-since>=stableMs)return s.count;}else{since=0;last=s.count;}
+      return null;
+    },timeout,500);
+    if(!r)throw new UploadRetryableError(`${label}未在 ${Math.round(timeout/1000)} 秒内稳定完成，按上传超时进入自动恢复`);
+    log(`${label}全部上传完成：${r} 张附件已稳定`,'success');return r;
+  }
   async function uploadFiles(files,label){if(!files.length)return countAttachments();const before=countAttachments(),expected=before+files.length,input=await ensureFileInput(),dt=new DataTransfer();files.forEach(f=>dt.items.add(f));input.files=dt.files;input.dispatchEvent(new Event('input',{bubbles:true,composed:true}));input.dispatchEvent(new Event('change',{bubbles:true,composed:true}));log(`已提交上传${label}：${files.map(f=>f.name).join('、')}`);return waitUploads(expected,label);}
 
   function plainText(e){return String(e?.innerText||e?.textContent||'').trim().replace(/\s+/g,' ');}
@@ -965,8 +994,9 @@
     const resumeKind=state.resumeContext?.kind||'';
     let detectOnly=Boolean(['generation-refresh','sent-waiting'].includes(resumeKind)&&state.currentBatchKeys.length);
     let confirmOnly=Boolean(resumeKind==='send-confirming'&&state.currentBatchKeys.length);
+    let resumeUploadRefresh=Boolean(resumeKind==='upload-refresh'&&state.currentBatchKeys.length);
     if(!tasks.length){tasks=pendingTasks().slice(0,Math.max(1,Math.min(10,Number(settings.batchSize)||3)));if(!tasks.length)return false;state.currentBatchKeys=tasks.map(t=>t.key);state.currentBatchPaths=[];state.batchStartedAt=Date.now();state.generationStartedAt=0;state.detectedGeneratedCount=0;state.expectedGeneratedCount=tasks.length;state.generatedCountChangedAt=Date.now();state.phase='preparing';for(const t of tasks){t.status='running';t.attempts=Number(t.attempts||0)+1;t.error='';t.updatedAt=new Date().toISOString();}saveState();}
-    const prompt=state.resumeContext?.prompt||buildBatchPrompt(tasks);let uploadRetries=0;let execution=0;
+    const prompt=state.resumeContext?.prompt||buildBatchPrompt(tasks);let uploadRetries=Math.max(0,Number(state.resumeContext?.uploadRetries)||0);let execution=0;
     while(true){
       execution++;let sent=detectOnly;
       try{
@@ -979,10 +1009,12 @@
           state.generationStartedAt=state.generationStartedAt||Date.now();state.phase='generating';saveState();
           baseline=new Set();
         }else if(!detectOnly){
-          if(settings.newChatEachBatch)await goNewChat();
+          if(settings.newChatEachBatch&&!resumeUploadRefresh)await goNewChat();
           baseline=new Set(generatedImages().map(i=>i.key));state.phase='uploading_assets';saveState();
           const uploadList=[await handles.template.getFile()];let uploadLabel='公共模板图';if(handles.logo){uploadList.push(await handles.logo.getFile());uploadLabel='公共模板图、公共Logo图';}
-          const expected=await uploadFiles(uploadList,uploadLabel);await activateCreate();state.phase='writing_prompt';saveState();await setPromptValue(prompt);state.phase='sending';saveState();await sendPrompt(expected,prompt);
+          const expected=await uploadFiles(uploadList,uploadLabel);
+          if(resumeUploadRefresh){state.resumeContext=null;resumeUploadRefresh=false;saveState(false);log('刷新恢复后附件上传成功，继续当前批次；此前未发送提示词','success');}
+          await activateCreate();state.phase='writing_prompt';saveState();await setPromptValue(prompt);state.phase='sending';saveState();await sendPrompt(expected,prompt);
           sent=true;markBatchSent(prompt,{expectedCount:expected});state.generationStartedAt=Date.now();state.phase='generating';saveState();
         }else{
           baseline=new Set();state.phase='recovering';state.generationStartedAt=state.generationStartedAt||Date.now();saveState();log('当前批次此前已发送成功，本次只恢复检测，不会重新发送','warn');await sleep(8000);
@@ -994,7 +1026,20 @@
         finishBatchTimers();state.currentBatchKeys=[];state.currentBatchPaths=[];state.resumeContext=null;state.batchNo++;state.phase=pendingTasks().length?'ready':'done';saveState();return true;
       }catch(e){
         if(e instanceof PausedError)throw e;
-        if(e instanceof UploadRetryableError&&uploadRetries<2&&!sent&&!confirmOnly&&!['send-confirming','sent-waiting'].includes(state.resumeContext?.kind)){uploadRetries++;log(`模板/Logo图上传失败，整批清理/重试 ${uploadRetries}/2：${e.message}`,'warn');await clearComposer();detectOnly=false;confirmOnly=false;state.resumeContext=null;await sleep(1200);continue;}
+        if(e instanceof UploadRetryableError&&!sent&&!confirmOnly&&!['send-confirming','sent-waiting','generation-refresh'].includes(state.resumeContext?.kind)){
+          uploadRetries++;
+          if(uploadRetries===1){
+            log(`检测到上传失败/坏图/卡死，原页面清理附件后重试 1/2：${e.message}`,'warn');
+            await clearComposer();detectOnly=false;confirmOnly=false;resumeUploadRefresh=false;state.resumeContext=null;await sleep(1200);continue;
+          }
+          if(uploadRetries===2){
+            state.resumeContext={kind:'upload-refresh',batchKeys:[...state.currentBatchKeys],batchPaths:[...state.currentBatchPaths],prompt:String(prompt||''),uploadRetries,refreshReason:String(e.message||e),updatedAt:new Date().toISOString()};
+            state.phase='refreshing';saveState();
+            log(`第二次上传仍失败，刷新当前页面后恢复同一批次重新上传；当前批尚未发送：${e.message}`,'warn');
+            setTimeout(()=>location.reload(),300);return new Promise(()=>{});
+          }
+          log(`刷新恢复后上传仍失败，停止自动恢复并暂停当前批：${e.message}`,'error');
+        }
         if(sent||['send-confirming','sent-waiting','generation-refresh'].includes(state.resumeContext?.kind)){
           const completed=tasks.filter(t=>t.status==='done');const unresolved=tasks.filter(t=>t.status!=='done');let abnormal={saved:[],failed:[]};if(!completed.length&&state.phase!=='downloading'){const partial=normalizeGallery(generatedImages(prompt),0);abnormal=await downloadAbnormal(partial,state.batchNo,handles.output).catch(()=>({saved:[],failed:[]}));}
           for(const t of unresolved){if(t.status==='done')continue;t.status='confirm';t.error=`已发送后异常：${e.message}；为避免重复生成不自动重发${abnormal.saved.length?`；临时图：${abnormal.saved.join('、')}`:''}`;t.updatedAt=new Date().toISOString();}
@@ -1433,7 +1478,7 @@
     if(productionFlowState.running){productionFlowState.running=false;productionFlowState.runningStep=0;GM_setValue(PRODUCTION_STATE_KEY,productionFlowState);}
     if(isTemplateWorkflowFlow())activateTemplateWorkflow(settings.flow);
     createPanel();GM_setValue(LOG_KEY,logs);await updateFolderLabels();setTimeout(()=>checkUpdate(false),1600);setInterval(()=>{try{updatePanel()}catch(_){}},1000);
-    if(state.running&&state.resumeContext?.kind==='generation-refresh'){const rr=state.resumeContext?.refreshReason?`；原因：${state.resumeContext.refreshReason}`:'';log(`检测到刷新恢复：第${state.batchNo}批只恢复检测，不重新发送${rr}`,'warn');setTimeout(()=>worker(),1500);}
+    if(state.running&&['generation-refresh','upload-refresh'].includes(state.resumeContext?.kind)){const rr=state.resumeContext?.refreshReason?`；原因：${state.resumeContext.refreshReason}`:'';if(state.resumeContext?.kind==='upload-refresh')log(`检测到上传刷新恢复：第${state.batchNo}批重新上传附件；此前未发送提示词${rr}`,'warn');else log(`检测到刷新恢复：第${state.batchNo}批只恢复检测，不重新发送${rr}`,'warn');setTimeout(()=>worker(),1500);}
     else if(state.running){stopRunClock();state.running=false;state.phase='ready';saveState();log('页面重新加载后已自动暂停；点击“开始/继续”可继续未完成任务','warn');}
     else if(settings.flow==='batch_generation')log(`POD统一工作台已启动 V${APP_VERSION}；当前流程：图片生成自动化；Excel完整提示词 + 公共模板图${settings.useLogoFile?' + 公共Logo图':''}`,'success');
     else log(`POD统一工作台已启动 V${APP_VERSION}；当前流程：${flowLabel()}；母版驱动动态步骤｜已选 ${selectedStyleSteps().length}/${styleSteps().length} 步｜${styleState.autoFlow?'自动':'手动'}执行`,'success');

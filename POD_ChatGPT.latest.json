@@ -1,13 +1,13 @@
 {
-  "version": "1.6.2",
+  "version": "1.6.3",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "download_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "published_at": "2026-08-26",
   "changelog": [
-    "修复“创建图片”入口误匹配：V1.6.1 日志曾把“替换人物生成图片”聊天/项目标题识别成创建图片菜单项，V1.6.2 改为只匹配以“创建图片/创作图片/生成图片”开头的真实菜单项。",
-    "创建图片入口严格绑定当前 composer：加号按钮只在当前输入框区域查找，菜单优先限制为本次点击后新出现/靠近加号的弹层。",
-    "显式排除 nav/aside/sidebar/history/project 区域，避免点击左侧聊天、项目或历史记录。",
-    "增加当前会话路径保护：点击创建图片过程中如检测到 conversation 路径变化或输入框消失，立即停止且不继续发送。",
-    "上传、附件稳定检测、提示词写入、发送确认、生图检测、下载隔离与暂停恢复核心保持不变。"
+    "新增坏附件快速检测：图片预览 complete=true 且 naturalWidth=0 连续8秒，直接判定附件损坏，不再傻等180秒。",
+    "新增上传卡死检测：附件已出现但预览不完整、且连续25秒没有真实上传进度时，按可恢复上传失败处理。",
+    "原180秒上传超时也改为可恢复错误：首次清理附件原页面重试；第二次失败刷新当前会话后恢复同批重新上传；刷新后仍失败才暂停。",
+    "上传刷新恢复只允许发生在提示词发送前；已发送阶段继续遵守at-most-once规则，不会因上传恢复重复发送或重复生图。",
+    "创建图片、提示词写入、发送确认、生图检测、下载隔离和夜间休眠恢复逻辑保持不变。"
   ]
 }

@@ -1,13 +1,12 @@
 {
-  "version": "1.6.2",
+  "version": "1.6.6",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "download_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "published_at": "2026-08-26",
   "changelog": [
-    "修复“创建图片”入口误匹配：V1.6.1 日志曾把“替换人物生成图片”聊天/项目标题识别成创建图片菜单项，V1.6.2 改为只匹配以“创建图片/创作图片/生成图片”开头的真实菜单项。",
-    "创建图片入口严格绑定当前 composer：加号按钮只在当前输入框区域查找，菜单优先限制为本次点击后新出现/靠近加号的弹层。",
-    "显式排除 nav/aside/sidebar/history/project 区域，避免点击左侧聊天、项目或历史记录。",
-    "增加当前会话路径保护：点击创建图片过程中如检测到 conversation 路径变化或输入框消失，立即停止且不继续发送。",
-    "上传、附件稳定检测、提示词写入、发送确认、生图检测、下载隔离与暂停恢复核心保持不变。"
+    "创建图片入口移除 V1.6.5 的全页 MutationObserver；点击当前 composer 的“+”后，只对可见菜单根进行约 180ms 间隔、最长约 5.2 秒的有限检测。",
+    "继续保留当前 composer 绑定、严格“创建图片/创作图片/生成图片”前缀匹配、侧栏排除与会话路径保护，不恢复 document 全页 fallback。",
+    "视觉风格解析/生产文件设计的 1 秒状态刷新不再读取 IndexedDB 输出目录句柄；目录标签仅在启动、切换流程、工作区渲染或选择目录等真实事件更新。",
+    "上传恢复、发送 at-most-once、生图检测、结果映射、独立下载、暂停继续与夜间恢复核心保持不变。"
   ]
 }

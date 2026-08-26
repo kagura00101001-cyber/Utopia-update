@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ChatGPT服装POD统一工作台 V1.2.2
-// @name:zh-CN   ChatGPT服装POD统一工作台 V1.6.5
+// @name:zh-CN   ChatGPT服装POD统一工作台 V1.6.6
 // @namespace    https://github.com/Kagura-userscripts
-// @version      1.6.5
-// @description  服装POD统一工作台：V1.6.5 创建图片入口改为 MutationObserver 事件驱动检测，移除长对话中的全页交互节点轮询，兼顾兼容性与性能。
+// @version      1.6.6
+// @description  服装POD统一工作台：V1.6.6 性能专项修复：创建图片改为可见菜单根限时轮询，并停止母版流程每秒读取输出目录句柄。
 // @author       Kagura
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js

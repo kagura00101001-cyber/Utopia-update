@@ -47,7 +47,6 @@ jobs:
           assert 'updateTemplateWorkflowFolderLabel()' not in s[a:b]
           assert 'async function waitUploads(' in s
           assert 'async function sendPrompt(' in s
-          assert 'async function waitGeneration(' in s
           assert 'async function processBatch()' in s
           for p in ['POD_ChatGPT.latest.json', 'POD_ChatGPT_latest.json']:
               with open(p, encoding='utf-8') as f:

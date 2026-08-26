@@ -1,12 +1,12 @@
 {
-  "version": "1.6.8",
+  "version": "1.6.9",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "download_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "published_at": "2026-08-26",
   "changelog": [
-    "任务列表从1秒状态心跳中彻底移除：只有导入Excel、任务状态持久化、搜索/筛选、手动操作等真实事件才刷新任务列表，避免空闲和生图期间持续处理整批任务数据。",
-    "任务列表变更签名不再包含完整提示词正文；任务记录DOM最多显示当前筛选结果前80条，更多任务通过搜索/状态筛选查看，降低500条长提示词带来的主线程和DOM压力。",
-    "创建图片入口删除V1.6.7的document全页交互节点兜底；菜单未命中标准弹层根时，优先使用加号aria-controls/aria-owns，再以加号附近少量elementFromPoint坐标探测真实局部菜单容器，只在局部容器内匹配创建图片。",
-    "1秒心跳仅更新运行时间、生图计数和日志窗口计时；保留当前composer绑定、严格创建图片前缀、侧栏排除和会话路径保护。上传恢复、发送at-most-once、生图检测、下载隔离、任务映射与暂停恢复核心不变。"
+    "根据V1.6.8实机日志修复创建图片漏检：加号aria-expanded=true且标准可见弹层根为0时，原固定8个高度采样点可能从真实菜单项上下两侧跨过。",
+    "局部兜底改为围绕当前composer加号上方有限矩形条带进行密集elementFromPoint采样；每个采样点只检查命中元素及其祖先，不执行document全页交互节点扫描，也不引入MutationObserver。",
+    "继续优先使用aria-controls/aria-owns与标准可见弹层根；继续严格匹配创建图片/创作图片/生成图片前缀并排除替换人物、侧栏、历史记录和项目区域。",
+    "V1.6.8的任务列表事件化刷新、80条DOM上限和轻量1秒heartbeat保持不变；上传恢复、发送at-most-once、生图检测、下载隔离、任务映射与暂停恢复核心不变。"
   ]
 }

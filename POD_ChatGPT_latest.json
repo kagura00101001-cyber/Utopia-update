@@ -1,12 +1,12 @@
 {
-  "version": "1.6.6",
+  "version": "1.6.7",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "download_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "published_at": "2026-08-26",
   "changelog": [
-    "创建图片入口移除 V1.6.5 的全页 MutationObserver；点击当前 composer 的“+”后，只对可见菜单根进行约 180ms 间隔、最长约 5.2 秒的有限检测。",
-    "继续保留当前 composer 绑定、严格“创建图片/创作图片/生成图片”前缀匹配、侧栏排除与会话路径保护，不恢复 document 全页 fallback。",
-    "视觉风格解析/生产文件设计的 1 秒状态刷新不再读取 IndexedDB 输出目录句柄；目录标签仅在启动、切换流程、工作区渲染或选择目录等真实事件更新。",
-    "上传恢复、发送 at-most-once、生图检测、结果映射、独立下载、暂停继续与夜间恢复核心保持不变。"
+    "修复 ChatGPT 当前新版“+”菜单已经 aria-expanded=true，但真实菜单没有命中 role=menu/Radix 等标准弹层根，导致脚本只看到左侧历史/项目区域而找不到“创建图片”的问题。",
+    "移除菜单根选择器中的通用 [data-state=\"open\"]，避免把侧栏、抽屉或其他长期打开区域误当成当前“+”菜单。",
+    "当“+”已确认展开时，增加受控兜底：只扫描可交互节点，严格匹配“创建图片/创作图片/生成图片”开头，并要求节点与当前 composer 加号空间距离足够近；约650ms一次，最多7次。",
+    "继续禁止全页 div/span 高频扫描与全页 MutationObserver；V1.6.6 的输出目录句柄性能修复、上传恢复、发送 at-most-once、生图检测、下载与恢复核心保持不变。"
   ]
 }

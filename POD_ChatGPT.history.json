@@ -12,7 +12,9 @@
         "只有在可能进行第二次发送、暂停恢复等安全边界才重新执行严格全文校验，继续遵守at-most-once发送规则。",
         "版本信息新增历史版本列表、版本说明和手动版本切换；切换只打开对应Tampermonkey确认页，不自动安装、不静默覆盖。"
       ],
-      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.5.txt"
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.5.txt",
+      "commit": "fa9cb67579d00e77ee1ff7ea59952801ee7b93af",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/fa9cb67579d00e77ee1ff7ea59952801ee7b93af/POD_ChatGPT.user.js"
     },
     {
       "version": "1.6.9",

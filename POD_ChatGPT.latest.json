@@ -1,13 +1,13 @@
 {
-  "version": "1.6.3",
+  "version": "1.6.4",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "download_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "published_at": "2026-08-26",
   "changelog": [
-    "新增坏附件快速检测：图片预览 complete=true 且 naturalWidth=0 连续8秒，直接判定附件损坏，不再傻等180秒。",
-    "新增上传卡死检测：附件已出现但预览不完整、且连续25秒没有真实上传进度时，按可恢复上传失败处理。",
-    "原180秒上传超时也改为可恢复错误：首次清理附件原页面重试；第二次失败刷新当前会话后恢复同批重新上传；刷新后仍失败才暂停。",
-    "上传刷新恢复只允许发生在提示词发送前；已发送阶段继续遵守at-most-once规则，不会因上传恢复重复发送或重复生图。",
-    "创建图片、提示词写入、发送确认、生图检测、下载隔离和夜间休眠恢复逻辑保持不变。"
+    "修复“+”菜单已经打开但脚本仍检测不到“创建图片”的问题：参考主图批量下载与洗图脚本 V3.1.1 的已验证弹层定位策略。",
+    "保留当前菜单根优先检测；若 ChatGPT 新版菜单未暴露 role=menu / Radix 等可识别根节点，则仅对当前 composer 附近的交互菜单项执行容错扫描。",
+    "“创建图片/创作图片/生成图片”继续要求位于菜单项文字开头，并保留 nav/aside/sidebar/history/project 排除，避免再次误点聊天或项目标题。",
+    "继续保留当前会话路径保护：创建图片过程中如发生会话跳转或输入框消失，立即停止，不继续发送。",
+    "V1.6.3 的坏附件检测、上传自动恢复，以及上传/发送/生图/下载/暂停恢复核心保持不变。"
   ]
 }

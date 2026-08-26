@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ChatGPT服装POD统一工作台 V1.2.2
-// @name:zh-CN   ChatGPT服装POD统一工作台 V1.6.3
+// @name:zh-CN   ChatGPT服装POD统一工作台 V1.6.4
 // @namespace    https://github.com/Kagura-userscripts
-// @version      1.6.3
-// @description  服装POD统一工作台：V1.6.3 增加损坏附件快速检测与上传失败自动恢复，避免偶发坏图/卡死导致整夜任务暂停。
+// @version      1.6.4
+// @description  服装POD统一工作台：V1.6.4 恢复已验证的“+→创建图片”弹层容错检测，并保留当前输入框绑定、侧栏排除与会话跳转保护。
 // @author       Kagura
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js

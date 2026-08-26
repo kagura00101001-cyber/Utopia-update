@@ -21,7 +21,6 @@ for marker in required:
     if count != 1:
         raise SystemExit(f'expected exactly one marker {marker!r}, got {count}')
 
-# Version metadata only; fixed @name is intentionally untouched.
 s = s.replace('// @name:zh-CN   ChatGPT服装POD统一工作台 V1.6.5', '// @name:zh-CN   ChatGPT服装POD统一工作台 V1.6.6', 1)
 s = s.replace('// @version      1.6.5', '// @version      1.6.6', 1)
 old_desc = '// @description  服装POD统一工作台：V1.6.5 创建图片入口改为 MutationObserver 事件驱动检测，移除长对话中的全页交互节点轮询，兼顾兼容性与性能。'
@@ -37,7 +36,6 @@ if s.count(anchor) != 1:
     raise SystemExit('V1.6.5 changelog anchor missing')
 s = s.replace(anchor, note + anchor, 1)
 
-# Replace the whole-body MutationObserver helper with bounded visible-menu polling.
 start = s.index('  function createWatcher(plus,before,timeout=5200){')
 end = s.index('  function resetCreateMenu(){', start)
 new_helper = r'''  async function waitCreateItemBounded(plus,before,timeout=5200,interval=180){
@@ -67,14 +65,11 @@ for old, new in repls:
         raise SystemExit(f'activateCreate marker mismatch ({count}): {old[:90]!r}')
     s = s.replace(old, new, 1)
 
-# V1.6.0 introduced an output-handle read from the 1-second panel heartbeat.
-# Keep folder label reads on boot / flow switch / workspace render / choose-output only.
 old_tail = 'updateTemplateWorkflowFolderLabel();renderLogWindow();}'
 if s.count(old_tail) != 1:
     raise SystemExit('updateStylePanel folder-read marker mismatch')
 s = s.replace(old_tail, 'renderLogWindow();}', 1)
 
-# Safety / scope validation.
 if 'function createWatcher(' in s or 'watcher.promise' in s or 'watcher.stop()' in s:
     raise SystemExit('createWatcher remnants remain')
 if 'observer.observe(document.body||document.documentElement' in s:
@@ -90,15 +85,12 @@ if 'findCreateItemFallback' in s:
 
 usp = s.index('  function updateStylePanel(){')
 uep = s.index('\n\n  function renderWorkspace(){', usp)
-update_style = s[usp:uep]
-if 'updateTemplateWorkflowFolderLabel()' in update_style:
+if 'updateTemplateWorkflowFolderLabel()' in s[usp:uep]:
     raise SystemExit('per-second output folder handle read still present in updateStylePanel')
 
-# Stable-core markers: assert presence; this patch never edits these areas.
 for stable in [
     'async function waitUploads(',
     'async function sendPrompt(',
-    'async function confirmSendAfterClick(',
     'async function waitGeneration(',
     'async function processBatch()',
 ]:
@@ -124,7 +116,6 @@ latest = {
 }
 latest_text = json.dumps(latest, ensure_ascii=False, indent=2) + '\n'
 Path('POD_ChatGPT.latest.json').write_text(latest_text, encoding='utf-8')
-# Keep the legacy duplicate manifest consistent too.
 Path('POD_ChatGPT_latest.json').write_text(latest_text, encoding='utf-8')
 
 hp = Path('POD_ChatGPT.history.json')

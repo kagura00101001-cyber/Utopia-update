@@ -28,7 +28,7 @@ if s.count(old_desc) != 1:
 s = s.replace(old_desc, new_desc, 1)
 s = s.replace("const APP_VERSION = '1.6.8';", "const APP_VERSION = '1.6.9';", 1)
 
-anchor = ' * - V1.6.8 性能架构修复：任务列表退出 1 秒心跳，任务记录只在真实状态变化/筛选等事件刷新且最多渲染 80 条；创建图片删除 V1.6.7 的 document 全页交互扫描，改为 aria-controls/aria-owns + 当前加号附近 elementFromPoint 局部几何探测。'
+anchor = ' * - V1.6.8 性能架构修复：任务列表彻底退出1秒心跳，状态变更/导入/筛选等真实事件才刷新；列表签名不再包含完整提示词，并把可见任务DOM限制为前80条。创建图片删除V1.6.7全页交互节点兜底，改为 aria-controls/aria-owns + 加号附近 elementFromPoint 局部几何探测。上传、发送at-most-once、生图检测、下载与恢复核心不变。'
 note = ' * - V1.6.9 创建图片局部探测修复：根据 V1.6.8 实机日志，标准弹层根为 0 时原离散几何采样可能跨过真实菜单行；改为当前加号上方有限矩形条带的密集 elementFromPoint 采样，只检查命中元素及其祖先，不恢复 document 全页交互扫描。\n'
 if s.count(anchor) != 1:
     raise SystemExit('V1.6.8 changelog anchor missing')
@@ -36,7 +36,6 @@ s = s.replace(anchor, note + anchor, 1)
 
 start = s.index('  function findCreateNearPlusLocal(plus=findPlus()){')
 end = s.index('  function nearbyVisibleCreateFromRoots(before,plus){', start)
-old_block = s[start:end]
 new_block = r'''  function createCandidateFromPointNode(node,plus){
     if(!(node instanceof Element)||!(plus instanceof Element))return null;
     const re=/^(创建图片|创作图片|生成图片|create\s*image|generate\s*image)(?:\s|$)/i;
@@ -97,7 +96,7 @@ if 'function createWatcher(' in s or 'observer.observe(document.body||document.d
     raise SystemExit('whole-body observer regression detected')
 if "setInterval(()=>{try{updatePanel()}catch(_){}},1000);" in s:
     raise SystemExit('heavy 1-second updatePanel heartbeat returned')
-if 'function createCandidateFromPointNode(' not in s or 'localSource:\'geometry-strip\'' not in s:
+if 'function createCandidateFromPointNode(' not in s or "localSource:'geometry-strip'" not in s:
     raise SystemExit('new local strip probe missing')
 if 'for(let dy=80;dy<=560;dy+=24)' not in s or 'const xOffsets=[-80,0,80,160,240,320,400,480];' not in s:
     raise SystemExit('strip coverage markers missing')

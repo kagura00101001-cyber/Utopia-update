@@ -3,6 +3,17 @@
   "since": "1.2.0",
   "versions": [
     {
+      "version": "1.6.5",
+      "date": "2026-08-26",
+      "notes": [
+        "创建图片入口改为 MutationObserver 事件驱动：在点击当前 composer 的“+”之前开始监听，只处理本次新增或显隐变化的菜单节点。",
+        "删除 V1.6.4 的 document 全页交互节点 fallback 轮询，避免长对话中反复 querySelectorAll + 布局计算造成卡顿。",
+        "保留可见弹层根的一次性轻量兜底，兼容 ChatGPT 将菜单复用为既有 DOM 仅切换 data-state/class 的情况。",
+        "继续要求“创建图片/创作图片/生成图片”位于菜单项文字开头，并排除 nav/aside/sidebar/history/project，防止误点聊天标题。",
+        "保留当前会话路径保护、V1.6.3 坏附件/上传恢复，以及发送 at-most-once、生图检测、下载隔离和夜间恢复逻辑。"
+      ]
+    },
+    {
       "version": "1.6.4",
       "date": "2026-08-26",
       "notes": [

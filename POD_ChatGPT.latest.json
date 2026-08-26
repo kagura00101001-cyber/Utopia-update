@@ -1,12 +1,13 @@
 {
-  "version": "1.6.1",
+  "version": "1.6.2",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "download_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
-  "published_at": "2026-08-25",
+  "published_at": "2026-08-26",
   "changelog": [
-    "修复长对话中“添加创建图片模式”阶段浏览器无响应：创建图片菜单项只在当前可见菜单/弹层内检索，不再高频全页扫描 div/span。",
-    "创建图片模式标签检测限制在输入框 composer 区域，不再对整个 document 做第二轮扫描。",
-    "创建图片菜单与标签轮询频率降低，减少强制布局与主线程压力。",
-    "仅修改创建图片模式定位性能；上传、发送确认、生图检测、下载隔离和暂停恢复核心保持不变。"
+    "修复“创建图片”入口误匹配：V1.6.1 日志曾把“替换人物生成图片”聊天/项目标题识别成创建图片菜单项，V1.6.2 改为只匹配以“创建图片/创作图片/生成图片”开头的真实菜单项。",
+    "创建图片入口严格绑定当前 composer：加号按钮只在当前输入框区域查找，菜单优先限制为本次点击后新出现/靠近加号的弹层。",
+    "显式排除 nav/aside/sidebar/history/project 区域，避免点击左侧聊天、项目或历史记录。",
+    "增加当前会话路径保护：点击创建图片过程中如检测到 conversation 路径变化或输入框消失，立即停止且不继续发送。",
+    "上传、附件稳定检测、提示词写入、发送确认、生图检测、下载隔离与暂停恢复核心保持不变。"
   ]
 }

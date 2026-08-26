@@ -1,0 +1,55 @@
+name: POD publish V1.6.3 final
+
+on:
+  push:
+    paths:
+      - '.pod_release/v163_final/READY'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch release
+        run: python .pod_release/v163_final/patch_v163.py
+
+      - name: Validate JavaScript
+        run: node --check POD_ChatGPT.user.js
+
+      - name: Validate release metadata
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          user=Path('POD_ChatGPT.user.js').read_text(encoding='utf-8')
+          meta=Path('POD_ChatGPT.meta.js').read_text(encoding='utf-8')
+          latest=json.loads(Path('POD_ChatGPT.latest.json').read_text(encoding='utf-8'))
+          history=json.loads(Path('POD_ChatGPT.history.json').read_text(encoding='utf-8'))
+          assert '// @name         ChatGPT服装POD统一工作台 V1.2.2' in user
+          assert '// @name:zh-CN   ChatGPT服装POD统一工作台 V1.6.3' in user
+          assert '// @version      1.6.3' in user
+          assert "const APP_VERSION = '1.6.3';" in user
+          assert 'brokenPreviewCount:broken' in user
+          assert 'naturalWidth=0' in user
+          assert "kind:'upload-refresh'" in user
+          assert latest['version']=='1.6.3'
+          assert history['versions'][0]['version']=='1.6.3'
+          assert '// @version      1.6.3' in meta
+          print('validation ok')
+          PY
+
+      - name: Publish and self-clean
+        run: |
+          rm -rf .pod_release/v163_final
+          rm -f .github/workflows/pod_publish_v163_final.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "release: POD ChatGPT V1.6.3 upload recovery"
+          git push origin HEAD:main

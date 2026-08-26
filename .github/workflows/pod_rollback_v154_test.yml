@@ -1,0 +1,62 @@
+name: POD rollback V1.5.4 performance baseline test
+
+on:
+  push:
+    paths:
+      - '.pod_release/rollback_v154_test/READY'
+
+permissions:
+  contents: write
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore exact POD V1.5.4 release files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout 1f20b3f17fce040f300ef190325ccf9e260daf6f -- \
+            POD_ChatGPT.user.js \
+            POD_ChatGPT.meta.js \
+            POD_ChatGPT.latest.json \
+            POD_ChatGPT_latest.json \
+            POD_ChatGPT.history.json
+
+      - name: Validate rollback baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check POD_ChatGPT.user.js
+          grep -q '^// @name         ChatGPT服装POD统一工作台 V1.2.2$' POD_ChatGPT.user.js
+          grep -q '^// @name:zh-CN   ChatGPT服装POD统一工作台 V1.5.4$' POD_ChatGPT.user.js
+          grep -q '^// @version      1.5.4$' POD_ChatGPT.user.js
+          grep -q '^// @version      1.5.4$' POD_ChatGPT.meta.js
+          grep -q "const APP_VERSION = '1.5.4';" POD_ChatGPT.user.js
+          python - <<'PY'
+          import json
+          for p in ['POD_ChatGPT.latest.json','POD_ChatGPT_latest.json']:
+              with open(p, encoding='utf-8') as f:
+                  assert json.load(f)['version'] == '1.5.4', p
+          with open('POD_ChatGPT.history.json', encoding='utf-8') as f:
+              h=json.load(f)
+          assert h['versions'][0]['version'] == '1.5.4'
+          PY
+          test -f 'versions/POD_ChatGPT统一工作台_V1.6.9.txt'
+
+      - name: Commit rollback and self-clean
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Kagura Update Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          rm -rf .pod_release/rollback_v154_test
+          rm -f .github/workflows/pod_rollback_v154_test.yml
+          git add POD_ChatGPT.user.js POD_ChatGPT.meta.js POD_ChatGPT.latest.json POD_ChatGPT_latest.json POD_ChatGPT.history.json .pod_release .github/workflows
+          git commit -m 'rollback: POD ChatGPT to V1.5.4 for performance baseline test'
+          git push origin HEAD:main

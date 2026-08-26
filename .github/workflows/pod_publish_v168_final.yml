@@ -1,0 +1,89 @@
+name: POD publish V1.6.8 final
+
+on:
+  push:
+    paths:
+      - '.pod_release/v168_final/READY'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch V1.6.7 to V1.6.8
+        run: python .pod_release/v168_final/patch_v168.py
+
+      - name: Validate V1.6.8 release
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check POD_ChatGPT.user.js
+          grep -q '^// @name         ChatGPT服装POD统一工作台 V1.2.2$' POD_ChatGPT.user.js
+          grep -q '^// @name:zh-CN   ChatGPT服装POD统一工作台 V1.6.8$' POD_ChatGPT.user.js
+          grep -q '^// @version      1.6.8$' POD_ChatGPT.user.js
+          grep -q '^// @version      1.6.8$' POD_ChatGPT.meta.js
+          grep -q "const APP_VERSION = '1.6.8';" POD_ChatGPT.user.js
+          grep -Fq 'const TASK_LIST_RENDER_LIMIT=80;' POD_ChatGPT.user.js
+          grep -Fq 'function refreshTaskListFromState(' POD_ChatGPT.user.js
+          grep -Fq 'function updateHeartbeat()' POD_ChatGPT.user.js
+          grep -Fq 'function findCreateNearPlusLocal(' POD_ChatGPT.user.js
+          grep -Fq 'function controlledCreateRoots(' POD_ChatGPT.user.js
+          grep -Fq 'document.elementFromPoint(x,y)' POD_ChatGPT.user.js
+          ! grep -Fq 'function findCreateNearPlusFallback(' POD_ChatGPT.user.js
+          ! grep -Fq 'document.querySelectorAll(CREATE_CLICK_SELECTOR)' POD_ChatGPT.user.js
+          ! grep -Fq 'function createWatcher(' POD_ChatGPT.user.js
+          ! grep -Fq 'observer.observe(document.body||document.documentElement' POD_ChatGPT.user.js
+          ! grep -Fq "setInterval(()=>{try{updatePanel()}catch(_){}},1000);" POD_ChatGPT.user.js
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          s=Path('POD_ChatGPT.user.js').read_text(encoding='utf-8')
+          assert "setInterval(()=>{try{updateHeartbeat()}catch(_){}},1000);" in s
+          assert "while(state.running&&Date.now()<end){state.phase='batch_wait';updateHeartbeat();" in s
+          a=s.index('  function updatePanel(){')
+          b=s.index('  function updateHeartbeat(){',a)
+          assert 'renderTaskList();' not in s[a:b]
+          r=s.index('  const TASK_LIST_RENDER_LIMIT=80;')
+          r2=s.index('  async function exportTasks()',r)
+          assert 't.row,t.prompt,t.status' not in s[r:r2]
+          assert 't.prompt' not in s[s.index('const signature=',r):s.index('if(!force&&signature',r)]
+          assert 'const pathBefore=location.pathname;let last;' in s
+          assert 'isSidebarLike' in s
+          assert 'async function waitUploads(' in s
+          assert 'async function sendPrompt(' in s
+          assert 'async function processBatch()' in s
+          assert 'async function downloadNormal(' in s
+          for p in ['POD_ChatGPT.latest.json','POD_ChatGPT_latest.json']:
+              with open(p,encoding='utf-8') as f:
+                  assert json.load(f)['version']=='1.6.8',p
+          with open('POD_ChatGPT.history.json',encoding='utf-8') as f:
+              h=json.load(f)
+          assert h['versions'][0]['version']=='1.6.8'
+          assert h['versions'][1]['version']=='1.6.7'
+          PY
+
+      - name: Archive V1.6.8
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p versions
+          cp POD_ChatGPT.user.js 'versions/POD_ChatGPT统一工作台_V1.6.8.txt'
+
+      - name: Publish official files and self-clean
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Kagura Update Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          rm -rf .pod_release/v168_final
+          rm -f .github/workflows/pod_publish_v168_final.yml
+          git add POD_ChatGPT.user.js POD_ChatGPT.meta.js POD_ChatGPT.latest.json POD_ChatGPT_latest.json POD_ChatGPT.history.json versions .pod_release .github/workflows
+          git commit -m 'release: POD ChatGPT V1.6.8 performance architecture stabilization'
+          git push origin HEAD:main

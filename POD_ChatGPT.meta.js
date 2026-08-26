@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ChatGPT服装POD统一工作台 V1.2.2
-// @name:zh-CN   ChatGPT服装POD统一工作台 V1.5.4
+// @name:zh-CN   ChatGPT服装POD统一工作台 V1.5.5
 // @namespace    https://github.com/Kagura-userscripts
-// @version      1.5.4
-// @description  服装POD统一工作台：V1.5.4 增强长期挂机恢复，并修复版本弹窗无可见“检查更新”按钮的问题；仍保持手动确认更新。
+// @version      1.5.5
+// @description  服装POD统一工作台：V1.5.5 长提示词性能修复：批量生图发送前自动压平换行、发送确认改用轻量提示词守卫；版本信息新增历史版本查看与手动切换。
 // @author       Kagura
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js

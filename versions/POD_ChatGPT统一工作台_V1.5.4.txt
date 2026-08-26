@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ChatGPT服装POD统一工作台 V1.2.2
-// @name:zh-CN   ChatGPT服装POD统一工作台 V1.5.5
+// @name:zh-CN   ChatGPT服装POD统一工作台 V1.5.4
 // @namespace    https://github.com/Kagura-userscripts
-// @version      1.5.5
-// @description  服装POD统一工作台：V1.5.5 长提示词性能修复：批量生图发送前自动压平换行、发送确认改用轻量提示词守卫；版本信息新增历史版本查看与手动切换。
+// @version      1.5.4
+// @description  服装POD统一工作台：V1.5.4 增强长期挂机恢复，并修复版本弹窗无可见“检查更新”按钮的问题；仍保持手动确认更新。
 // @author       Kagura
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js
@@ -29,7 +29,7 @@
 
   /*
    * ================================================================
-   * ChatGPT服装POD统一工作台 V1.5.5
+   * ChatGPT服装POD统一工作台 V1.5.4
    * ================================================================
    * 架构原则：
    * - 完全独立运行，不依赖 Ozon/洗图脚本，不动态加载/执行旧脚本。
@@ -53,7 +53,6 @@
  * - V1.5.2 仅增强批量生图暂停/继续状态保护：发送按钮点击后立即持久化发送确认状态；已确认发送后直到整批结束持续保留“已发送”上下文，继续时只恢复确认/检测，不直接重发。
  * - V1.5.2 下载中暂停再继续时跳过已经完成或已隔离待确认的任务，避免已保存图片被重复下载或状态回滚。
  * - V1.5.3 长期挂机恢复增强：生成检测期间若发现浏览器定时器出现明显休眠/后台节流断层，当前已发送批次优先刷新同步且绝不重发。
- * - V1.5.5 长提示词性能修复：批量生图真正写入 ChatGPT 前自动把多段提示词压平为空格；严格全文 DOM 校验只保留在写入完成/可能二次发送等安全边界，轮询阶段改为轻量提示词守卫。版本信息新增历史版本查看、更新说明与手动版本切换。
  * - V1.5.4 更新模块小修：版本弹窗始终提供“检查更新/重新检查”按钮；有新版时继续保留“立刻更新”，不改变手动确认覆盖规则。
  * - V1.5.3 “页面显示完成但0图”不再直接判异常：先刷新一次恢复同批结果；刷新后仍0图才按原异常规则处理。
  * - V1.5.3 生图超时、0图恢复阈值、完成后稳定等待改为按“有效运行时间”计时，浏览器休眠/强节流时间不计入。
@@ -61,7 +60,7 @@
    * ================================================================
    */
 
-  const APP_VERSION = '1.5.5';
+  const APP_VERSION = '1.5.4';
   const APP_NAME = `ChatGPT服装POD统一工作台 V${APP_VERSION}`;
 
   const STATE_KEY = 'kaguraPodStandaloneStateV120';
@@ -442,9 +441,6 @@
       delete t.sourcePath;delete t.imageName;
     }
   }
-  function flattenPromptForComposer(v){
-    return String(v??'').replace(/\r\n?/g,'\n').split('\n').map(x=>x.trim()).filter(Boolean).join(' ').replace(/[ \t]{2,}/g,' ').trim();
-  }
   function buildBatchPrompt(tasks){
     const common=publicPrompt();
     const hasLogo=Boolean(settings.useLogoFile);
@@ -462,7 +458,7 @@
     lines.push(`本批共有 ${tasks.length} 个独立任务，必须严格生成 ${tasks.length} 张结果图；第1张对应第1个任务、第2张对应第2个任务，依此类推。`);
     if(hasLogo) lines.push('Logo图不能当作产品主体，也不要把 Logo 图上的元素扩展成整件衣服的主图案；只有当前任务明确需要时才使用该 Logo。');
     lines.push('不同任务之间禁止混用任何设计内容；不要把多个任务合并到同一张图中。');
-    return flattenPromptForComposer(lines.filter((x,i,a)=>!(x===''&&a[i-1]==='')).join('\n').trim());
+    return lines.filter((x,i,a)=>!(x===''&&a[i-1]==='')).join('\n').trim();
   }
 
   async function validateHandles(request=true){
@@ -596,32 +592,13 @@
   function normalizePrompt(v){return String(v||'').replace(/[\u200B-\u200D\u2060\uFEFF]/g,'').replace(/\r\n?/g,'\n').replace(/[ \t]+/g,' ').replace(/ *\n */g,'\n').trim();}
   function readEditor(e=findPromptEditor()){if(!e)return'';if(e instanceof HTMLTextAreaElement||e instanceof HTMLInputElement)return normalizePrompt(e.value);let v='';try{const c=e.cloneNode(true);c.querySelectorAll('button,[role="button"],[role="menuitem"],[contenteditable="false"],[data-testid*="attachment"],[data-testid*="composer-chip"],[data-testid*="tool-chip"],img,svg').forEach(n=>n.remove());v=c.textContent||''}catch(_){v=e.innerText||e.textContent||''}return normalizePrompt(v.split(/\r?\n/).map(x=>x.trim()).filter(x=>x&&!/^(创建图片|创作图片|生成图片|create\s*image|generate\s*image)$/i.test(x)).join('\n'));}
   function promptMatches(e,expected){const a=readEditor(e),b=normalizePrompt(expected);if(!a||!b)return false;if(a===b||a.includes(b))return true;const aa=a.replace(/\s+/g,''),bb=b.replace(/\s+/g,'');if(aa===bb||aa.includes(bb))return true;return bb.length>=80&&aa.includes(bb.slice(0,40))&&aa.includes(bb.slice(-40));}
-  function promptLightSignature(expected){const b=normalizePrompt(expected).replace(/\s+/g,'');return{len:b.length,head:b.slice(0,56),tail:b.slice(-56)};}
-  function promptLightMatches(e,expected){
-    if(!e)return false;let raw='';
-    try{raw=e instanceof HTMLTextAreaElement||e instanceof HTMLInputElement?e.value:(e.textContent||'');}catch(_){return false;}
-    raw=String(raw||'').replace(/[\u200B-\u200D\u2060\uFEFF]/g,'').replace(/\s+/g,'');
-    const sig=promptLightSignature(expected);if(!raw||!sig.len)return false;
-    if(sig.head&&!raw.includes(sig.head))return false;if(sig.tail&&!raw.includes(sig.tail))return false;
-    return raw.length>=Math.max(20,Math.floor(sig.len*0.9));
-  }
   function placeCaretEnd(e){try{e.focus({preventScroll:true})}catch(_){e.focus?.()}if(e instanceof HTMLTextAreaElement||e instanceof HTMLInputElement){try{e.setSelectionRange(e.value.length,e.value.length)}catch(_){}return}try{const s=getSelection(),r=document.createRange();r.selectNodeContents(e);r.collapse(false);s.removeAllRanges();s.addRange(r)}catch(_){}}
-  async function setPromptValue(v){const expected=flattenPromptForComposer(v);if(!expected)throw new Error('提示词为空');if(!hasCreateChip())await activateCreate();let e=await waitUntil(()=>findPromptEditor(),30000,300);if(!e)throw new Error('未找到提示词输入框');const existing=readEditor(e);if(promptMatches(e,expected)){log(`提示词已存在并校验通过（${expected.length}字）`,'success');return;}if(existing)throw new Error(`输入框已有 ${existing.length} 字残留，为避免破坏创建图片模式不会自动清空`);if(e instanceof HTMLTextAreaElement||e instanceof HTMLInputElement)setNativeValue(e,expected);else{placeCaretEnd(e);let ok=false;try{ok=document.execCommand('insertText',false,expected)}catch(_){}if(!ok){const s=getSelection(),r=s?.rangeCount?s.getRangeAt(0):null;if(r){r.insertNode(document.createTextNode(expected));e.dispatchEvent(new InputEvent('input',{bubbles:true,composed:true,inputType:'insertText',data:expected}))}}}await sleep(1000);e=findPromptEditor();if(!promptMatches(e,expected))throw new Error(`提示词写入后校验失败（当前识别${readEditor(e).length}字）`);if(!hasCreateChip()){log('提示词写入后“创建图片”标签消失，正在恢复','warn');await activateCreate();if(!promptMatches(findPromptEditor(),expected))throw new Error('恢复创建图片后提示词丢失');}log(`提示词已无损写入并校验通过（${expected.length}字）`,'success');}
+  async function setPromptValue(v){const expected=String(v||'').trim();if(!expected)throw new Error('提示词为空');if(!hasCreateChip())await activateCreate();let e=await waitUntil(()=>findPromptEditor(),30000,300);if(!e)throw new Error('未找到提示词输入框');const existing=readEditor(e);if(promptMatches(e,expected)){log(`提示词已存在并校验通过（${expected.length}字）`,'success');return;}if(existing)throw new Error(`输入框已有 ${existing.length} 字残留，为避免破坏创建图片模式不会自动清空`);if(e instanceof HTMLTextAreaElement||e instanceof HTMLInputElement)setNativeValue(e,expected);else{placeCaretEnd(e);let ok=false;try{ok=document.execCommand('insertText',false,expected)}catch(_){}if(!ok){const s=getSelection(),r=s?.rangeCount?s.getRangeAt(0):null;if(r){r.insertNode(document.createTextNode(expected));e.dispatchEvent(new InputEvent('input',{bubbles:true,composed:true,inputType:'insertText',data:expected}))}}}await sleep(1000);e=findPromptEditor();if(!promptMatches(e,expected))throw new Error(`提示词写入后校验失败（当前识别${readEditor(e).length}字）`);if(!hasCreateChip()){log('提示词写入后“创建图片”标签消失，正在恢复','warn');await activateCreate();if(!promptMatches(findPromptEditor(),expected))throw new Error('恢复创建图片后提示词丢失');}log(`提示词已无损写入并校验通过（${expected.length}字）`,'success');}
   function findSend(){for(const s of ['button[data-testid="send-button"]','button[data-testid="composer-send-button"]','button[aria-label*="发送提示"]','button[aria-label="发送"]','button[aria-label*="Send prompt"]','button[aria-label="Send"]']){const a=[...document.querySelectorAll(s)].filter(isVisible).filter(b=>!b.closest('#kagura-pod-panel')).sort((a,b)=>b.getBoundingClientRect().bottom-a.getBoundingClientRect().bottom);if(a[0])return a[0]}return findClickable(['发送提示','^发送$','Send prompt','^Send$'],findComposer());}
   function stopVisible(){const b=document.querySelector('button[data-testid="stop-button"],button[aria-label*="停止生成"],button[aria-label*="Stop generating"],button[aria-label="Stop"]');return Boolean(b&&isVisible(b));}
   function countUserMessages(){return [...document.querySelectorAll('[data-message-author-role="user"]')].filter(n=>!n.closest('#kagura-pod-panel,form[data-type="unified-composer"],[data-composer-surface="true"]')).length;}
   function countUserContaining(prompt){const h=normalizePrompt(prompt).replace(/\s+/g,'').slice(0,50);return [...document.querySelectorAll('[data-message-author-role="user"],article')].filter(n=>{if(n.closest('#kagura-pod-panel,form[data-type="unified-composer"],[data-composer-surface="true"]'))return false;const role=n.getAttribute('data-message-author-role')||'';if(role&&role!=='user')return false;return normalizePrompt(n.innerText||n.textContent||'').replace(/\s+/g,'').includes(h)}).length;}
-  async function waitReadyToSend(expectedCount,prompt){
-    let since=0;const timeout=Number(settings.uploadTimeout)||180000;
-    const b=await waitUntil(()=>{
-      const s=uploadState(),e=findPromptEditor(),pr=Boolean(e&&promptLightMatches(e,prompt)),cr=hasCreateChip(),bt=findSend(),en=Boolean(bt&&!bt.disabled&&bt.getAttribute('aria-disabled')!=='true');
-      if(s.failed){if(s.retryable)throw new UploadRetryableError('发送前检测到上传失败');throw new Error('发送前检测到不可重试上传失败')}
-      if(!s.uploading&&s.count>=expectedCount&&pr&&cr&&en){if(!since)since=Date.now();if(Date.now()-since>=5000)return bt}else since=0;
-      return null;
-    },timeout,700);
-    if(!b)throw new Error('发送前检查未通过');
-    log('发送前检查通过：附件上传完成、轻量提示词守卫正常、“创建图片”模式存在，并稳定5秒','success');return b;
-  }
+  async function waitReadyToSend(expectedCount,prompt){let since=0;const timeout=Number(settings.uploadTimeout)||180000;const b=await waitUntil(()=>{const s=uploadState(),e=findPromptEditor(),pr=Boolean(e&&promptMatches(e,prompt)),cr=hasCreateChip(),bt=findSend(),en=Boolean(bt&&!bt.disabled&&bt.getAttribute('aria-disabled')!=='true');if(s.failed){if(s.retryable)throw new UploadRetryableError('发送前检测到上传失败');throw new Error('发送前检测到不可重试上传失败')}if(!s.uploading&&s.count>=expectedCount&&pr&&cr&&en){if(!since)since=Date.now();if(Date.now()-since>=5000)return bt}else since=0;return null;},timeout,500);if(!b)throw new Error('发送前检查未通过');log('发送前检查通过：附件上传完成、提示词完整、“创建图片”模式存在，并稳定5秒','success');return b;}
   function setBatchResumeContext(kind,prompt,extra={}){
     state.resumeContext={kind,batchKeys:[...state.currentBatchKeys],batchPaths:[...state.currentBatchPaths],prompt:String(prompt||''),updatedAt:new Date().toISOString(),...extra};
     saveState(false);
@@ -658,7 +635,7 @@
     let btn=await waitReadyToSend(expectedCount,prompt),beforeMatch=countUserContaining(prompt),beforeAny=countUserMessages();
     const observe=Math.max(Number(settings.uploadTimeout)||180000,240000);
     for(let click=1;click<=2;click++){
-      if(!promptLightMatches(findPromptEditor(),prompt)){
+      if(!promptMatches(findPromptEditor(),prompt)){
         log('发送前发现提示词已经离开输入框，取消重复点击','success');
         markBatchSent(prompt,{expectedCount,beforeMatch,beforeAny,reason:'prompt-left-before-click'});
         return;
@@ -669,7 +646,7 @@
       const start=Date.now();let lastLog=0;
       while(Date.now()-start<observe){
         if(!state.running)throw new PausedError();
-        const s=uploadState(),still=promptLightMatches(findPromptEditor(),prompt),newMatch=countUserContaining(prompt)>beforeMatch,newAny=countUserMessages()>beforeAny,gen=stopVisible();
+        const s=uploadState(),still=promptMatches(findPromptEditor(),prompt),newMatch=countUserContaining(prompt)>beforeMatch,newAny=countUserMessages()>beforeAny,gen=stopVisible();
         if(s.failed){if(s.retryable)throw new UploadRetryableError('发送后检测到附件上传失败');throw new Error('发送后检测到不可重试上传失败')}
         if(!still&&(newMatch||newAny||gen||s.count<expectedCount)){
           markBatchSent(prompt,{expectedCount,beforeMatch,beforeAny,reason:gen?'generation-visible':newMatch?'current-user-message':'message-submitted'});
@@ -679,17 +656,11 @@
         if(Date.now()-lastLog>15000){log(`发送确认中：附件 ${s.count}/${expectedCount}，提示词${still?'仍在输入框':'已离开输入框'}，生成状态${gen?'已出现':'未出现'}；不会重复点击`);lastLog=Date.now();}
         await sleep(700);
       }
-      if(!promptLightMatches(findPromptEditor(),prompt)){
+      if(!promptMatches(findPromptEditor(),prompt)){
         markBatchSent(prompt,{expectedCount,beforeMatch,beforeAny,reason:'prompt-left-after-observe'});
         log('观察期结束时提示词已离开输入框，按已提交处理','warn');return;
       }
-      if(click===1){
-        if(!promptMatches(findPromptEditor(),prompt)){
-          markBatchSent(prompt,{expectedCount,beforeMatch,beforeAny,reason:'strict-check-left-before-second-click'});
-          log('完整观察期结束：严格全文校验确认提示词已不完整留在输入框，为避免重复生成按已提交处理','warn');return;
-        }
-        log('完整观察期结束且严格全文校验确认提示词仍完整，才允许第二次点击','warn');btn=await waitReadyToSend(expectedCount,prompt);continue;
-      }
+      if(click===1){log('完整观察期结束后提示词仍完整留在输入框，才允许第二次点击','warn');btn=await waitReadyToSend(expectedCount,prompt);continue;}
       throw new Error('连续两次点击后仍无法确认消息提交');
     }
   }
@@ -700,7 +671,7 @@
     const start=Date.now(),observe=30000;let lastLog=0;
     while(Date.now()-start<observe){
       if(!state.running)throw new PausedError();
-      const s=uploadState(),still=promptLightMatches(findPromptEditor(),prompt),newMatch=countUserContaining(prompt)>beforeMatch,newAny=countUserMessages()>beforeAny,gen=stopVisible();
+      const s=uploadState(),still=promptMatches(findPromptEditor(),prompt),newMatch=countUserContaining(prompt)>beforeMatch,newAny=countUserMessages()>beforeAny,gen=stopVisible();
       if(s.failed){if(s.retryable)throw new UploadRetryableError('恢复发送确认时检测到附件上传失败');throw new Error('恢复发送确认时检测到不可重试上传失败')}
       if(newMatch||newAny||gen||(!still&&(!expected||s.count<expected))){
         markBatchSent(prompt,{expectedCount:expected||s.count,beforeMatch,beforeAny,reason:'resume-confirmed'});
@@ -710,16 +681,10 @@
       if(Date.now()-lastLog>10000){log(`恢复发送核验中：提示词${still?'仍在输入框':'已离开输入框'}，附件 ${s.count}/${expected||'?'}，生成状态${gen?'已出现':'未出现'}`);lastLog=Date.now();}
       await sleep(700);
     }
-    const s=uploadState(),stillLight=promptLightMatches(findPromptEditor(),prompt);
-    if(!stillLight){
-      markBatchSent(prompt,{expectedCount:expected||s.count,beforeMatch,beforeAny,reason:'resume-prompt-left'});
-      log('恢复核验结束：轻量守卫确认提示词已离开输入框，为避免重复生成按“已发送”处理，只恢复检测','warn');
-      return true;
-    }
-    const still=promptMatches(findPromptEditor(),prompt);
+    const s=uploadState(),still=promptMatches(findPromptEditor(),prompt);
     if(!still){
-      markBatchSent(prompt,{expectedCount:expected||s.count,beforeMatch,beforeAny,reason:'resume-strict-prompt-left'});
-      log('恢复核验结束：严格全文校验未确认原提示词完整，为避免重复生成按“已发送”处理，只恢复检测','warn');
+      markBatchSent(prompt,{expectedCount:expected||s.count,beforeMatch,beforeAny,reason:'resume-prompt-left'});
+      log('恢复核验结束：提示词已离开输入框，为避免重复生成按“已发送”处理，只恢复检测','warn');
       return true;
     }
     if(expected&&s.count<expected)throw new Error(`暂停后无法安全恢复发送确认：提示词仍在输入框，但附件仅 ${s.count}/${expected}；未自动重发，请人工检查当前输入框`);
@@ -931,7 +896,7 @@
     let detectOnly=Boolean(['generation-refresh','sent-waiting'].includes(resumeKind)&&state.currentBatchKeys.length);
     let confirmOnly=Boolean(resumeKind==='send-confirming'&&state.currentBatchKeys.length);
     if(!tasks.length){tasks=pendingTasks().slice(0,Math.max(1,Math.min(10,Number(settings.batchSize)||3)));if(!tasks.length)return false;state.currentBatchKeys=tasks.map(t=>t.key);state.currentBatchPaths=[];state.batchStartedAt=Date.now();state.generationStartedAt=0;state.detectedGeneratedCount=0;state.expectedGeneratedCount=tasks.length;state.generatedCountChangedAt=Date.now();state.phase='preparing';for(const t of tasks){t.status='running';t.attempts=Number(t.attempts||0)+1;t.error='';t.updatedAt=new Date().toISOString();}saveState();}
-    const prompt=flattenPromptForComposer(state.resumeContext?.prompt||buildBatchPrompt(tasks));let uploadRetries=0;let execution=0;
+    const prompt=state.resumeContext?.prompt||buildBatchPrompt(tasks);let uploadRetries=0;let execution=0;
     while(true){
       execution++;let sent=detectOnly;
       try{
@@ -1297,22 +1262,6 @@
 
   function compareVersion(a,b){const aa=String(a||'').split('.').map(x=>Number(x)||0),bb=String(b||'').split('.').map(x=>Number(x)||0),n=Math.max(aa.length,bb.length);for(let i=0;i<n;i++){if((aa[i]||0)>(bb[i]||0))return 1;if((aa[i]||0)<(bb[i]||0))return-1;}return 0;}
   function fetchUpdateInfo(){return new Promise((res,rej)=>GM_xmlhttpRequest({method:'GET',url:`${UPDATE_MANIFEST}?_=${Date.now()}`,timeout:15000,headers:{'Cache-Control':'no-cache',Pragma:'no-cache'},onload:r=>{if(r.status>=200&&r.status<300){try{res(JSON.parse(String(r.responseText||'').trim()))}catch(e){rej(new Error(`版本信息解析失败：${e.message||e}`))}}else rej(new Error(`HTTP ${r.status}`))},onerror:()=>rej(new Error('网络失败')),ontimeout:()=>rej(new Error('超时'))}));}
-  function fetchVersionHistory(){const url=`https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.history.json?_=${Date.now()}`;return new Promise((res,rej)=>GM_xmlhttpRequest({method:'GET',url,timeout:15000,headers:{'Cache-Control':'no-cache',Pragma:'no-cache'},onload:r=>{if(r.status>=200&&r.status<300){try{res(JSON.parse(String(r.responseText||'').trim()))}catch(e){rej(new Error(`历史版本解析失败：${e.message||e}`))}}else rej(new Error(`历史版本 HTTP ${r.status}`))},onerror:()=>rej(new Error('历史版本网络失败')),ontimeout:()=>rej(new Error('历史版本读取超时'))}));}
-  function historyInstallUrl(item){const direct=String(item?.install_url||'').trim();if(direct)return direct;const sha=String(item?.commit||'').trim();return sha?`https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/${sha}/POD_ChatGPT.user.js`:'';}
-  async function loadVersionHistory(overlay){
-    const sel=overlay?.querySelector('[data-role="history-select"]'),detail=overlay?.querySelector('[data-role="history-detail"]'),go=overlay?.querySelector('[data-role="history-go"]');if(!sel||!detail||!go)return;
-    detail.textContent='正在读取历史版本…';go.disabled=true;
-    try{
-      const data=await fetchVersionHistory(),versions=Array.isArray(data?.versions)?data.versions:[];if(!versions.length)throw new Error('历史版本列表为空');
-      sel.innerHTML=versions.map((v,i)=>{const ver=String(v.version||'');const tag=ver===APP_VERSION?'（当前）':v.status==='withdrawn'?'（已回退历史版）':'';return `<option value="${i}">V${escapeHtml(ver)} ${tag}</option>`}).join('');
-      const render=()=>{
-        const item=versions[Number(sel.value)||0]||versions[0],ver=String(item?.version||''),notes=Array.isArray(item?.notes)?item.notes.map(String):[],url=historyInstallUrl(item);const relation=ver===APP_VERSION?'当前正在使用':item?.status==='withdrawn'?'历史版本（此前已从正式线回退）':'历史版本';
-        detail.textContent=`V${ver}｜${relation}${item?.date?`｜${item.date}`:''}${notes.length?`\n${notes.map((x,i)=>`${i+1}. ${x}`).join('\n')}`:''}\n\n版本切换规则：只打开对应版本的 Tampermonkey 手动安装/覆盖页面，不会静默安装，也不会主动清除现有脚本数据。`;
-        go.disabled=!url||ver===APP_VERSION;go.textContent=ver===APP_VERSION?'当前版本':`切换到 V${ver}`;go.dataset.url=url||'';go.dataset.version=ver;
-      };
-      sel.onchange=render;go.onclick=()=>{const url=go.dataset.url,ver=go.dataset.version;if(!url)return;if(!confirm(`确定打开 V${ver} 的手动切换页面？\n\nTampermonkey 仍会要求你确认覆盖；旧版本可能不支持后续新增功能。`))return;openManualUpdate(url,detail);};render();
-    }catch(e){detail.textContent=`历史版本读取失败：${e.message||e}`;go.disabled=true;}
-  }
 
   function closeUpdateDialog(){panel?.querySelector(':scope > .kagura-pod-update-overlay')?.remove();}
   function openManualUpdate(downloadUrl,infoBox){
@@ -1350,11 +1299,6 @@
     overlay.innerHTML=`<div class="kagura-pod-update-card">
       <div class="kagura-pod-update-title">${newer?'发现新版本':'手动检查更新'}</div>
       <div class="kagura-pod-update-info" data-role="info"></div>
-      <div style="margin-top:12px;padding:10px;border:1px solid rgba(148,163,184,.28);border-radius:8px;background:rgba(15,23,42,.35)">
-        <div style="font-weight:700;margin-bottom:7px">历史版本 / 手动切换</div>
-        <div style="display:flex;gap:7px;align-items:center"><select data-role="history-select" style="flex:1;min-width:0;padding:7px;border-radius:6px"></select><button type="button" data-role="history-go">切换版本</button></div>
-        <div data-role="history-detail" style="white-space:pre-wrap;margin-top:8px;max-height:180px;overflow:auto;font-size:12px;line-height:1.55;color:#cbd5e1">点击版本信息时加载历史记录。</div>
-      </div>
       <div class="kagura-pod-update-actions">
         ${newer?'<button type="button" class="kagura-pod-update-now" data-role="now">立刻更新</button>':''}
         <button type="button" class="kagura-pod-update-check" data-role="check">${error?'重新检查':'检查更新'}</button>
@@ -1363,7 +1307,7 @@
       </div>
     </div>`;
     panel.appendChild(overlay);
-    const infoBox=overlay.querySelector('[data-role="info"]');infoBox.textContent=content;loadVersionHistory(overlay);
+    const infoBox=overlay.querySelector('[data-role="info"]');infoBox.textContent=content;
     overlay.querySelector('[data-role="close"]').onclick=closeUpdateDialog;
     overlay.querySelector('[data-role="now"]')?.addEventListener('click',()=>openManualUpdate(downloadUrl,infoBox));
     overlay.querySelector('[data-role="check"]')?.addEventListener('click',async()=>{

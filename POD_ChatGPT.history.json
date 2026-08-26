@@ -3,6 +3,164 @@
   "since": "1.2.0",
   "versions": [
     {
+      "version": "1.5.5",
+      "date": "2026-08-26",
+      "status": "current",
+      "notes": [
+        "基于实机A/B测试修复长提示词卡顿：批量生图真正写入ChatGPT前自动把多段换行压平为空格，Excel原始任务内容与任务记录不删减。",
+        "写入完成后保留一次严格全文校验；发送前稳定等待、发送确认与恢复轮询改用轻量提示词守卫，避免每500~700ms cloneNode整个长文本编辑器。",
+        "只有在可能进行第二次发送、暂停恢复等安全边界才重新执行严格全文校验，继续遵守at-most-once发送规则。",
+        "版本信息新增历史版本列表、版本说明和手动版本切换；切换只打开对应Tampermonkey确认页，不自动安装、不静默覆盖。"
+      ],
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.5.txt"
+    },
+    {
+      "version": "1.6.9",
+      "date": "2026-08-26",
+      "notes": [
+        "根据V1.6.8实机日志修复创建图片漏检：加号aria-expanded=true且标准可见弹层根为0时，原固定8个高度采样点可能从真实菜单项上下两侧跨过。",
+        "局部兜底改为围绕当前composer加号上方有限矩形条带进行密集elementFromPoint采样；每个采样点只检查命中元素及其祖先，不执行document全页交互节点扫描，也不引入MutationObserver。",
+        "继续优先使用aria-controls/aria-owns与标准可见弹层根；继续严格匹配创建图片/创作图片/生成图片前缀并排除替换人物、侧栏、历史记录和项目区域。",
+        "V1.6.8的任务列表事件化刷新、80条DOM上限和轻量1秒heartbeat保持不变；上传恢复、发送at-most-once、生图检测、下载隔离、任务映射与暂停恢复核心不变。"
+      ],
+      "status": "withdrawn",
+      "commit": "07c8f0e4d064d2e78e9c6c7e88279780e2322525",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/07c8f0e4d064d2e78e9c6c7e88279780e2322525/POD_ChatGPT.user.js",
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.6.9.txt"
+    },
+    {
+      "version": "1.6.8",
+      "date": "2026-08-26",
+      "notes": [
+        "任务列表从1秒状态心跳中彻底移除：只有导入Excel、任务状态持久化、搜索/筛选、手动操作等真实事件才刷新任务列表，避免空闲和生图期间持续处理整批任务数据。",
+        "任务列表变更签名不再包含完整提示词正文；任务记录DOM最多显示当前筛选结果前80条，更多任务通过搜索/状态筛选查看，降低500条长提示词带来的主线程和DOM压力。",
+        "创建图片入口删除V1.6.7的document全页交互节点兜底；菜单未命中标准弹层根时，优先使用加号aria-controls/aria-owns，再以加号附近少量elementFromPoint坐标探测真实局部菜单容器，只在局部容器内匹配创建图片。",
+        "1秒心跳仅更新运行时间、生图计数和日志窗口计时；保留当前composer绑定、严格创建图片前缀、侧栏排除和会话路径保护。上传恢复、发送at-most-once、生图检测、下载隔离、任务映射与暂停恢复核心不变。"
+      ],
+      "status": "withdrawn",
+      "commit": "fe49d36cefcf65a97fc55b27d0af9bbe1094096b",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/fe49d36cefcf65a97fc55b27d0af9bbe1094096b/POD_ChatGPT.user.js",
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.6.8.txt"
+    },
+    {
+      "version": "1.6.7",
+      "date": "2026-08-26",
+      "notes": [
+        "修复 ChatGPT 当前新版“+”菜单已经 aria-expanded=true，但真实菜单没有命中 role=menu/Radix 等标准弹层根，导致脚本只看到左侧历史/项目区域而找不到“创建图片”的问题。",
+        "移除菜单根选择器中的通用 [data-state=\"open\"]，避免把侧栏、抽屉或其他长期打开区域误当成当前“+”菜单。",
+        "当“+”已确认展开时，增加受控兜底：只扫描可交互节点，严格匹配“创建图片/创作图片/生成图片”开头，并要求节点与当前 composer 加号空间距离足够近；约650ms一次，最多7次。",
+        "继续禁止全页 div/span 高频扫描与全页 MutationObserver；V1.6.6 的输出目录句柄性能修复、上传恢复、发送 at-most-once、生图检测、下载与恢复核心保持不变。"
+      ],
+      "status": "withdrawn",
+      "commit": "6f4686f84d2de1ac0b11d5ee77c995509d1a7d52",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/6f4686f84d2de1ac0b11d5ee77c995509d1a7d52/POD_ChatGPT.user.js",
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.6.7.txt"
+    },
+    {
+      "version": "1.6.6",
+      "date": "2026-08-26",
+      "notes": [
+        "创建图片入口移除 V1.6.5 的全页 MutationObserver；点击当前 composer 的“+”后，只对可见菜单根进行约 180ms 间隔、最长约 5.2 秒的有限检测。",
+        "继续保留当前 composer 绑定、严格“创建图片/创作图片/生成图片”前缀匹配、侧栏排除与会话路径保护，不恢复 document 全页 fallback。",
+        "视觉风格解析/生产文件设计的 1 秒状态刷新不再读取 IndexedDB 输出目录句柄；目录标签仅在启动、切换流程、工作区渲染或选择目录等真实事件更新。",
+        "上传恢复、发送 at-most-once、生图检测、结果映射、独立下载、暂停继续与夜间恢复核心保持不变。"
+      ],
+      "status": "withdrawn",
+      "commit": "a2f289ac03ece169db938440cd5c31307edcf997",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/a2f289ac03ece169db938440cd5c31307edcf997/POD_ChatGPT.user.js",
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.6.6.txt"
+    },
+    {
+      "version": "1.6.5",
+      "date": "2026-08-26",
+      "notes": [
+        "创建图片入口改为 MutationObserver 事件驱动：在点击当前 composer 的“+”之前开始监听，只处理本次新增或显隐变化的菜单节点。",
+        "删除 V1.6.4 的 document 全页交互节点 fallback 轮询，避免长对话中反复 querySelectorAll + 布局计算造成卡顿。",
+        "保留可见弹层根的一次性轻量兜底，兼容 ChatGPT 将菜单复用为既有 DOM 仅切换 data-state/class 的情况。",
+        "继续要求“创建图片/创作图片/生成图片”位于菜单项文字开头，并排除 nav/aside/sidebar/history/project，防止误点聊天标题。",
+        "保留当前会话路径保护、V1.6.3 坏附件/上传恢复，以及发送 at-most-once、生图检测、下载隔离和夜间恢复逻辑。"
+      ],
+      "status": "withdrawn",
+      "commit": "1ba5c2a7319bd3f1d1ef4f41c5bd15f6db2f549e",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/1ba5c2a7319bd3f1d1ef4f41c5bd15f6db2f549e/POD_ChatGPT.user.js",
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.6.5.txt"
+    },
+    {
+      "version": "1.6.4",
+      "date": "2026-08-26",
+      "notes": [
+        "修复“+”菜单已经打开但脚本仍检测不到“创建图片”的问题：参考主图批量下载与洗图脚本 V3.1.1 的已验证弹层定位策略。",
+        "保留当前菜单根优先检测；若 ChatGPT 新版菜单未暴露 role=menu / Radix 等可识别根节点，则仅对当前 composer 附近的交互菜单项执行容错扫描。",
+        "“创建图片/创作图片/生成图片”继续要求位于菜单项文字开头，并保留 nav/aside/sidebar/history/project 排除，避免再次误点聊天或项目标题。",
+        "继续保留当前会话路径保护：创建图片过程中如发生会话跳转或输入框消失，立即停止，不继续发送。",
+        "V1.6.3 的坏附件检测、上传自动恢复，以及上传/发送/生图/下载/暂停恢复核心保持不变。"
+      ],
+      "status": "withdrawn",
+      "commit": "f5b480e343e96ad166cd8c4b621329e8a82ffd68",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/f5b480e343e96ad166cd8c4b621329e8a82ffd68/POD_ChatGPT.user.js",
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.6.4.txt"
+    },
+    {
+      "version": "1.6.3",
+      "date": "2026-08-26",
+      "notes": [
+        "新增坏附件快速检测：图片预览 complete=true 且 naturalWidth=0 连续8秒，直接判定附件损坏，不再傻等180秒。",
+        "新增上传卡死检测：附件已出现但预览不完整、且连续25秒没有真实上传进度时，按可恢复上传失败处理。",
+        "原180秒上传超时也改为可恢复错误：首次清理附件原页面重试；第二次失败刷新当前会话后恢复同批重新上传；刷新后仍失败才暂停。",
+        "上传刷新恢复只允许发生在提示词发送前；已发送阶段继续遵守at-most-once规则，不会因上传恢复重复发送或重复生图。",
+        "创建图片、提示词写入、发送确认、生图检测、下载隔离和夜间休眠恢复逻辑保持不变。"
+      ],
+      "status": "withdrawn",
+      "commit": "de27a48d6834055a9e840990b537c5d666e4b336",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/de27a48d6834055a9e840990b537c5d666e4b336/POD_ChatGPT.user.js",
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.6.3.txt"
+    },
+    {
+      "version": "1.6.2",
+      "date": "2026-08-26",
+      "notes": [
+        "修复“创建图片”入口误匹配：V1.6.1 日志曾把“替换人物生成图片”聊天/项目标题识别成创建图片菜单项，V1.6.2 改为只匹配以“创建图片/创作图片/生成图片”开头的真实菜单项。",
+        "创建图片入口严格绑定当前 composer：加号按钮只在当前输入框区域查找，菜单优先限制为本次点击后新出现/靠近加号的弹层。",
+        "显式排除 nav/aside/sidebar/history/project 区域，避免点击左侧聊天、项目或历史记录。",
+        "增加当前会话路径保护：点击创建图片过程中如检测到 conversation 路径变化或输入框消失，立即停止且不继续发送。",
+        "上传、附件稳定检测、提示词写入、发送确认、生图检测、下载隔离与暂停恢复核心保持不变。"
+      ],
+      "status": "withdrawn",
+      "commit": "81035dab0acecc52b6cf94fbeb320dcc33353aec",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/81035dab0acecc52b6cf94fbeb320dcc33353aec/POD_ChatGPT.user.js",
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.6.2.txt"
+    },
+    {
+      "version": "1.6.1",
+      "date": "2026-08-25",
+      "notes": [
+        "修复长对话中“添加创建图片模式”阶段浏览器无响应：创建图片菜单项只在当前可见菜单/弹层内检索，不再高频全页扫描 div/span。",
+        "创建图片模式标签检测限制在输入框 composer 区域，不再对整个 document 做第二轮扫描。",
+        "创建图片菜单与标签轮询频率降低，减少强制布局与主线程压力。",
+        "仅修改创建图片模式定位性能；上传、发送确认、生图检测、下载隔离和暂停恢复核心保持不变。"
+      ],
+      "status": "withdrawn",
+      "commit": "34b8ec1b06ab04d93716b762821f88a5072b31e1",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/34b8ec1b06ab04d93716b762821f88a5072b31e1/POD_ChatGPT.user.js",
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.6.1.txt"
+    },
+    {
+      "version": "1.6.0",
+      "date": "2026-08-24",
+      "notes": [
+        "一级流程正式统一为“图片生成自动化 / 视觉风格解析 / 生产文件设计”。",
+        "视觉风格解析新增独立输出文件夹；导出 Excel 优先写入所选目录，并按当前项目建立项目子文件夹。",
+        "新增“生产文件设计”一级流程，复用母版 Excel 动态步骤工作流，可自由选择步骤并支持自动/手动连续执行。",
+        "视觉风格解析与生产文件设计分别保存独立输出目录、项目状态与流程配置，避免互相污染。",
+        "生产文件设计不写死步骤内容，由导入母版定义流程；可识别参考图、效果图、设计图、印花图、生产模板、版型模板等素材角色。",
+        "保留 V1.5.4 已验证的上传、创建图片、发送确认、生成检测、图片映射、下载隔离和暂停恢复核心。"
+      ],
+      "status": "withdrawn",
+      "commit": "710abee13db1f740a3449dd539ce9304b013404b",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/710abee13db1f740a3449dd539ce9304b013404b/POD_ChatGPT.user.js",
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.6.0.txt"
+    },
+    {
       "version": "1.5.4",
       "date": "2026-08-22",
       "notes": [
@@ -12,7 +170,10 @@
         "版本弹窗始终显示“检查更新”；读取失败时显示“重新检查”，检测到新版时继续显示“立刻更新”。",
         "保持手动更新策略：只检查与提醒，点击更新后仍由 Tampermonkey 页面让用户手动确认覆盖。",
         "不重写稳定的上传、创建图片、发送确认、生成检测、图片映射和下载核心。"
-      ]
+      ],
+      "commit": "8a3532a230d35a3810d791643f0377d9a1748476",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/8a3532a230d35a3810d791643f0377d9a1748476/POD_ChatGPT.user.js",
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.4.txt"
     },
     {
       "version": "1.5.3",
@@ -66,7 +227,10 @@
         "公共提示词可用于说明模板图与Logo图的共同使用规则；Excel每行完整提示词保持原文。",
         "固定执行要求会明确区分模板图与Logo图，避免把Logo图误当产品主体或主图案。",
         "保留稳定ChatGPT上传、创建图片、发送确认、生图检测、断点恢复和按Excel文件名输出归档核心。"
-      ]
+      ],
+      "commit": "5764d49716fcdc80f56a512c902508a188539bf9",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/5764d49716fcdc80f56a512c902508a188539bf9/POD_ChatGPT.user.js",
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.3.1.txt"
     },
     {
       "version": "1.3.0",
@@ -78,7 +242,10 @@
         "新增可编辑公共提示词：只描述模板图的共同使用规则，可留空并自动保存；Excel 完整提示词保持原文进入对应任务。",
         "升级后自动清理旧任务中的“未匹配参考图”状态，已导入的 500 条任务无需重新准备参考图。",
         "保留按 Excel 文件名自动创建输出子文件夹、日志按需刷新，以及稳定 ChatGPT 上传/创建图片/发送确认/生图检测与下载核心。"
-      ]
+      ],
+      "commit": "89edfd3a5e7f115c2d3cbdcb1b9cc481c314b624",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/89edfd3a5e7f115c2d3cbdcb1b9cc481c314b624/POD_ChatGPT.user.js",
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.3.0.txt"
     },
     {
       "version": "1.2.4",
@@ -89,7 +256,10 @@
         "导出任务记录时优先直接保存到当前批次子文件夹；仅在目录写入失败时回退为浏览器下载。",
         "如果没有导入 Excel，则继续直接使用用户选择的输出目录，不强制创建额外文件夹。",
         "保留 V1.2.3 的 500 条 Excel 识别修复、母提示词可留空、日志按需刷新以及稳定 ChatGPT 上传/发送/生图检测核心。"
-      ]
+      ],
+      "commit": "0104a35b4794ccac1fd4d7fb1d879747592deaa9",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/0104a35b4794ccac1fd4d7fb1d879747592deaa9/POD_ChatGPT.user.js",
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.2.4.txt"
     },
     {
       "version": "1.2.3",
@@ -101,7 +271,10 @@
         "任务表导入区改为“选择 Excel 任务表”按钮；导入后明确显示文件、工作表、编号列、提示词列和识别任务数。",
         "保留 V1.2.2 的母提示词可留空、日志按需刷新、运行参数布局和稳定 ChatGPT 上传/创建图片/发送确认/生图检测逻辑。",
         "正式补齐 POD 独立热更新发布文件；发现新版只提醒，更新仍需用户手动确认覆盖，不自动下载、不自动替换、不自动执行。"
-      ]
+      ],
+      "commit": "2c54df76fefd4b9cc90d820c7cf23b54944b935c",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/2c54df76fefd4b9cc90d820c7cf23b54944b935c/POD_ChatGPT.user.js",
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.2.3.txt"
     },
     {
       "version": "1.2.2",

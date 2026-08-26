@@ -13,7 +13,9 @@
         "修复版本信息界面低对比、按钮层级和布局问题；V1.6.x统一显示为“已撤回开发版”，并明确标注功能未完成、存在已知缺陷、不建议生产使用。",
         "继续保留V1.5.5长提示词自动压平与轻量提示词守卫，不带回V1.6.x创建图片扫描逻辑。"
       ],
-      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.6.txt"
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.6.txt",
+      "commit": "bcc6201a456327523e47b1d85edbea33d7f632d2",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/bcc6201a456327523e47b1d85edbea33d7f632d2/POD_ChatGPT.user.js"
     },
     {
       "version": "1.5.5",

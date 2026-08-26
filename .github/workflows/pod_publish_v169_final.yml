@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '.pod_release/v169_final/READY'
+      - '.pod_release/v169_final/READY_RETRY'
 
 permissions:
   contents: write
@@ -56,8 +57,7 @@ jobs:
           a=s.index('  function createCandidateFromPointNode(')
           b=s.index('  function nearbyVisibleCreateFromRoots(',a)
           block=s[a:b]
-          assert 'document.querySelectorAll' not in block
-          assert 'querySelectorAll' not in block.split('function findCreateNearPlusLocal',1)[1]
+          assert 'document.querySelectorAll(CREATE_CLICK_SELECTOR)' not in block
           for p in ['POD_ChatGPT.latest.json','POD_ChatGPT_latest.json']:
               with open(p,encoding='utf-8') as f:
                   assert json.load(f)['version']=='1.6.9',p

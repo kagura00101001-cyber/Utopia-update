@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ChatGPT服装POD统一工作台 V1.2.2
-// @name:zh-CN   ChatGPT服装POD统一工作台 V1.6.9
+// @name:zh-CN   ChatGPT服装POD统一工作台 V1.5.4
 // @namespace    https://github.com/Kagura-userscripts
-// @version      1.6.9
-// @description  服装POD统一工作台：V1.6.9 修复新版加号菜单局部几何采样过稀导致漏检创建图片；保留V1.6.8性能架构与全页扫描禁令。
+// @version      1.5.4
+// @description  服装POD统一工作台：V1.5.4 增强长期挂机恢复，并修复版本弹窗无可见“检查更新”按钮的问题；仍保持手动确认更新。
 // @author       Kagura
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js
@@ -29,7 +29,7 @@
 
   /*
    * ================================================================
-   * ChatGPT服装POD统一工作台 V1.6.0
+   * ChatGPT服装POD统一工作台 V1.5.4
    * ================================================================
    * 架构原则：
    * - 完全独立运行，不依赖 Ozon/洗图脚本，不动态加载/执行旧脚本。
@@ -54,23 +54,13 @@
  * - V1.5.2 下载中暂停再继续时跳过已经完成或已隔离待确认的任务，避免已保存图片被重复下载或状态回滚。
  * - V1.5.3 长期挂机恢复增强：生成检测期间若发现浏览器定时器出现明显休眠/后台节流断层，当前已发送批次优先刷新同步且绝不重发。
  * - V1.5.4 更新模块小修：版本弹窗始终提供“检查更新/重新检查”按钮；有新版时继续保留“立刻更新”，不改变手动确认覆盖规则。
- * - V1.6.2 创建图片入口修复：仅在当前 composer 的“+”按钮新打开菜单中匹配以“创建图片/创作图片/生成图片”开头的真实菜单项；排除侧边栏、历史与项目区域，并增加会话路径跳转保护，避免误点“替换人物生成图片”等聊天标题。
- * - V1.6.9 创建图片局部探测修复：根据 V1.6.8 实机日志，标准弹层根为 0 时原离散几何采样可能跨过真实菜单行；改为当前加号上方有限矩形条带的密集 elementFromPoint 采样，只检查命中元素及其祖先，不恢复 document 全页交互扫描。
- * - V1.6.8 性能架构修复：任务列表彻底退出1秒心跳，状态变更/导入/筛选等真实事件才刷新；列表签名不再包含完整提示词，并把可见任务DOM限制为前80条。创建图片删除V1.6.7全页交互节点兜底，改为 aria-controls/aria-owns + 加号附近 elementFromPoint 局部几何探测。上传、发送at-most-once、生图检测、下载与恢复核心不变。
- * - V1.6.7 创建图片菜单兼容修复：移除会误把侧栏当弹层的通用 [data-state="open"] 根匹配；当当前 composer 的“+”已确认 aria-expanded=true 时，增加低频、少次数、仅交互节点且按加号距离过滤的兜底定位，不恢复全页 div/span 高频扫描。
- * - V1.6.6 性能专项修复：移除创建图片全页 MutationObserver，改为点击当前 composer 的“+”后仅在可见菜单根内进行短时限频轮询；同时停止视觉风格解析/生产文件设计每秒读取输出目录句柄。上传、发送 at-most-once、生图检测、下载与恢复核心不变。
- * - V1.6.5 创建图片入口性能修复：改用 MutationObserver 监听当前“+”按钮点击后新增/显隐的菜单节点，仅检查本次变化及新出现的弹层；删除 document 全页交互节点 fallback 轮询，保留精确前缀匹配、当前 composer 绑定、侧栏排除和会话跳转保护。
- * - V1.6.4 创建图片菜单兼容修复：参考主图批量下载与洗图脚本 V3.1.1 的已验证弹层检测，显式菜单根定位失败时增加“当前 composer 附近的交互菜单项”容错扫描；保留精确前缀匹配、侧栏排除和会话路径保护。
- * - V1.6.3 上传恢复增强：附件缩略图 complete=true 且 naturalWidth=0 连续8秒即判定损坏；无进度的不完整附件连续25秒判定卡死；上传超时也进入可恢复错误。首次原页面清理重试，第二次失败刷新当前会话后恢复同批，刷新后仍失败才暂停。
- * - V1.6.1 性能修复：创建图片菜单项只在当前可见菜单/弹层内检索；创建图片标签只在输入框区域检测，并降低轮询频率，避免长对话全页DOM重复布局导致浏览器无响应。
- * - V1.6.0 流程体系升级：一级流程正式命名为“图片生成自动化 / 视觉风格解析 / 生产文件设计”；视觉风格解析与生产文件设计各自拥有独立输出文件夹；生产文件设计复用母版Excel驱动的动态步骤、自动/手动连续执行、项目保存/恢复与同对话上下文机制。
  * - V1.5.3 “页面显示完成但0图”不再直接判异常：先刷新一次恢复同批结果；刷新后仍0图才按原异常规则处理。
  * - V1.5.3 生图超时、0图恢复阈值、完成后稳定等待改为按“有效运行时间”计时，浏览器休眠/强节流时间不计入。
    * - 已确认发送后的任务遵循 at-most-once：优先恢复检测，不轻易重复发送。
    * ================================================================
    */
 
-  const APP_VERSION = '1.6.9';
+  const APP_VERSION = '1.5.4';
   const APP_NAME = `ChatGPT服装POD统一工作台 V${APP_VERSION}`;
 
   const STATE_KEY = 'kaguraPodStandaloneStateV120';
@@ -89,12 +79,6 @@
   const STYLE_PROJECTS_KEY = 'kaguraPodStyleReverseProjectsV140';
   const STYLE_REFS_KEY = 'style-reference-files';
   const STYLE_TEMPLATE_KEY = 'style-template-file';
-  const STYLE_OUTPUT_KEY = 'style-output-directory';
-  const PRODUCTION_STATE_KEY = 'kaguraPodProductionFileStateV160';
-  const PRODUCTION_PROJECTS_KEY = 'kaguraPodProductionFileProjectsV160';
-  const PRODUCTION_REFS_KEY = 'production-reference-files';
-  const PRODUCTION_TEMPLATE_KEY = 'production-template-file';
-  const PRODUCTION_OUTPUT_KEY = 'production-output-directory';
   const STYLE_PROMPT_DEFAULTS = {"1": "# 01｜服装POD通用视觉风格反推母版 v2.1\n\n## 任务目标\n我会提供一张或多张【对标服装参考图】，并可能同时提供【产品白模 / 模板底图】。\n\n你的任务是：\n只反推对标服装本身的设计规律，将其转换成客观、结构化、可用于后续系列化开发的视觉风格分析。\n\n本阶段只负责“看懂参考款”。\n不要生成图片，不要生成批量提示词，不要创建变量库，不要主动重新设计。\n\n## 一、最高优先级：白模与对标图严格分工\n\n### 白模 / 模板底图只负责约束\n- 产品版型\n- 剪裁结构\n- 领口\n- 袖型\n- 衣身比例\n- 紧身 / 修身 / 宽松程度\n- 面料纹理与基础材质感\n- 产品形态\n- 模特展示方式\n- 产品展示角度\n\n### 对标服装参考图负责决定\n- 服装颜色\n- 图案内容\n- 配色\n- 图案位置\n- 图案覆盖范围\n- 视觉风格\n- 构图\n- 质感\n- 图形语言\n- 空间表现\n- 软硬程度\n- 虚实关系\n- 边缘关系\n- 视觉密度\n- 情绪气质\n- 其他设计特征\n\n禁止从白模继承颜色、图案、配色和设计风格。\n设计相关信息如果发生冲突，始终以对标服装参考图为准。\n\n## 二、分析边界\n只分析目标服装本身。\n\n不要把以下内容纳入风格：\n- 模特身份、长相、发型\n- 外部拍摄背景\n- 商品页面背景\n- 广告排版\n- 水印\n- 品牌展示区\n- 当前项目固定的左上角 NORVIK Logo（属于主图展示层，不属于服装风格）\n- 当前项目固定的 RU48 / RU50 / RU52 / RU54 尺码选择区（属于主图展示层，不属于服装风格）\n- 参数说明\n- 商品标题\n- 价格\n- 尺寸标注\n- 与目标服装无关的裤子、鞋、首饰等\n\n如果无法确认某个元素到底属于服装设计还是外部广告内容，标记：\n【归属不确定】\n不得自行纳入风格。\n\n## 三、基础识别：先判断这件衣服“靠什么形成设计”\n不要预设一定存在动物、人物或单一主体。\n\n首先判断【设计结构类型】，可多选：\n- 明确单主体\n- 多主体组合\n- 无明确主体\n- 重复纹样\n- 文字主导\n- 图形排版主导\n- 材质错视主导\n- 拼布 / 解构主导\n- 场景插画主导\n- 满版图形主导\n- 裸眼3D / 空间错视主导\n- 图案与衣服结构互动\n- 其他\n\n说明：\n这件服装最主要依靠什么机制形成视觉识别。\n\n## 四、内容层分析\n只有参考图确实存在相应内容时才分析，不适用的字段直接写“无 / 不适用”。\n\n分析：\n- 核心内容\n- 主体数量\n- 主体类别\n- 主体范围\n- 辅助元素\n- 是否有文字\n- 是否存在符号\n- 是否有背景性图形\n- 是否存在装饰元素\n- 内容之间的主次关系\n\n不要因为母版有字段而强行给无主体设计寻找“主体”。\n\n## 五、设计覆盖方式\n判断图案在衣服上的使用方式：\n- 左胸小图\n- 前胸单图\n- 前身大面积图\n- 后背单图\n- 前后独立设计\n- 前后连续\n- 袖部延展\n- 满版\n- 局部重复纹样\n- 结构跟随式设计\n- 图案模拟衣服破损 / 拼接 / 开口\n- 其他\n\n并说明：\n- 图案覆盖面积\n- 图案与衣身比例\n- 图案是否跨越结构线\n- 是否利用领口、袖子、下摆等衣服结构形成设计\n\n## 六、构图机制\n客观分析：\n- 视觉中心数量\n- 主视觉位置\n- 对称 / 非对称\n- 居中 / 偏置\n- 横向 / 纵向 / 方形 / 不规则\n- 单中心 / 多中心\n- 拼贴式\n- 分块式\n- 重复式\n- 场景式\n- 放射式\n- 上下层级\n- 左右层级\n- 前后景关系\n- 留白方式\n- 视觉重心\n- 图案与人体轮廓的关系\n\n最终用一句话总结：\n【该设计最核心的构图骨架是什么】\n\n## 七、配色逻辑\n不要只列颜色。\n\n分别分析：\n### 衣身底色\n- 色相\n- 明度\n- 饱和度\n- 冷暖\n\n### 图案颜色\n- 主色\n- 辅色\n- 点睛色\n\n### 配色机制\n- 单色\n- 同色系\n- 邻近色\n- 冷暖对比\n- 明暗对比\n- 黑白灰 + 点睛色\n- 高饱和撞色\n- 低饱和克制\n- 复古褪色\n- 多彩混合\n- 其他\n\n同时判断：\n- 点睛色比例\n- 主色面积比例\n- 色彩冲击强度\n- 图案与衣身颜色之间的关系\n\n## 八、视觉表现媒介\n根据实际参考图判断，可多选：\n- 摄影写实\n- 写实绘画\n- 半写实\n- 卡通\n- 漫画\n- 扁平插画\n- 线稿\n- 油画\n- 水彩\n- 涂鸦\n- 喷绘\n- 版画\n- 复古印刷\n- 拼贴\n- 3D渲染\n- 机械插画\n- 数字艺术\n- 材质模拟\n- 其他\n\n如果属于混合媒介，说明：\n哪一种是主导表现方式，哪些只是辅助。\n\n## 九、质感系统\n不要预置“毛发、眼睛”等具体内容。\n\n根据参考图动态识别主要质感，例如：\n- 布料\n- 缝线\n- 金属\n- 骨骼\n- 毛发\n- 皮革\n- 石材\n- 木材\n- 烟雾\n- 火焰\n- 液体\n- 颗粒\n- 喷漆\n- 油墨\n- 裂纹\n- 磨损\n- 光泽\n- 透明材质\n- 手绘笔触\n- 其他\n\n输出：\n- 主导质感\n- 辅助质感\n- 质感复杂度：低 / 中 / 高\n\n## 十、空间表现机制\n这一项必须单独判断。\n\n### 空间类型\n- 完全二维平面\n- 轻微体积感\n- 明显立体表现\n- 强3D视觉\n- 裸眼3D错视\n- 凹陷错觉\n- 凸出错觉\n- 穿透错觉\n- 破损错觉\n- 拼接错觉\n- 结构错视\n- 其他\n\n判断：\n这些空间效果是真实服装结构，还是仅通过二维印花制造的视觉错觉。\n\n## 十一、通用视觉参数\n以下指标属于所有风格都可以测量的通用参数。\n\n1. 软硬程度\n1 = 非常柔\n2 = 偏柔\n3 = 中性\n4 = 偏硬\n5 = 非常硬\n说明依据。\n\n2. 凝实 / 实体感\n1 = 非常轻盈\n2 = 偏轻\n3 = 中等\n4 = 偏凝实\n5 = 非常厚重\n说明依据。\n\n3. 核心区域锐度\n低 / 中 / 高\n\n4. 外围区域锐度\n低 / 中 / 高\n\n5. 虚实关系\n- 整体清晰\n- 整体柔和\n- 中心清楚、外围柔和\n- 局部清晰、局部消散\n- 不存在明显虚实差\n- 其他\n\n6. 边缘类型\n- 完整硬边\n- 清晰轮廓\n- 柔和轮廓\n- 自然散边\n- 渐隐\n- 颗粒消散\n- 烟雾消散\n- 不规则破边\n- 无明确外边界\n- 其他\n\n7. 图案与衣身融合程度\n1 = 高度融合\n2 = 偏融合\n3 = 中性\n4 = 偏独立\n5 = 强独立\n\n说明：\n是像自然融入衣服、覆盖在衣服表面，还是像独立贴片 / 海报 / 徽章。\n\n8. 视觉密度\n- 低\n- 中低\n- 中\n- 中高\n- 高\n\n9. 视觉重量\n- 偏轻\n- 中等\n- 偏重\n\n10. 对比关系\n分别分析：\n- 图案内部明暗对比\n- 图案与衣身对比\n- 色彩对比\n- 局部点睛对比\n均使用：弱 / 中 / 强\n\n## 十二、节奏与复杂度\n分析：\n- 元素数量\n- 大小元素比例\n- 细节集中还是平均分布\n- 重复节奏\n- 密集与留白关系\n- 是否存在视觉噪音\n- 第一眼焦点是否明确\n\n最终判断：\n- 信息复杂度：低 / 中 / 高\n- 第一眼识别速度：快 / 中 / 慢\n\n## 十三、情绪气质\n动态提炼：\n\n### 主气质\n最多 3 个。\n\n### 辅助气质\n最多 5 个。\n\n不要使用固定动物风格词库。\n根据当前参考图实际判断，例如可能是：\n- 冷峻\n- 朋克\n- 复古\n- 荒诞\n- 轻松\n- 搞怪\n- 恐怖\n- 高级\n- 工业\n- 未来\n- 手工感\n- 街头\n- 解构\n- 怀旧\n- 浪漫\n- 极简\n- 其他\n\n每项说明视觉依据。\n\n## 十四、视觉记忆机制\n不要只列“有什么元素”。\n\n提炼 3–6 个消费者最容易记住的组合机制。\n重点是组合关系，而不是单一名词。\n\n## 十五、当前款视觉骨架\n结构化输出：\n- 设计结构类型：\n- 设计覆盖方式：\n- 核心内容：\n- 主体结构：\n- 构图骨架：\n- 衣身底色：\n- 配色机制：\n- 表现媒介：\n- 主导质感：\n- 空间表现：\n- 软硬：\n- 凝实程度：\n- 核心锐度：\n- 外围锐度：\n- 虚实：\n- 边缘：\n- 衣身融合：\n- 视觉密度：\n- 视觉重量：\n- 信息复杂度：\n- 主气质：\n- 视觉记忆公式：\n\n## 十六、系列化候选判断\n本阶段只做候选，不正式冻结 DNA。\n\n分别列出：\nA｜高概率属于系列核心的规律\n重点寻找：\n- 视觉骨架\n- 构图机制\n- 色彩机制\n- 表现媒介\n- 空间机制\n- 质感机制\n- 融合方式\n- 情绪气质\n\nB｜可能只是当前款的具体实现\n例如具体：\n- 某一种动物\n- 某一个人物\n- 某一句文字\n- 某一个颜色\n- 某一种物件\n- 某一个图形\n\nC｜无法判断\n交给下一阶段决定。\n\n## 十七、动态变量维度候选\n根据当前参考风格，预测：\n如果以后要扩成一个系列，哪些维度可能最适合变化？\n\n不要套固定字段。\n这里只列候选，不生成变量值。\n\n## 十八、批量生成潜在跑偏风险\n根据当前参考图具体预测：\n- 最容易被模型误强化什么\n- 最容易被模型误弱化什么\n- 哪些特点不能被误解\n- 哪些细节一旦改变就会失去原风格\n- 哪些特征可以变化较大\n\n不能套固定答案。\n\n## 十九、输出顺序\n严格按照：\n1. 风格一句话概括\n2. 设计结构类型\n3. 内容层\n4. 设计覆盖方式\n5. 构图机制\n6. 配色逻辑\n7. 表现媒介\n8. 质感系统\n9. 空间表现\n10. 通用视觉参数\n11. 节奏与复杂度\n12. 情绪气质\n13. 视觉记忆机制\n14. 当前款视觉骨架\n15. 系列核心候选\n16. 当前款具体特征候选\n17. 动态变量维度候选\n18. 批量生成潜在跑偏风险\n\n## 二十、禁止执行\n不要：\n- 生成图片\n- 生成完整生图提示词\n- 正式冻结系列DNA\n- 建立变量库\n- 生成100/500/1000条设计\n- 制作Excel\n- 主动优化参考图\n- 用历史案例替代当前参考图判断\n\n只负责：\n【客观解析当前服装的视觉设计系统】", "2": "# 02｜服装POD系列风格DNA提炼母版 v2.0\n\n## 任务目标\n输入为【01｜服装POD通用视觉风格反推】的完整结果。\n\n你的任务是：\n从01的客观分析中，抽象出真正适合长期批量扩展的系列风格DNA。\n\n本阶段不预设系列必须拥有动物、人物、主体、表情、毛发、眼睛、文字或任何特定题材。\nDNA结构必须根据当前系列动态形成。\n\n## 一、先判断“这个系列真正靠什么成立”\n从01结果中判断当前系列最核心的身份来源主要是什么，可多选：\n- 题材\n- 主体类型\n- 构图机制\n- 配色机制\n- 图像表现媒介\n- 质感机制\n- 空间错视机制\n- 材质模拟\n- 图案覆盖方式\n- 图案与衣身互动\n- 情绪气质\n- 视觉节奏\n- 其他\n\n并按重要性排序。\n不要默认“主体”一定排第一。\n\n## 二、系列一句话定义\n必须回答：\n【即使具体内容换掉，这些设计为什么仍然属于同一个系列？】\n\n定义必须描述“规律”，不能只是描述当前单款。\n\n## 三、系列DNA分层\n将DNA分成四层：\n\nA｜绝对固定DNA\n变化后会直接失去系列身份。\n\nB｜强约束DNA\n允许小范围变化，但必须保持基本方向。\n\nC｜可变DNA\n是系列扩款的主要变化空间。\n\nD｜自由探索DNA\n允许少量试验，用于降低500/1000条的重复度，但不能破坏A和B。\n\n## 四、视觉骨架DNA\n从01中提炼：\n- 设计结构类型\n- 设计覆盖方式\n- 构图机制\n- 主视觉数量\n- 视觉重心\n- 图案与衣身关系\n- 是否利用服装结构\n- 留白机制\n- 主次关系\n- 是否存在固定空间层级\n\n逐项标记：\n绝对固定 / 强约束 / 可变 / 不适用\n\n## 五、内容DNA\n根据当前系列动态决定：\n\n### 是否需要固定内容题材\n例如可能是：\n- 必须固定为某一具体题材\n- 只固定为某一上位题材\n- 固定为某类主体\n- 完全不固定内容\n- 无明确主体，不适用\n\n判断最适合批量扩展的抽象层级。\n禁止无理由固定到当前单品最细层。\n\n## 六、配色DNA\n区分：\n\n### 配色机制\n例如：\n- 黑白灰 + 高饱和点睛\n- 低饱和同色系\n- 高饱和撞色\n- 复古褪色色盘\n- 其他\n\n### 具体颜色\n判断哪些属于：\n- 固定\n- 有条件变化\n- 自由变化\n\n系列DNA优先固定“配色关系”，而不是强行固定具体颜色。\n\n## 七、表现媒介DNA\n提炼：\n- 主要表现媒介\n- 辅助表现媒介\n- 写实程度\n- 绘画程度\n- 3D程度\n- 印刷感\n- 手工感\n- 数字感\n\n标记每项容差。\n\n## 八、质感DNA\n从01动态选择真正关键的质感。\n不要预设毛发、金属等字段。\n\n分别标记：\n- 核心\n- 辅助\n- 可变\n- 不适用\n\n## 九、空间表现DNA\n判断：\n- 二维程度\n- 体积程度\n- 3D程度\n- 错视方式\n- 凹陷 / 凸出 / 穿透 / 破损等机制\n\n如果空间错视本身就是系列身份，必须作为高优先级DNA。\n如果没有，则标记不适用。\n\n## 十、通用视觉强度DNA\n这一组是所有系列都保留的通用参数。\n\n根据01确定：\n| 指标 | 核心值 | 推荐范围 | 最大容差 |\n| 软硬程度 |  |  |  |\n| 凝实程度 |  |  |  |\n| 核心锐度 |  |  |  |\n| 外围锐度 |  |  |  |\n| 衣身融合程度 |  |  |  |\n| 视觉密度 |  |  |  |\n| 视觉重量 |  |  |  |\n| 信息复杂度 |  |  |  |\n| 内部对比 |  |  |  |\n| 衣身对比 |  |  |  |\n\n“最大容差”代表：\n超过该范围后，即使内容相似，也已经不再像同一系列。\n\n## 十一、虚实与边缘DNA\n提炼：\n\n### 虚实机制\n例如：\n- 整体清晰\n- 中心清晰外围柔化\n- 局部消散\n- 无明显虚实层级\n\n### 边缘机制\n例如：\n- 硬边\n- 完整轮廓\n- 不规则破边\n- 渐隐\n- 自然散边\n- 无外轮廓\n\n输出：\n- 主导机制\n- 允许变化\n- 禁止变化\n\n## 十二、情绪DNA\n提炼：\n\n### 必须保持的主气质\n最多3项。\n\n### 可以变化的辅助气质\n根据系列动态生成。\n\n### 明显冲突气质\n如果出现就容易跑偏。\n\n## 十三、视觉记忆公式\n把整个系列压缩为：\n【覆盖方式】 + 【视觉骨架】 + 【配色机制】 + 【表现媒介】 + 【关键质感/空间机制】 + 【视觉强度关系】 + 【气质】\n\n不要求每个系列所有字段都有内容。\n\n## 十四、动态变量维度发现\n根据01和已经提炼的DNA，自动判断：\n【这个系列真正适合通过哪些维度产生变化？】\n\n禁止套通用固定变量表。\n\n输出：\n| 变量维度 | 为什么适合变化 | 变化风险 | 建议变化幅度 |\n\n例如可能动态出现：\n- 主体类别\n- 拼布数量\n- 缝线方式\n- 机械零件类型\n- 字体结构\n- 颜色组合\n- 错视入口形式\n- 角色动作\n- 涂鸦笔触\n- 图案重复周期\n- 其他\n\n## 十五、变量风险分级\n动态变量分成：\n\nS｜安全高频变量\n大量变化不会破坏系列。\n\nA｜常规变量\n适合作为主要扩款空间。\n\nB｜受限变量\n必须满足兼容规则。\n\nC｜探索变量\n只能少量使用。\n\nX｜禁止变量\n改变就会失去系列身份。\n\n## 十六、变量之间的兼容关系\n分析：\n- 哪些变量可以自由组合\n- 哪些变量必须绑定\n- 哪些组合存在冲突\n- 哪些组合容易导致视觉不可读\n- 哪些组合容易偏离参考系列\n\n这部分为03变量库做准备。\n\n## 十七、系列风格容差\n分别定义：\n\n### 核心区域\n约70%的批量结果应落在这里。\n\n### 合法扩展区域\n约20%–25%的结果可以进入。\n\n### 探索边界\n最多约5%–10%。\n\n### 跑偏区\n明确说明哪些变化属于不再是该系列。\n\n这里的百分比只是系列管理建议，不要求机械分配。\n\n## 十八、禁止项\n禁止项必须根据当前系列动态生成。\n\n至少检查：\n- 内容跑偏\n- 构图跑偏\n- 配色跑偏\n- 表现媒介跑偏\n- 质感跑偏\n- 空间机制跑偏\n- 软硬跑偏\n- 密度跑偏\n- 视觉重量跑偏\n- 情绪跑偏\n- 产品结构跑偏\n\n如果某项不适用，直接标记不适用。\n\n## 十九、系列身份判定\n定义：\n\n### 必须满足\n一张新设计至少满足哪些核心条件，才能归入本系列。\n\n### 可以变化\n哪些差异不会影响系列身份。\n\n### 严重跑偏\n出现哪些特征后应直接判定：\n【不属于该系列】\n\n## 二十、系列扩展能力\n评估：\n- 100条\n- 500条\n- 1000条\n\n分别判断：\n适合 / 勉强 / 不建议\n\n重点分析重复风险来自：\n- 视觉骨架\n- 内容\n- 配色\n- 构图\n- 质感\n- 空间机制\n- 情绪\n- 变量空间不足\n\n## 二十一、系列DNA卡片\n最终必须生成一个供03直接读取的结构化卡片：\n\n- 系列名称\n- 系列一句话定义\n- 系列身份主要来源\n- 绝对固定DNA\n- 强约束DNA\n- 可变DNA\n- 探索DNA\n- 视觉骨架DNA\n- 内容DNA\n- 配色DNA\n- 表现媒介DNA\n- 质感DNA\n- 空间DNA\n- 软硬范围\n- 凝实范围\n- 锐度规则\n- 虚实规则\n- 边缘规则\n- 衣身融合规则\n- 密度范围\n- 视觉重量范围\n- 信息复杂度范围\n- 对比规则\n- 主气质\n- 辅助气质\n- 视觉记忆公式\n- 动态变量维度\n- 变量风险等级\n- 变量兼容关系\n- 风格容差\n- 禁止项\n- 系列身份判定条件\n- 严重跑偏条件\n- 推荐扩展规模\n- 主要重复风险\n\n## 二十二、本阶段禁止执行\n不要：\n- 生成图片\n- 生成完整批量提示词\n- 直接创建变量具体值\n- 制作Excel\n- 强行套历史系列字段\n- 因当前参考图有主体就假设未来系列都有主体\n- 为了凑1000条而降低系列身份要求\n\n本阶段只负责：\n【把01反推结果转化成一个题材无关、可扩展、可量化、可供后续程序读取的系列风格规则系统】", "3": "# 03｜服装POD动态变量维度发现与变量库生成母版 v1.0\n\n## 任务目标\n输入为【02｜系列风格DNA卡片】。\n\n你的任务不是直接生成完整生图提示词，而是：\n根据当前系列自己的DNA，自动发现真正适合这个系列的变量维度，并为每个维度建立可批量组合的变量库、兼容规则和查重结构。\n\n最重要原则：\n【变量维度必须由当前系列DNA动态决定，禁止套固定的“主体/颜色/表情/眼睛/毛发”模板。】\n\n不同系列允许拥有完全不同的变量结构。\n\n## 一、读取并冻结系列DNA\n首先读取02输出，并明确冻结：\n- 绝对固定DNA\n- 强约束DNA\n- 风格容差\n- 严重跑偏条件\n- 视觉记忆公式\n- 配色机制\n- 构图机制\n- 表现媒介\n- 质感机制\n- 空间机制\n- 视觉强度范围\n\n这些内容不得因为扩充变量而被稀释。\n\n## 二、动态发现变量维度\n根据02中的【动态变量维度】重新审核并补全。\n\n判断每个变量维度是否属于：\n- 内容变量\n- 构图变量\n- 配色变量\n- 质感变量\n- 空间机制变量\n- 文字 / 排版变量\n- 动作 / 姿态变量\n- 材质模拟变量\n- 光影变量\n- 图案覆盖变量\n- 情绪变量\n- 装饰变量\n- 其他\n\n只有当前系列真实需要的维度才建立变量池。\n不适用的维度不要创建。\n\n## 三、变量风险等级\n为每个变量维度标记：\n\nS｜安全高频变量\n可以大量变化，不容易破坏系列。\n\nA｜常规变量\n适合主要扩款。\n\nB｜受限变量\n必须遵守兼容规则，变化过大可能跑偏。\n\nC｜探索变量\n只能少量使用，用于降低重复。\n\nX｜禁止变量\n不得进入批量组合。\n\n## 四、为每个维度生成变量值\n根据目标规模【目标提示词数量：{N}】决定变量值数量。\n\n要求：\n- 不为了凑数量生成意义相近的伪变量；\n- 不只做颜色替换；\n- 不只做同义词替换；\n- 每个变量值必须带来可观察的视觉差异；\n- 变量仍需处于02规定的风格容差内。\n\n每个变量值输出：\n- 变量值名称\n- 视觉含义\n- 适用条件\n- 风险等级\n- 与固定DNA的关系\n- 不可搭配项（如有）\n\n## 五、建立变量兼容规则\n输出：\n\n### 1. 自由组合\n哪些变量可以自由排列组合。\n\n### 2. 绑定组合\n哪些变量必须一起出现，或出现A时必须搭配B。\n\n### 3. 冲突组合\n哪些变量不允许同时出现。\n\n### 4. 高风险组合\n可以使用，但只建议少量探索。\n\n### 5. 可读性限制\n哪些组合会导致：\n- 主体不清楚\n- 图案过满\n- 色彩脏乱\n- 空间逻辑冲突\n- 与衣身对比不足\n- 版型适配差\n- 其他问题\n\n## 六、变化配额\n根据02的风格容差给出建议分配：\n\n- 核心区设计：约70%\n- 合法扩展区：约20%–25%\n- 探索区：约5%–10%\n\n并说明哪些变量适合进入哪一区。\n\n## 七、建立组合骨架\n不要直接生成完整提示词。\n\n先输出若干种【组合骨架】，例如：\n- 骨架A：固定DNA + S变量 + A变量\n- 骨架B：固定DNA + S变量 + A变量 + 1个B变量\n- 骨架C：固定DNA + S变量 + 1个C探索变量\n\n组合骨架数量根据系列复杂度动态决定。\n\n## 八、查重键设计\n为了后续500/1000条去重，动态设计查重键。\n\n至少判断是否需要：\n- 完全组合键\n- 视觉骨架键\n- 构图键\n- 配色键\n- 质感键\n- 空间机制键\n- 内容语义键\n- 文字排版键\n- 其他系列专属键\n\n不要所有系列都强行使用相同查重键。\n\n## 九、重复风险阈值\n定义：\n\n### 完全重复\n变量组合和视觉骨架基本相同。\n\n### 高相似\n主体或内容可能不同，但构图、配色、质感、空间机制高度相同。\n\n### 中相似\n核心视觉骨架相似，但至少有2–3个有效视觉变量变化。\n\n### 可接受\n仍属于同一系列，但第一眼可以明确区分。\n\n## 十、重复后的自动修正规则\n如果组合重复或高相似，优先替换：\n1. 当前系列中最安全的高区分度变量；\n2. 构图或空间机制中的合法变化；\n3. 配色机制允许范围内的变化；\n4. 质感或内容中的合法变化。\n\n禁止为了去重破坏绝对固定DNA或突破最大风格容差。\n\n## 十一、输出“变量库卡片”\n最终输出：\n\n### 系列名称\n### 目标数量\n### 动态变量维度列表\n### 每个维度风险等级\n### 每个维度变量值\n### 自由组合规则\n### 绑定组合规则\n### 冲突组合规则\n### 高风险组合\n### 核心区变量\n### 扩展区变量\n### 探索区变量\n### 组合骨架\n### 查重键\n### 重复判定规则\n### 自动修正规则\n### 预计可形成的有效组合规模\n### 是否足以支撑100/500/1000条\n\n## 十二、本阶段禁止执行\n不要：\n- 生成图片\n- 生成最终完整生图提示词\n- 修改系列DNA\n- 为了凑数量创建大量同义变量\n- 把历史系列变量强行套入当前系列\n- 创建不适用于当前系列的“主体/眼睛/表情”等固定变量池\n\n本阶段只负责：\n【动态建立这个系列自己的变量体系和可组合空间】", "4": "# 04｜服装POD批量完整提示词生成母版 v1.2\n\n## 任务目标\n输入包括：\n1. 【02｜系列风格DNA卡片】\n2. 【03｜动态变量库卡片】\n3. 【98｜当前产品与主图固定配置】\n4. 【固定产品载体信息 / 白模参数】\n5. 【目标生成数量：{N}】\n6. 【生成批次：{BATCH}】\n7. 可选【系列代码：{SERIES_CODE}】\n\n你的任务是：\n在严格保持系列身份的前提下，批量生成 {N} 条彼此可区分、可直接用于后续批量生图的完整中文提示词，并在生成过程中完成编号、查重、自修正和最终状态筛选。\n\n最终交付的每一条【最终完整生图提示词】必须能够单独复制使用：\n只要同时上传产品白模 / 模板底图与固定品牌Logo参考，把这一格完整提示词直接发送给生图模型，即可执行。\n不得依赖“上述内容、前文、DNA卡片、变量库、上一阶段”等外部上下文。\n\n## 一、最高优先级：产品载体与设计来源分离\n白模 / 模板底图只提供：\n- 目标上衣的产品版型\n- 剪裁结构\n- 圆领与袖型\n- 衣身比例\n- 紧身 / 修身程度\n- 面料纹理\n- 产品形态\n- 模特展示方式\n- 展示角度\n\n当前目标商品【只有上衣】。\n白模中出现的短裤、模特身体和背景只属于展示环境：\n- 不属于商品；\n- 不参与图案设计；\n- 不参与配色设计；\n- 不得把上衣图案延伸到短裤；\n- 不得把本商品描述成套装。\n\n不得继承白模中的：\n- 上衣颜色\n- 原有图案\n- 原有配色\n- 原有装饰\n- 原有视觉风格\n\n每条提示词中的最终上衣颜色、图案、配色、风格、构图和视觉特征，必须由当前系列DNA、对标款风格和本条合法变量组合决定。\n\n## 二、主图固定展示元素\n当前输出类型为【电商商品主图】。\n\n每一条最终完整提示词都必须写入以下固定展示规则：\n\n### 1. NORVIK Logo\n- 左上角必须展示用户提供的 NORVIK Logo；\n- 必须保持原Logo的图形结构、文字拼写“NORVIK”、比例和整体识别；\n- 不得重新设计Logo，不得改字，不得变形、拉伸或裁切；\n- Logo属于主图展示层，必须位于上衣之外；\n- 禁止把Logo印到上衣图案中。\n\n### 2. 固定尺码选择\n主图必须清晰展示四个独立尺码选项：\n【RU48】【RU50】【RU52】【RU54】\n\n要求：\n- 四个尺码全部出现；\n- 拼写和数字必须完全正确；\n- 不得遗漏；\n- 不得增加RU46、RU56或其他尺码；\n- 四个选项视觉权重一致，不默认突出某一个；\n- 尺码选择区位于衣服之外的主图空白展示区域；\n- 尺码文字不得成为服装印花。\n\n### 3. 其他主图文字\n除固定 NORVIK Logo 与 RU48 / RU50 / RU52 / RU54 尺码选择外，除非当前任务明确要求，否则不要加入：\n- 其他品牌Logo\n- 商品标题\n- 俄文广告语\n- 价格\n- 参数\n- 水印\n- 页面UI\n- 宣传口号\n- 其他多余文字\n\n## 三、编号规则\n每条数据必须拥有唯一编号。\n\n推荐格式：\n【{SERIES_CODE}_{BATCH}_{SEQ4}】\n\n示例：\nDARK01_B01_0001\nDARK01_B01_0002\n\n规则：\n1. {SEQ4} 从0001连续递增；\n2. 同一批次编号不得重复；\n3. 如果用户未提供系列代码，则根据系列名称生成一个稳定的简短系列代码，并在本批次保持不变；\n4. 编号只用于Excel、文件、日志和任务管理，不要求最终ChatGPT返回图片严格按照编号一一对应；\n5. 少量漏图不会导致整批失败。\n\n## 四、系列固定约束\n每一条完整提示词都必须实际写入并继承：\n- 绝对固定DNA\n- 强约束DNA\n- 视觉记忆公式\n- 配色机制\n- 构图骨架\n- 表现媒介\n- 质感机制\n- 空间机制（如适用）\n- 软硬范围\n- 凝实范围\n- 锐度规则\n- 虚实规则\n- 边缘规则\n- 衣身融合规则\n- 视觉密度\n- 视觉重量\n- 情绪主气质\n- 禁止项\n\n不要在最终提示词中写“遵循上述DNA”这类引用语。\n必须把真正需要执行的设计规则展开写进每一条提示词。\n\n## 五、变量组合\n只允许从03的合法变量库中组合。\n\n每条数据必须记录：\n- 使用了哪些变量维度\n- 每个变量的具体值\n- 该组合属于：核心区 / 合法扩展区 / 探索区\n- 是否存在兼容限制\n\n禁止：\n- 只换颜色制造伪新款\n- 只换主体名称但视觉骨架不变\n- 只做同义词替换\n- 只替换无关紧要的小装饰\n\n必须产生第一眼可观察的真实视觉差异。\n\n## 六、正向设计要求\n为每条数据单独生成【正向设计要求】字段。\n\n该字段只写“需要生成什么”，包括当前系列实际适用的：\n- 目标产品仅为紧身运动短袖上衣\n- 最终上衣颜色\n- 图案覆盖区域\n- 设计结构\n- 核心内容或无主体设计机制\n- 构图\n- 配色\n- 表现媒介\n- 质感\n- 空间机制\n- 软硬 / 凝实 / 锐度 / 虚实\n- 边缘关系\n- 衣身融合关系\n- 视觉密度\n- 视觉重量\n- 情绪气质\n- 本条变量变化\n- 左上角 NORVIK Logo\n- RU48 / RU50 / RU52 / RU54 四个尺码选项\n\n不适用于当前系列的项目不要强行写入。\n\n## 七、负面约束\n为每条数据单独生成【负面约束】字段。\n\n该字段用于管理和防跑偏，应综合：\n1. 02系列DNA中的禁止项；\n2. 产品白模结构不可改变项；\n3. 98当前产品与主图固定配置；\n4. 当前变量组合特有的冲突项；\n5. 当前系列常见的生成跑偏风险。\n\n必须包含：\n- 不改变上衣版型、领口、袖型、衣身比例、紧身程度和面料基础纹理；\n- 不把短裤当作商品，不在短裤上延伸上衣设计；\n- 不继承白模原有上衣颜色和设计；\n- 不把 NORVIK Logo 印在上衣表面；\n- 不遗漏或误写 RU48、RU50、RU52、RU54；\n- 不增加其他尺码；\n- 不生成页面UI、水印、价格、商品参数或额外广告文案；\n- 不突破系列软硬、锐度、凝实、密度和融合程度的最大容差；\n- 其他当前系列专属禁止项。\n\n注意：\n【正向设计要求】和【负面约束】是Excel管理字段。\n实际发给ChatGPT生图时，不需要分开发送正负面Prompt。\n\n## 八、最终完整生图提示词：必须一格独立可复制\n为每条数据生成【最终完整生图提示词】。\n\n要求：\n1. 将正向设计要求与负面约束自然合并成一段完整中文生图提示词；\n2. 单独复制该单元格即可使用；\n3. 不允许出现“参考上述、按前面的DNA、沿用上一阶段、根据变量库”等依赖上下文的表达；\n4. 可以引用“本次上传的产品模板图 / 白模图”和“本次上传的 NORVIK Logo参考图”，因为实际生图时会同步上传；\n5. 必须明确：白模只约束上衣结构和材质表现，不决定最终颜色和设计；\n6. 必须明确：白模中的短裤不是商品，不参与设计；\n7. 必须明确：左上角放 NORVIK Logo，且Logo不是服装印花；\n8. 必须明确：展示 RU48、RU50、RU52、RU54 四个尺码选项，且不是服装印花；\n9. 最终提示词必须包含当前这一款自己的设计内容，不允许只是抽象规则；\n10. 禁止把任务编号、查重键、风险字段等内部管理信息要求印到衣服或图片中；\n11. 最终提示词应是自然语言，不需要拆成Stable Diffusion式Positive Prompt / Negative Prompt。\n\n目标：\n【上传白模 + 上传NORVIK Logo + 复制这一格完整提示词 → 可以直接生成商品主图】\n\n## 九、避免“提示词越写越强”\n禁止为了让模型更听话而机械堆叠：\n- 极致\n- 超强\n- 超高清\n- 极度锐利\n- 超高对比\n- 爆炸细节\n- 每根纹理清晰可见\n等可能改变系列视觉强度的词。\n\n视觉强度必须服从02定义的核心值、推荐范围和最大容差，而不是越强越好。\n\n## 十、生产级查重结构\n每条数据至少建立以下查重字段：\n1. 【完全组合键】\n2. 【视觉骨架键】\n3. 【构图键】\n4. 【配色键】\n5. 【质感键】\n6. 【空间机制键】（不适用时写“不适用”）\n7. 【内容语义键 / 系列专属语义键】\n8. 【系列专属查重键】\n\n主图固定的 NORVIK Logo 与固定四尺码不参与款式查重，因为它们属于所有主图共有的展示层元素。\n\n## 十一、综合查重结论\n每条数据必须输出【综合查重结论】，仅允许：\n\n### 通过\n具有真实视觉差异，可以进入最终结果。\n\n### 中风险需修正\n视觉骨架较近，但仍有修正空间。\n必须至少更换2–3个有效视觉变量后重新检查。\n\n### 高风险重写\n包括：\n- 完全组合重复\n- 高视觉相似\n- 只换颜色\n- 只换主体名\n- 只换同义词\n- 视觉骨架基本相同\n- 第一眼无法与已有款区分\n\n高风险必须整条重写。\n\n## 十二、风格跑偏检查\n查重通过后，还必须检查是否仍属于当前系列。\n\n检查：\n- 是否破坏绝对固定DNA\n- 是否超出强约束DNA\n- 是否突破风格最大容差\n- 是否改变视觉骨架身份\n- 是否改变系列主要表现媒介\n- 是否改变关键质感/空间机制\n- 是否出现冲突情绪\n- 是否导致上衣产品结构跑偏\n\n输出【风格跑偏风险】：\n低 / 中 / 高\n\n高风险不得进入最终通过。\n\n## 十三、自动修正规则\n发现问题时不要直接交付。\n\n### 完全重复\n必须重新生成整条组合。\n\n### 高视觉相似\n至少更换一个高区分度核心变量 + 其他1–2个有效变量。\n\n### 中风险\n至少更换2个有效视觉变量。\n\n### 主图固定元素错误\n如果Logo缺失/错误、尺码缺失/错误，不改变款式设计变量，只修正主图展示规则。\n\n### 配色重复\n不能只换一个点睛色，优先调整合法的配色机制组合。\n\n### 构图重复\n优先从03允许的构图变化中更换。\n\n### 风格跑偏\n优先收回到02核心区或合法扩展区，不允许通过加入更多随机元素解决。\n\n修正后必须再次执行查重与风格检查。\n\n## 十四、最终输出字段\n每条数据建议至少输出：\n- 编号\n- 系列名称\n- 系列代码\n- 生成批次\n- 输出类型：商品主图\n- 设计名称\n- 风格区域：核心 / 扩展 / 探索\n- 变量组合摘要\n- 设计结构类型\n- 图案覆盖方式\n- 核心内容 / 机制\n- 构图\n- 上衣底色\n- 配色机制\n- 表现媒介\n- 质感\n- 空间机制\n- 软硬\n- 凝实程度\n- 核心锐度\n- 外围锐度\n- 虚实\n- 边缘\n- 衣身融合\n- 视觉密度\n- 视觉重量\n- 主气质\n- 主图固定元素：NORVIK Logo + RU48/RU50/RU52/RU54\n- 正向设计要求\n- 负面约束\n- 最终完整生图提示词\n- 完全组合键\n- 视觉骨架键\n- 构图键\n- 配色键\n- 质感键\n- 空间机制键\n- 内容语义键 / 系列专属语义键\n- 系列专属查重键\n- 综合查重结论\n- 风格跑偏风险\n- 自查修正记录\n- 最终状态\n\n## 十五、最终状态\n仅允许：\n【最终通过】\n【待重写】\n\n交付给批量生图脚本的数据只保留【最终通过】。\n\n## 十六、最终自检\n完成全部 {N} 条后，再执行一次全批次检查：\n\n1. 编号是否唯一；\n2. 是否存在完全重复；\n3. 是否存在高视觉相似；\n4. 是否有大量只换颜色的伪新款；\n5. 是否有大量相同视觉骨架；\n6. 是否全部处于系列风格容差内；\n7. 最终完整生图提示词是否全部可以脱离上下文单独复制使用；\n8. 是否错误引用“上述DNA / 前文 / 上一阶段”；\n9. 是否有正负面要求互相冲突；\n10. 是否有白模颜色或原图案错误进入设计要求；\n11. 是否所有提示词都明确只设计上衣；\n12. 是否所有提示词都包含左上角 NORVIK Logo；\n13. 是否所有提示词都包含且只包含 RU48、RU50、RU52、RU54 四个尺码选项；\n14. 是否明确 Logo 和尺码选择均属于主图展示层，不属于服装印花。\n\n有问题必须先修正，再输出。\n\n## 十七、本阶段禁止执行\n不要：\n- 生成图片\n- 修改02系列DNA\n- 创造03不存在且未经验证的新变量\n- 使用白模颜色决定设计\n- 把短裤当作商品\n- 为了凑数量保留明显重复\n- 把不同系列风格混入当前批次\n- 把正向和负面提示词拆成两次发送给ChatGPT\n- 输出依赖对话上下文才能理解的不完整提示词\n- 遗漏NORVIK Logo或四个固定尺码\n\n本阶段只负责：\n【生成带唯一编号、生产级查重、自修正、主图固定Logo与尺码展示，以及可单格直接复制使用的完整商品主图提示词数据】"};
   const STYLE_PRODUCT_CONFIG_DEFAULT = "产品范围｜目标商品：仅上衣；当前白模中的短裤不是商品，不参与图案、配色或款式设计。\n产品载体｜版型：男士紧身运动短袖上衣；圆领、短袖、贴体压缩感版型；白模只锁版型、结构、比例、面料纹理和展示方式。\n非目标元素｜短裤/模特/背景：仅作为展示环境；不得把短裤当作套装商品，也不得把上衣图案延伸到短裤。\n输出类型｜当前输出：电商商品主图。\n主图品牌｜NORVIK Logo：主图左上角必须展示用户提供的 NORVIK Logo；保持图形、文字、比例和拼写正确，不变形、不改字、不重新设计。Logo位于衣服外的主图展示层，不得印在上衣表面。\n尺码展示｜固定尺码：必须清晰展示 4 个独立尺码选择：RU48、RU50、RU52、RU54。四个尺码同等权重，不默认突出某一个，不得遗漏、增加或改写。\n尺码位置｜展示层规则：尺码选择区必须放在衣服之外的空白展示区域，不能压住商品主体，也不能变成上衣印花。\n设计来源｜对标图：最终上衣颜色、图案、配色、构图、视觉风格、质感与空间表现由当前对标服装及系列DNA决定，不得继承白模颜色或空白设计。\n主图禁止项｜展示污染：除固定 NORVIK Logo 和 RU48/RU50/RU52/RU54 尺码选择外，不自动加入其他品牌、广告语、价格、参数、水印、页面UI或多余文字。";
   const STYLE_STEPS = [
@@ -167,25 +151,22 @@
     const migratedCustom=String(savedSettings?.customPrompt||'').trim();
     settings.publicPrompt=migratedCustom||DEFAULT_PUBLIC_PROMPT;
   }
-  if (settings.flow==='diecut_design') settings.flow='production_design';
-  if (!['batch_generation', 'style_reverse', 'production_design'].includes(settings.flow)) settings.flow = 'batch_generation';
+  if (!['batch_generation', 'style_reverse', 'diecut_design'].includes(settings.flow)) settings.flow = 'batch_generation';
   let logs = Array.isArray(savedLogs) ? savedLogs.slice(-3000) : [];
 
   function defaultStyleMasterSteps(){
     return STYLE_MASTER_V12_DEFAULTS.map((s,i)=>({id:i+1,code:s.code,label:s.label,short:`${s.code}${s.label}`.slice(0,18),input:s.input||'',output:s.output||'',principle:s.principle||'',sheetName:s.sheetName||'内置母版',prompt:String(s.prompt||'')}));
   }
-  function normalizeMasterSteps(steps,fallbackToStyle=true){
-    const src=Array.isArray(steps)&&steps.length?steps:(fallbackToStyle?defaultStyleMasterSteps():[]);
+  function normalizeMasterSteps(steps){
+    const src=Array.isArray(steps)&&steps.length?steps:defaultStyleMasterSteps();
     return src.map((s,i)=>{
       const code=String(s?.code||i+1).trim().replace(/\.0+$/,'').padStart(2,'0');
       const label=String(s?.label||s?.name||`步骤${code}`).trim();
       return {id:i+1,code,label,short:`${code}${label}`.slice(0,18),input:String(s?.input||''),output:String(s?.output||''),principle:String(s?.principle||''),sheetName:String(s?.sheetName||''),prompt:String(s?.prompt||'')};
     }).filter(s=>s.prompt.trim());
   }
-  function defaultSelectedStepIds(steps,production=false){
-    const all=steps.map(s=>s.id);
-    if(production)return all;
-    const safe=[];
+  function defaultSelectedStepIds(steps){
+    const all=steps.map(s=>s.id),safe=[];
     for(const s of steps){if(/批量生图|结果质检|质检/.test(`${s.label} ${s.output}`))break;safe.push(s.id);}
     return safe.length?safe:all;
   }
@@ -215,29 +196,10 @@
     lastError: '',
     lastUpdatedAt: '',
   };
-  const DEFAULT_PRODUCTION_STATE = {
-    ...DEFAULT_STYLE_STATE,
-    projectName: '新生产文件项目',
-    masterName: '',
-    masterFileName: '',
-    masterSteps: [],
-    selectedStepIds: [],
-    currentStep: 0,
-    prompts: {},
-    results: {},
-    statuses: {},
-    variables: {N:'1',BATCH:'P01',SERIES_CODE:''},
-    targetCount: 1,
-    batch: 'P01',
-    carrierInfo: '',
-    productConfig: '',
-  };
-  function normalizeStyleState(saved,kind='style'){
-    const production=kind==='production';
-    const base=production?DEFAULT_PRODUCTION_STATE:DEFAULT_STYLE_STATE;
-    const s=saved&&typeof saved==='object'?{...base,...saved}:{...base};
-    s.masterSteps=normalizeMasterSteps(saved?.masterSteps,!production);
-    if(!s.masterSteps.length&&!production)s.masterSteps=defaultStyleMasterSteps();
+  function normalizeStyleState(saved){
+    const s=saved&&typeof saved==='object'?{...DEFAULT_STYLE_STATE,...saved}:{...DEFAULT_STYLE_STATE};
+    s.masterSteps=normalizeMasterSteps(saved?.masterSteps);
+    if(!s.masterSteps.length)s.masterSteps=defaultStyleMasterSteps();
     const ids=new Set(s.masterSteps.map(x=>x.id));
     const legacyPrompts=saved?.prompts||{};
     s.prompts={};s.results={};s.statuses={};
@@ -246,43 +208,23 @@
       s.results[st.id]=String(saved?.results?.[st.id]??'');
       s.statuses[st.id]=String(saved?.statuses?.[st.id]??'pending');
     }
-    const chosen=Array.isArray(saved?.selectedStepIds)?saved.selectedStepIds.map(Number).filter(x=>ids.has(x)):defaultSelectedStepIds(s.masterSteps,production);
-    s.selectedStepIds=chosen.length?chosen:defaultSelectedStepIds(s.masterSteps,production);
-    s.currentStep=s.masterSteps.length?(ids.has(Number(saved?.currentStep))&&s.selectedStepIds.includes(Number(saved?.currentStep))?Number(saved.currentStep):(s.selectedStepIds[0]||s.masterSteps[0].id)):0;
+    const chosen=Array.isArray(saved?.selectedStepIds)?saved.selectedStepIds.map(Number).filter(x=>ids.has(x)):defaultSelectedStepIds(s.masterSteps);
+    s.selectedStepIds=chosen.length?chosen:defaultSelectedStepIds(s.masterSteps);
+    s.currentStep=ids.has(Number(saved?.currentStep))&&s.selectedStepIds.includes(Number(saved?.currentStep))?Number(saved.currentStep):(s.selectedStepIds[0]||s.masterSteps[0].id);
     s.autoFlow=Boolean(saved?.autoFlow);
-    const defaultN=production?1:500,defaultBatch=production?'P01':'B01';
-    s.variables={N:String(saved?.variables?.N??saved?.targetCount??defaultN),BATCH:String(saved?.variables?.BATCH??saved?.batch??defaultBatch),SERIES_CODE:String(saved?.variables?.SERIES_CODE??saved?.seriesCode??''),...(saved?.variables||{})};
-    s.targetCount=Math.max(1,Number(s.variables.N)||defaultN);s.batch=String(s.variables.BATCH||defaultBatch);s.seriesCode=String(s.variables.SERIES_CODE||'');
+    s.variables={N:String(saved?.variables?.N??saved?.targetCount??500),BATCH:String(saved?.variables?.BATCH??saved?.batch??'B01'),SERIES_CODE:String(saved?.variables?.SERIES_CODE??saved?.seriesCode??''),...(saved?.variables||{})};
+    s.targetCount=Math.max(1,Number(s.variables.N)||500);s.batch=String(s.variables.BATCH||'B01');s.seriesCode=String(s.variables.SERIES_CODE||'');
     s.running=false;s.runningStep=0;
     if(!Array.isArray(s.imageNames))s.imageNames=[];
     return s;
   }
-  let styleFlowState=normalizeStyleState(GM_getValue(STYLE_STATE_KEY,null),'style');
-  let productionFlowState=normalizeStyleState(GM_getValue(PRODUCTION_STATE_KEY,null),'production');
-  let styleState=settings.flow==='production_design'?productionFlowState:styleFlowState;
-  function isTemplateWorkflowFlow(flow=settings.flow){return flow==='style_reverse'||flow==='production_design';}
-  function isProductionWorkflow(){return settings.flow==='production_design';}
-  function templateWorkflowMeta(){
-    return isProductionWorkflow()?{
-      kind:'production',stateKey:PRODUCTION_STATE_KEY,projectsKey:PRODUCTION_PROJECTS_KEY,refsKey:PRODUCTION_REFS_KEY,templateKey:PRODUCTION_TEMPLATE_KEY,outputKey:PRODUCTION_OUTPUT_KEY,
-      label:'生产文件设计',projectLabel:'生产项目',projectPrefix:'生产文件项目',refsLabel:'任务参考图 / 效果图',templateLabel:'生产模板',refsPicker:'任务参考图 / 效果图',templatePicker:'生产模板 / 版型模板',defaultMasterLabel:'未导入生产文件设计母版'
-    }:{
-      kind:'style',stateKey:STYLE_STATE_KEY,projectsKey:STYLE_PROJECTS_KEY,refsKey:STYLE_REFS_KEY,templateKey:STYLE_TEMPLATE_KEY,outputKey:STYLE_OUTPUT_KEY,
-      label:'视觉风格解析',projectLabel:'系列项目',projectPrefix:'系列项目',refsLabel:'对标参考图',templateLabel:'产品白模',refsPicker:'对标服装参考图',templatePicker:'产品白模 / 模板底图',defaultMasterLabel:'内置母版'
-    };
-  }
-  function activateTemplateWorkflow(flow=settings.flow){
-    if(flow==='production_design')styleState=productionFlowState;
-    else if(flow==='style_reverse')styleState=styleFlowState;
-  }
-
+  let styleState=normalizeStyleState(GM_getValue(STYLE_STATE_KEY,null));
 
   let panel = null;
   let logWindow = null;
   let workerActive = false;
   let logAutoScroll = true;
   let lastTaskListSignature = '';
-  let lastTaskStateSignature = '';
   let lastLogPreviewSignature = '';
   let lastLogWindowSignature = '';
 
@@ -297,17 +239,9 @@
     return merged;
   }
 
-  function taskListStateSignature(){
-    return state.tasks.map(t=>`${t.key}|${t.status}|${t.updatedAt||''}|${(t.outputFiles||[]).length}`).join('||');
-  }
-  function refreshTaskListFromState(force=false){
-    if(!panel||settings.flow!=='batch_generation')return;
-    const sig=taskListStateSignature();
-    if(force||sig!==lastTaskStateSignature){lastTaskStateSignature=sig;renderTaskList(force);}
-  }
   function saveState(render = true) {
     GM_setValue(STATE_KEY, state);
-    if (render) { updatePanel(); refreshTaskListFromState(); }
+    if (render) updatePanel();
   }
   function saveSettings(render = false) {
     GM_setValue(SETTINGS_KEY, settings);
@@ -461,7 +395,7 @@
   async function importExcel(file){
     const wb=XLSX.read(await file.arrayBuffer(),{type:'array',cellDates:false});
     const m=detectSheet(wb);
-    if(!m)throw new Error('没有识别到有效图片生成自动化任务表。请确认同时存在“编号”列和“完整中文生图提示词 / 完整提示词”等提示词列。');
+    if(!m)throw new Error('没有识别到有效批量生图任务表。请确认同时存在“编号”列和“完整中文生图提示词 / 完整提示词”等提示词列。');
     const tasks=[];
     for(let r=m.headerRow+1;r<m.rows.length;r++){
       const row=m.rows[r]||[];
@@ -542,15 +476,11 @@
   }
 
 
-  // ========================== 母版驱动工作流：视觉风格解析 / 生产文件设计 ==========================
-  function styleProjects(){const m=templateWorkflowMeta(),v=GM_getValue(m.projectsKey,{});return v&&typeof v==='object'?v:{};}
-  function saveStyleState(render=true){
-    const m=templateWorkflowMeta();styleState.lastUpdatedAt=new Date().toISOString();
-    if(m.kind==='production')productionFlowState=styleState;else styleFlowState=styleState;
-    GM_setValue(m.stateKey,styleState);if(render)updateStylePanel();
-  }
-  function styleSteps(){return normalizeMasterSteps(styleState.masterSteps,!isProductionWorkflow());}
-  function styleStep(id=styleState.currentStep){const steps=styleSteps();return steps.find(x=>x.id===Number(id))||steps[0]||null;}
+  // ========================== 风格反推项目/母版/步骤状态 ==========================
+  function styleProjects(){const v=GM_getValue(STYLE_PROJECTS_KEY,{});return v&&typeof v==='object'?v:{};}
+  function saveStyleState(render=true){styleState.lastUpdatedAt=new Date().toISOString();GM_setValue(STYLE_STATE_KEY,styleState);if(render)updateStylePanel();}
+  function styleSteps(){return normalizeMasterSteps(styleState.masterSteps);}
+  function styleStep(id=styleState.currentStep){return styleSteps().find(x=>x.id===Number(id))||styleSteps()[0];}
   function selectedStyleSteps(){const chosen=new Set((styleState.selectedStepIds||[]).map(Number));return styleSteps().filter(s=>chosen.has(s.id));}
   function firstSelectedStyleStep(){return selectedStyleSteps()[0]||null;}
   function nextSelectedStyleStep(id=styleState.currentStep){const arr=selectedStyleSteps(),i=arr.findIndex(s=>s.id===Number(id));return i>=0?arr[i+1]||null:arr[0]||null;}
@@ -558,43 +488,30 @@
   function isStyleBatchPromptStep(step){return Boolean(step&&/批量.*提示词|完整提示词生成/.test(`${step.label} ${step.output} ${step.prompt.slice(0,180)}`));}
   function styleStatusLabel(s){return({pending:'未开始',running:'执行中',captured:'回复已存档',done:'已完成',paused:'已暂停',error:'失败'})[s]||s;}
   function saveStyleProject(){
-    const m=templateWorkflowMeta(),name=String(styleState.projectName||'').trim()||`${m.projectPrefix}_${stamp()}`;styleState.projectName=name;
-    const p=styleProjects();p[name]=JSON.parse(JSON.stringify({...styleState,running:false,runningStep:0}));GM_setValue(m.projectsKey,p);saveStyleState(false);renderWorkspace();log(`${m.label}项目已保存：${name}`,'success');
+    const name=String(styleState.projectName||'').trim()||`系列项目_${stamp()}`;styleState.projectName=name;
+    const p=styleProjects();p[name]=JSON.parse(JSON.stringify({...styleState,running:false,runningStep:0}));GM_setValue(STYLE_PROJECTS_KEY,p);saveStyleState(false);renderWorkspace();log(`风格项目已保存：${name}`,'success');
   }
   async function newStyleProject(){
-    const m=templateWorkflowMeta(),hasResult=Object.values(styleState.results||{}).some(x=>String(x||'').trim());if(hasResult&&!confirm('新建项目会清空当前步骤结果，但保留当前已导入母版与步骤选择。已保存到“历史项目”的内容不会删除。继续？'))return;
+    const hasResult=Object.values(styleState.results||{}).some(x=>String(x||'').trim());if(hasResult&&!confirm('新建项目会清空当前步骤结果，但保留当前已导入母版与步骤选择。已保存到“历史项目”的内容不会删除。继续？'))return;
     const keep={masterName:styleState.masterName,masterFileName:styleState.masterFileName,masterSteps:styleSteps(),selectedStepIds:[...(styleState.selectedStepIds||[])],autoFlow:Boolean(styleState.autoFlow),prompts:{...styleState.prompts},variables:{...styleState.variables},productConfig:styleState.productConfig,carrierInfo:styleState.carrierInfo};
-    styleState=normalizeStyleState({...keep,projectName:`新${m.projectPrefix}_${stamp()}`,results:{},statuses:{},currentStep:keep.selectedStepIds[0]||0,sessionActive:false,conversationPath:''},m.kind);await deleteHandle(m.refsKey).catch(()=>{});await deleteHandle(m.templateKey).catch(()=>{});saveStyleState(false);renderWorkspace();log(`已新建${m.label}项目：${styleState.projectName}`,'success');
+    styleState=normalizeStyleState({...keep,projectName:`新系列项目_${stamp()}`,results:{},statuses:{},currentStep:keep.selectedStepIds[0]||1,sessionActive:false,conversationPath:''});await deleteHandle(STYLE_REFS_KEY).catch(()=>{});await deleteHandle(STYLE_TEMPLATE_KEY).catch(()=>{});saveStyleState(false);renderWorkspace();log(`已新建风格项目：${styleState.projectName}`,'success');
   }
   async function loadStyleProject(name){
-    const m=templateWorkflowMeta(),p=styleProjects(),snap=p[name];if(!snap)throw new Error('未找到该历史项目');
-    styleState=normalizeStyleState(snap,m.kind);styleState.projectName=name;styleState.imageNames=[];styleState.templateName='';styleState.sessionActive=false;styleState.conversationPath='';await deleteHandle(m.refsKey).catch(()=>{});await deleteHandle(m.templateKey).catch(()=>{});saveStyleState(false);renderWorkspace();log(`已载入${m.label}项目：${name}；如需重新执行需要图片的步骤，请重新选择素材`,'success');
+    const p=styleProjects(),snap=p[name];if(!snap)throw new Error('未找到该历史项目');
+    styleState=normalizeStyleState(snap);styleState.projectName=name;styleState.imageNames=[];styleState.templateName='';styleState.sessionActive=false;styleState.conversationPath='';await deleteHandle(STYLE_REFS_KEY).catch(()=>{});await deleteHandle(STYLE_TEMPLATE_KEY).catch(()=>{});saveStyleState(false);renderWorkspace();log(`已载入风格项目：${name}；如需重新执行需要图片的步骤，请重新选择参考图`,'success');
   }
   async function chooseStyleRefs(){
-    const m=templateWorkflowMeta(),picker=unsafeWindow.showOpenFilePicker||window.showOpenFilePicker;if(typeof picker!=='function')throw new Error('当前浏览器不支持选择参考图');
-    const hs=await picker.call(unsafeWindow,{multiple:true,types:[{description:m.refsPicker,accept:{'image/*':['.jpg','.jpeg','.png','.webp']}}]});if(!hs?.length)return;
-    await saveHandle(m.refsKey,hs);styleState.imageNames=hs.map(h=>h.name);saveStyleState();log(`${m.label}参考素材已选择：${styleState.imageNames.join('、')}`,'success');
+    const picker=unsafeWindow.showOpenFilePicker||window.showOpenFilePicker;if(typeof picker!=='function')throw new Error('当前浏览器不支持选择参考图');
+    const hs=await picker.call(unsafeWindow,{multiple:true,types:[{description:'对标服装参考图',accept:{'image/*':['.jpg','.jpeg','.png','.webp']}}]});if(!hs?.length)return;
+    await saveHandle(STYLE_REFS_KEY,hs);styleState.imageNames=hs.map(h=>h.name);saveStyleState();log(`风格流程参考图已选择：${styleState.imageNames.join('、')}`,'success');
   }
   async function chooseStyleTemplate(){
-    const m=templateWorkflowMeta(),picker=unsafeWindow.showOpenFilePicker||window.showOpenFilePicker;if(typeof picker!=='function')throw new Error(`当前浏览器不支持选择${m.templateLabel}`);
-    const [h]=await picker.call(unsafeWindow,{multiple:false,types:[{description:m.templatePicker,accept:{'image/*':['.jpg','.jpeg','.png','.webp']}}]});if(!h)return;
-    await saveHandle(m.templateKey,h);styleState.templateName=h.name;saveStyleState();log(`${m.label}${m.templateLabel}已选择：${h.name}`,'success');
+    const picker=unsafeWindow.showOpenFilePicker||window.showOpenFilePicker;if(typeof picker!=='function')throw new Error('当前浏览器不支持选择白模');
+    const [h]=await picker.call(unsafeWindow,{multiple:false,types:[{description:'产品白模/模板底图',accept:{'image/*':['.jpg','.jpeg','.png','.webp']}}]});if(!h)return;
+    await saveHandle(STYLE_TEMPLATE_KEY,h);styleState.templateName=h.name;saveStyleState();log(`风格流程可选白模已选择：${h.name}`,'success');
   }
-  async function clearStyleRefs(){const m=templateWorkflowMeta();await deleteHandle(m.refsKey).catch(()=>{});styleState.imageNames=[];saveStyleState();log(`${m.label}参考素材已清除`,'warn');}
-  async function clearStyleTemplate(){const m=templateWorkflowMeta();await deleteHandle(m.templateKey).catch(()=>{});styleState.templateName='';saveStyleState();log(`${m.label}${m.templateLabel}已清除`,'warn');}
-  async function chooseStyleOutput(){
-    const m=templateWorkflowMeta(),picker=unsafeWindow.showDirectoryPicker||window.showDirectoryPicker;if(typeof picker!=='function')throw new Error('当前浏览器不支持选择文件夹');
-    const h=await picker.call(unsafeWindow,{mode:'readwrite'});await saveHandle(m.outputKey,h);log(`${m.label}输出文件夹：${h.name}`,'success');renderWorkspace();
-  }
-  async function workflowProjectOutputDir(requestPermission=true){
-    const m=templateWorkflowMeta(),root=await getHandle(m.outputKey).catch(()=>null);if(!root)throw new Error(`请先选择“${m.label}”输出文件夹`);
-    if(await permission(root,'readwrite',requestPermission)!=='granted')throw new Error(`${m.label}输出文件夹写入权限失效，请重新选择`);
-    const project=sanitizeName(String(styleState.projectName||m.projectPrefix).trim()||m.projectPrefix);return root.getDirectoryHandle(project,{create:true});
-  }
-  async function exportCurrentWorkflowResult(){
-    const m=templateWorkflowMeta(),step=styleStep();if(!step)throw new Error('当前还没有可导出的步骤');const text=String(styleState.results?.[step.id]||'').trim();if(!text)throw new Error('当前步骤还没有回复存档');
-    const dir=await workflowProjectOutputDir(true),name=`${sanitizeName(styleState.projectName||m.projectPrefix)}_${step.code}_${sanitizeName(step.label||'步骤结果')}.txt`;await writeBlob(dir,name,new Blob(['\uFEFF'+text],{type:'text/plain;charset=utf-8'}));log(`本步骤结果已保存：${name}`,'success');
-  }
+  async function clearStyleRefs(){await deleteHandle(STYLE_REFS_KEY).catch(()=>{});styleState.imageNames=[];saveStyleState();log('风格流程参考图已清除','warn');}
+  async function clearStyleTemplate(){await deleteHandle(STYLE_TEMPLATE_KEY).catch(()=>{});styleState.templateName='';saveStyleState();log('风格流程白模已清除','warn');}
   function sheetRows(wb,sn){return XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:'',raw:false,blankrows:true});}
   function normMasterHeader(v){return String(v??'').trim().replace(/\s+/g,'').replace(/[：:]/g,'');}
   function findMasterControl(wb){
@@ -621,31 +538,30 @@
       for(const sn of wb.SheetNames){const m=sn.match(/(?:^|_)(\d{1,3})(?:[^0-9]|$)/);if(!m)continue;const code=String(parseInt(m[1],10)).padStart(2,'0');if(['98','99'].includes(code))continue;const prompt=extractPromptFromSheet(wb,sn);if(prompt)raw.push({code,label:sn.replace(/^.*?_\d+[_｜|]?/,'')||`步骤${code}`,input:'',output:'',principle:'',sheetName:sn,prompt});}
     }
     raw.sort((a,b)=>Number(a.code)-Number(b.code));if(!raw.length)throw new Error('没有从母版中识别到可执行步骤。建议保留“流程总控”表，或让阶段工作表名称包含 01/02/03 等编号，并包含“完整提示词”列。');
-    return normalizeMasterSteps(raw,false);
+    return normalizeMasterSteps(raw);
   }
   async function importStyleMaster(file){
-    const m=templateWorkflowMeta();if(styleState.running)throw new Error('流程执行中不能更换母版');const buf=await file.arrayBuffer(),wb=XLSX.read(buf,{type:'array',cellDates:false});const steps=parseStyleMasterWorkbook(wb,file.name);
+    if(styleState.running)throw new Error('流程执行中不能更换母版');const buf=await file.arrayBuffer(),wb=XLSX.read(buf,{type:'array',cellDates:false});const steps=parseStyleMasterWorkbook(wb,file.name);
     if(Object.values(styleState.results||{}).some(x=>String(x||'').trim())&&!confirm(`新母版识别到 ${steps.length} 个步骤。导入会清空当前项目的步骤结果并重新建立步骤列表，继续？`))return;
-    const selected=defaultSelectedStepIds(steps,isProductionWorkflow()),prompts={},results={},statuses={};for(const st of steps){prompts[st.id]=st.prompt;results[st.id]='';statuses[st.id]='pending';}
-    styleState.masterName=file.name.replace(/\.[^.]+$/,'');styleState.masterFileName=file.name;styleState.masterSteps=steps;styleState.selectedStepIds=selected;styleState.currentStep=selected[0]||steps[0].id;styleState.prompts=prompts;styleState.results=results;styleState.statuses=statuses;styleState.sessionActive=false;styleState.conversationPath='';styleState.lastError='';saveStyleState(false);renderWorkspace();log(`${m.label}母版导入成功：${file.name}｜识别 ${steps.length} 个步骤｜默认选择 ${selected.length} 个`,'success');
+    const selected=defaultSelectedStepIds(steps),prompts={},results={},statuses={};for(const s of steps){prompts[s.id]=s.prompt;results[s.id]='';statuses[s.id]='pending';}
+    styleState.masterName=file.name.replace(/\.[^.]+$/,'');styleState.masterFileName=file.name;styleState.masterSteps=steps;styleState.selectedStepIds=selected;styleState.currentStep=selected[0]||steps[0].id;styleState.prompts=prompts;styleState.results=results;styleState.statuses=statuses;styleState.sessionActive=false;styleState.conversationPath='';styleState.lastError='';saveStyleState(false);renderWorkspace();log(`母版导入成功：${file.name}｜识别 ${steps.length} 个步骤｜默认选择 ${selected.length} 个`,'success');
   }
   function setStyleStepSelected(id,checked){
-    if(styleState.running)return;const all=styleSteps().map(s=>s.id),set=new Set((styleState.selectedStepIds||[]).map(Number));checked?set.add(Number(id)):set.delete(Number(id));styleState.selectedStepIds=all.filter(x=>set.has(x));if(!styleState.selectedStepIds.length&&all.length){set.add(Number(id));styleState.selectedStepIds=[Number(id)];}
-    if(styleState.selectedStepIds.length&&!styleState.selectedStepIds.includes(Number(styleState.currentStep)))styleState.currentStep=styleState.selectedStepIds[0];styleState.sessionActive=false;styleState.conversationPath='';saveStyleState(false);renderWorkspace();
+    if(styleState.running)return;const all=styleSteps().map(s=>s.id),set=new Set((styleState.selectedStepIds||[]).map(Number));checked?set.add(Number(id)):set.delete(Number(id));styleState.selectedStepIds=all.filter(x=>set.has(x));if(!styleState.selectedStepIds.length){set.add(Number(id));styleState.selectedStepIds=[Number(id)];}
+    if(!styleState.selectedStepIds.includes(Number(styleState.currentStep)))styleState.currentStep=styleState.selectedStepIds[0];styleState.sessionActive=false;styleState.conversationPath='';saveStyleState(false);renderWorkspace();
   }
-  function stepNeedsRefs(step){if(!step)return false;const input=String(step.input||''),prompt=String(step.prompt||'').slice(0,1500);return /对标服装图|对标服装参考图|对标.*参考图|参考图|效果图|原始图|成品图|工厂效果图|设计图|印花图|图案母版/.test(input)||(/^0?1$/.test(String(Number(step.code)))&&/参考图|效果图|原始图|成品图|设计图|印花图/.test(prompt));}
-  function stepAllowsTemplate(step){return Boolean(step&&/白模|模板底图|生产模板|刀版模板|版型模板|尺寸模板|模板文件|生产版型|(?:S|M|L|XL|2XL|3XL)码模板/i.test(`${step.input}\n${step.prompt.slice(0,1800)}`));}
-  function stepHasAttachments(step){return stepNeedsRefs(step)||stepAllowsTemplate(step);}
+  function stepNeedsRefs(step){return Boolean(step&&(/对标服装图|对标服装参考图|对标.*参考图/.test(`${step.input}\n${step.prompt.slice(0,1200)}`)||(/^0?1$/.test(String(Number(step.code)))&&/参考图/.test(step.prompt.slice(0,1200)))));}
+  function stepAllowsTemplate(step){return Boolean(step&&/白模|模板底图/.test(`${step.input}\n${step.prompt.slice(0,1600)}`));}
   function stepVariableKeys(step){const set=new Set();String(step?.prompt||'').replace(/\{([A-Za-z][A-Za-z0-9_]{0,40})\}/g,(_,k)=>{set.add(k.toUpperCase());return _});if(/数量\s*N|目标.*数量|提示词数量/.test(String(step?.input||'')))set.add('N');if(/批次|BATCH/i.test(String(step?.input||'')))set.add('BATCH');if(/系列代码|SERIES_CODE/i.test(String(step?.input||'')))set.add('SERIES_CODE');return [...set];}
   function stylePrompt(stepId=styleState.currentStep){
-    const step=styleStep(stepId);if(!step)throw new Error('当前流程尚未导入可执行母版');let p=String(styleState.prompts[step.id]||step.prompt||'').trim();if(!p)throw new Error(`${step.code}提示词为空`);
-    const defaultN=isProductionWorkflow()?1:500,defaultBatch=isProductionWorkflow()?'P01':'B01';const vars={...styleState.variables,N:String(Math.max(1,Number(styleState.variables?.N)||defaultN)),BATCH:String(styleState.variables?.BATCH||defaultBatch),SERIES_CODE:String(styleState.variables?.SERIES_CODE||'')};
+    const step=styleStep(stepId);let p=String(styleState.prompts[step.id]||step.prompt||'').trim();if(!p)throw new Error(`${step.code}提示词为空`);
+    const vars={...styleState.variables,N:String(Math.max(1,Number(styleState.variables?.N)||500)),BATCH:String(styleState.variables?.BATCH||'B01'),SERIES_CODE:String(styleState.variables?.SERIES_CODE||'')};
     for(const [k,v] of Object.entries(vars))if(String(v).trim())p=p.split(`{${k}}`).join(String(v).trim());
-    const extra=[];if(/98|当前产品|产品配置/.test(step.input))extra.push(`【当前产品与主图固定配置】\n${String(styleState.productConfig||'').trim()||'未填写'}`);if(/白模参数|产品载体|载体参数|生产参数|工厂参数/.test(step.input))extra.push(`【固定产品载体 / 生产参数】\n${String(styleState.carrierInfo||'').trim()||'未额外填写'}`);
+    const extra=[];if(/98|当前产品|产品配置/.test(step.input))extra.push(`【当前产品与主图固定配置】\n${String(styleState.productConfig||'').trim()||'未填写'}`);if(/白模参数|产品载体|载体参数/.test(step.input))extra.push(`【固定产品载体信息 / 白模参数】\n${String(styleState.carrierInfo||'').trim()||'未额外填写'}`);
     if(extra.length)p+=`\n\n---\n\n${extra.join('\n\n')}`;
     return p.trim();
   }
-  function validateStyleStep(stepId=styleState.currentStep){const m=templateWorkflowMeta(),step=styleStep(stepId);if(!step)throw new Error(`${m.label}尚未导入可执行母版`);if(!styleState.selectedStepIds.includes(step.id))throw new Error('当前步骤未被选择');if(!String(styleState.prompts[step.id]||'').trim())throw new Error('当前步骤提示词为空');if(stepNeedsRefs(step)&&!styleState.imageNames?.length)throw new Error(`${step.code}需要参考素材，请先选择至少1张${m.refsLabel}`);return true;}
+  function validateStyleStep(stepId=styleState.currentStep){const step=styleStep(stepId);if(!step)throw new Error('没有可执行步骤');if(!styleState.selectedStepIds.includes(step.id))throw new Error('当前步骤未被选择');if(!String(styleState.prompts[step.id]||'').trim())throw new Error('当前步骤提示词为空');if(stepNeedsRefs(step)&&!styleState.imageNames?.length)throw new Error(`${step.code}需要参考图，请先选择至少1张对标参考图`);return true;}
 
   // ========================== 稳定 ChatGPT 交互层 ==========================
   function isVisible(el){if(!(el instanceof Element))return false;const r=el.getBoundingClientRect(),s=getComputedStyle(el);return r.width>1&&r.height>1&&s.visibility!=='hidden'&&s.display!=='none'&&Number(s.opacity||1)>0;}
@@ -659,212 +575,18 @@
   async function ensureFileInput(){let i=findFileInput();if(i)return i;const add=document.querySelector('button[data-testid*="composer-plus"],button[aria-label*="添加照片"],button[aria-label*="添加文件"],button[aria-label*="Attach"],button[aria-label*="Upload"]')||findClickable(['添加照片','添加文件','上传文件','Attach','Upload','Add photos']);if(add){add.click();await sleep(500)}i=findFileInput();if(i)return i;const m=findClickable(['添加照片和文件','上传文件','Add photos and files','Upload file','Attach files']);if(m){m.click();await sleep(500)}i=findFileInput();if(!i)throw new Error('未找到ChatGPT上传控件，页面结构可能变化');return i;}
   function countAttachments(){const c=findComposer();const rm=[...c.querySelectorAll('button[aria-label*="移除"],button[aria-label*="Remove"],button[aria-label*="删除附件"],button[aria-label*="Delete attachment"]')].filter(isVisible);if(rm.length)return rm.length;const explicit=[...c.querySelectorAll('[data-testid="composer-attachment"],[data-testid="attachment"],[data-testid*="attachment-item"]')].filter(isVisible);if(explicit.length)return explicit.length;return [...c.querySelectorAll('img')].filter(img=>{const r=img.getBoundingClientRect();return isVisible(img)&&r.width>=32&&r.height>=32&&r.width<=240&&r.height<=240}).length;}
   function detectUploadFailure(){const retry=/(?:上传到\s*files\.oaiusercontent\.com\s*失败|files\.oaiusercontent\.com[^\n]{0,120}(?:失败|failed)|文件上传失败|上传失败|Upload failed|Failed to upload|Network error|网络(?:错误|问题)|你已上传过此文件|already uploaded this file)/i;const limit=/(?:上传限制|上传次数.*上限|达到.*上传.*限制|upload limit|too many files|rate limit)/i;const nodes=[...document.querySelectorAll('[role="alert"],[role="dialog"],[aria-live="assertive"],[aria-live="polite"],[data-testid*="toast"],[class*="toast"],[class*="error"]')].filter(n=>isVisible(n)&&!n.closest('#kagura-pod-panel'));for(const n of nodes){const m=text(n).replace(/\s+/g,' ').trim();if(limit.test(m))return{failed:true,retryable:false,message:m};if(retry.test(m))return{failed:true,retryable:true,message:m};}return{failed:false,retryable:false,message:''};}
-  function uploadState(){
-    const c=findComposer(),t=text(c),f=detectUploadFailure();
-    const local=/上传失败|文件上传失败|Upload failed|Failed to upload|无法上传/i.test(t);
-    const previews=[...c.querySelectorAll('img')].filter(img=>{const r=img.getBoundingClientRect();return isVisible(img)&&r.width>=32&&r.height>=32&&r.width<=240&&r.height<=240});
-    const ready=previews.filter(i=>i.complete&&i.naturalWidth>0).length;
-    const broken=previews.filter(i=>i.complete&&!(i.naturalWidth>0)).length;
-    const ind=['[role="progressbar"]','[aria-busy="true"]','[data-testid*="upload-progress"]','[data-testid*="attachment-loading"]','[data-state="loading"]','.animate-spin'].some(s=>[...c.querySelectorAll(s)].some(isVisible));
-    const textProgress=/上传中|正在上传|正在处理(?:文件|图片)?|Uploading|Processing (?:file|image)|Preparing upload/i.test(t);
-    return{failed:f.failed||local,retryable:f.failed?f.retryable:local,failureMessage:f.message||'',uploading:textProgress||ind||ready<previews.length,progressActive:textProgress||ind,previewTotal:previews.length,previewReady:ready,brokenPreviewCount:broken,count:countAttachments()};
-  }
-  async function waitUploads(expected,label,stableMs=4000){
-    const timeout=Number(settings.uploadTimeout)||180000;let since=0,last=-1,badSince=0,stalledSince=0;
-    const r=await waitUntil(()=>{
-      const s=uploadState();
-      if(s.failed){const m=`${label}上传失败${s.failureMessage?`：${s.failureMessage}`:''}`;if(s.retryable)throw new UploadRetryableError(m);throw new Error(m);}
-      if(s.brokenPreviewCount>0){
-        if(!badSince)badSince=Date.now();
-        if(Date.now()-badSince>=8000)throw new UploadRetryableError(`${label}检测到损坏附件预览：${s.brokenPreviewCount} 张图片已结束加载但 naturalWidth=0`);
-      }else badSince=0;
-      const incompleteAttached=s.count>=expected&&s.previewTotal>0&&s.previewReady<s.previewTotal&&s.brokenPreviewCount===0;
-      if(incompleteAttached&&!s.progressActive){
-        if(!stalledSince)stalledSince=Date.now();
-        if(Date.now()-stalledSince>=25000)throw new UploadRetryableError(`${label}附件预览连续25秒无有效上传进展，判定上传卡死`);
-      }else stalledSince=0;
-      if(!s.uploading&&s.count>=expected){if(s.count!==last){last=s.count;since=Date.now()}if(!since)since=Date.now();if(Date.now()-since>=stableMs)return s.count;}else{since=0;last=s.count;}
-      return null;
-    },timeout,500);
-    if(!r)throw new UploadRetryableError(`${label}未在 ${Math.round(timeout/1000)} 秒内稳定完成，按上传超时进入自动恢复`);
-    log(`${label}全部上传完成：${r} 张附件已稳定`,'success');return r;
-  }
+  function uploadState(){const c=findComposer(),t=text(c),f=detectUploadFailure();const local=/上传失败|文件上传失败|Upload failed|Failed to upload|无法上传/i.test(t);const previews=[...c.querySelectorAll('img')].filter(img=>{const r=img.getBoundingClientRect();return isVisible(img)&&r.width>=32&&r.height>=32&&r.width<=240&&r.height<=240});const ready=previews.filter(i=>i.complete&&i.naturalWidth).length;const ind=['[role="progressbar"]','[aria-busy="true"]','[data-testid*="upload-progress"]','[data-testid*="attachment-loading"]','[data-state="loading"]','.animate-spin'].some(s=>[...c.querySelectorAll(s)].some(isVisible));return{failed:f.failed||local,retryable:f.failed?f.retryable:local,failureMessage:f.message||'',uploading:/上传中|正在上传|正在处理(?:文件|图片)?|Uploading|Processing (?:file|image)|Preparing upload/i.test(t)||ind||ready<previews.length,previewTotal:previews.length,previewReady:ready,count:countAttachments()};}
+  async function waitUploads(expected,label,stableMs=4000){const timeout=Number(settings.uploadTimeout)||180000;let since=0,last=-1;const r=await waitUntil(()=>{const s=uploadState();if(s.failed){const m=`${label}上传失败${s.failureMessage?`：${s.failureMessage}`:''}`;if(s.retryable)throw new UploadRetryableError(m);throw new Error(m);}if(!s.uploading&&s.count>=expected){if(s.count!==last){last=s.count;since=Date.now()}if(!since)since=Date.now();if(Date.now()-since>=stableMs)return s.count;}else{since=0;last=s.count;}return null;},timeout,500);if(!r)throw new Error(`${label}未在 ${Math.round(timeout/1000)} 秒内稳定完成`);log(`${label}全部上传完成：${r} 张附件已稳定`,'success');return r;}
   async function uploadFiles(files,label){if(!files.length)return countAttachments();const before=countAttachments(),expected=before+files.length,input=await ensureFileInput(),dt=new DataTransfer();files.forEach(f=>dt.items.add(f));input.files=dt.files;input.dispatchEvent(new Event('input',{bubbles:true,composed:true}));input.dispatchEvent(new Event('change',{bubbles:true,composed:true}));log(`已提交上传${label}：${files.map(f=>f.name).join('、')}`);return waitUploads(expected,label);}
 
   function plainText(e){return String(e?.innerText||e?.textContent||'').trim().replace(/\s+/g,' ');}
   function insideMessage(e){return Boolean(e?.closest?.('[data-message-author-role],article'));}
   function smartClick(e){if(!e)return false;e.scrollIntoView?.({block:'nearest',inline:'nearest'});const r=e.getBoundingClientRect?.();if(!r||r.width<=0||r.height<=0)return false;const x=r.left+r.width/2,y=r.top+r.height/2,hit=document.elementFromPoint(x,y),target=hit&&!hit.closest?.('#kagura-pod-panel')?hit:e;const o={bubbles:true,cancelable:true,composed:true,view:window,clientX:x,clientY:y,button:0,buttons:1,pointerId:1,pointerType:'mouse',isPrimary:true};for(const [t,C] of [['pointerover',PointerEvent],['mouseover',MouseEvent],['pointerdown',PointerEvent],['mousedown',MouseEvent],['pointerup',PointerEvent],['mouseup',MouseEvent]])try{target.dispatchEvent(new C(t,{...o,buttons:t.includes('up')?0:1}))}catch(_){}try{HTMLElement.prototype.click.call(target)}catch(_){try{HTMLElement.prototype.click.call(e)}catch(__){return false}}return true;}
-  function isSidebarLike(e){return Boolean(e?.closest?.('nav,aside,[data-testid*="sidebar"],[data-testid*="history"],[data-testid*="project"]'));}
-  function findPlus(){
-    const root=findComposer();if(!(root instanceof Element))return null;
-    const sels=['button[data-testid="composer-plus-btn"]','#composer-plus-btn','button[aria-label="添加文件等"]','[role="button"][aria-label="添加文件等"]','button[data-testid*="composer-plus"]','[role="button"][data-testid*="composer-plus"]','button[aria-label="Add"]','button[aria-label*="添加文件"]','button[aria-label*="Attach"]'];
-    for(const sel of sels){const a=[...root.querySelectorAll(sel)].filter(isVisible).filter(e=>!e.closest('#kagura-pod-panel')).filter(e=>!e.disabled&&e.getAttribute('aria-disabled')!=='true');if(a.length)return a.at(-1)}
-    const ed=findPromptEditor(),ar=ed?.getBoundingClientRect();if(!ar)return null;
-    const c=[...root.querySelectorAll('button,[role="button"]')].filter(isVisible).filter(e=>!e.closest('#kagura-pod-panel')).map(e=>{const r=e.getBoundingClientRect(),tx=text(e),test=e.getAttribute('data-testid')||'',aria=e.getAttribute('aria-label')||'';let score=0;const look=/composer-plus/i.test(test)||/添加文件|添加照片|附件|Attach|Add/i.test(`${aria} ${tx}`)||/^\+$/.test(tx);if(/composer-plus-btn/i.test(test))score+=1000;if(aria==='添加文件等')score+=600;if(look)score+=250;if(r.width>=22&&r.width<=76&&r.height>=22&&r.height<=76)score+=120;if(Math.abs((r.top+r.height/2)-(ar.top+ar.height/2))<80)score+=100;return{e,score,look}}).filter(x=>x.look).sort((a,b)=>b.score-a.score);
-    return c[0]?.e||null;
-  }
-  const CREATE_MENU_ROOT_SELECTOR='[popover],[data-radix-popper-content-wrapper],[data-radix-menu-content],[data-headlessui-portal],[data-floating-ui-portal],[role="menu"],[role="dialog"],[role="listbox"]';
-  const CREATE_CLICK_SELECTOR='button,[role="button"],[role="menuitem"],[role="option"],[data-radix-collection-item],[tabindex]';
-  function visibleMenuRoots(){
-    return [...document.querySelectorAll(CREATE_MENU_ROOT_SELECTOR)].filter(e=>{
-      if(!(e instanceof Element)||!isVisible(e)||insideMessage(e)||e.closest('#kagura-pod-panel')||isSidebarLike(e))return false;
-      const r=e.getBoundingClientRect();return r.width>=70&&r.height>=28&&r.bottom>=0&&r.top<=innerHeight;
-    });
-  }
-  function createItemScore(target,plus){
-    if(!(target instanceof Element)||!isVisible(target)||insideMessage(target)||target.closest('#kagura-pod-panel')||isSidebarLike(target))return -1;
-    const tx=plainText(target),ta=target.getAttribute('aria-label')||'',re=/^(创建图片|创作图片|生成图片|create\s*image|generate\s*image)(?:\s|$)/i;
-    if(!re.test(tx)&&!re.test(ta))return -1;
-    if(/替换人物|人物替换|换人物/.test(`${tx} ${ta}`))return -1;
-    const r=target.getBoundingClientRect();if(r.width<70||r.height<22||r.height>190||r.bottom<0||r.top>innerHeight)return -1;
-    const composer=findComposer(),cr=composer?.getBoundingClientRect?.(),pr=plus?.getBoundingClientRect?.();
-    if(cr&&!(r.bottom>=cr.top-760&&r.top<=cr.bottom+140&&r.right>=cr.left-140&&r.left<=cr.right+140))return -1;
-    let score=1500;
-    if(/^(创建图片|创作图片)(?:\s|$)/i.test(`${tx} ${ta}`))score+=2200;
-    if(/可视化呈现任何内容|可视化/.test(tx))score+=1500;
-    if(/任何内容/.test(tx))score+=450;
-    if(/visualize|visualise/i.test(tx))score+=700;
-    if(target.matches('[role="menuitem"],button,[role="button"],[data-radix-collection-item]'))score+=650;
-    if(getComputedStyle(target).cursor==='pointer')score+=120;
-    if(pr){const cx=r.left+r.width/2,cy=r.top+r.height/2,px=pr.left+pr.width/2,py=pr.top+pr.height/2;score+=Math.max(0,900-Math.hypot(cx-px,cy-py));}
-    return score;
-  }
-  function findCreateInside(root,plus=findPlus()){
-    if(!(root instanceof Element)||isSidebarLike(root))return null;
-    const re=/^(创建图片|创作图片|生成图片|create\s*image|generate\s*image)(?:\s|$)/i,cand=[],seen=new Set();
-    const nodes=[];
-    if(root.matches?.(`${CREATE_CLICK_SELECTOR},div,span`))nodes.push(root);
-    try{nodes.push(...root.querySelectorAll(`${CREATE_CLICK_SELECTOR},div,span`));}catch(_){}
-    for(const e of nodes){
-      if(!(e instanceof Element)||!isVisible(e)||insideMessage(e)||e.closest('#kagura-pod-panel')||isSidebarLike(e))continue;
-      const raw=plainText(e),aria=e.getAttribute('aria-label')||'';if(!re.test(raw)&&!re.test(aria))continue;
-      let target=e.matches(CREATE_CLICK_SELECTOR)?e:e.closest(CREATE_CLICK_SELECTOR);
-      if(!target)target=e;
-      if(seen.has(target))continue;
-      const score=createItemScore(target,plus);if(score<0)continue;
-      seen.add(target);cand.push({e:target,score,tx:plainText(target),r:target.getBoundingClientRect()});
-    }
-    cand.sort((a,b)=>b.score-a.score);return cand[0]||null;
-  }
-  function controlledCreateRoots(plus){
-    if(!(plus instanceof Element))return[];
-    const out=[],seen=new Set();
-    for(const attr of ['aria-controls','aria-owns']){
-      for(const id of String(plus.getAttribute(attr)||'').split(/\s+/).filter(Boolean)){
-        const root=document.getElementById(id);
-        if(root instanceof Element&&!seen.has(root)&&isVisible(root)&&!insideMessage(root)&&!root.closest('#kagura-pod-panel')&&!isSidebarLike(root)){seen.add(root);out.push(root);}
-      }
-    }
-    return out;
-  }
-  function createCandidateFromPointNode(node,plus){
-    if(!(node instanceof Element)||!(plus instanceof Element))return null;
-    const re=/^(创建图片|创作图片|生成图片|create\s*image|generate\s*image)(?:\s|$)/i;
-    let cur=node;
-    for(let depth=0;cur&&cur!==document.body&&depth<10;depth++,cur=cur.parentElement){
-      if(!(cur instanceof Element)||!isVisible(cur)||insideMessage(cur)||cur.closest('#kagura-pod-panel')||isSidebarLike(cur))continue;
-      const tx=plainText(cur),aria=cur.getAttribute('aria-label')||'';
-      if((!re.test(tx)&&!re.test(aria))||/替换人物|人物替换|换人物/.test(`${tx} ${aria}`))continue;
-      let target=cur.matches(CREATE_CLICK_SELECTOR)?cur:cur.closest(CREATE_CLICK_SELECTOR);
-      if(!(target instanceof Element)||insideMessage(target)||target.closest('#kagura-pod-panel')||isSidebarLike(target))continue;
-      const score=createItemScore(target,plus);if(score<0)continue;
-      return{e:target,score,tx:plainText(target)||tx||aria,r:target.getBoundingClientRect()};
-    }
-    return null;
-  }
-  function findCreateNearPlusLocal(plus=findPlus()){
-    if(!(plus instanceof Element))return null;
-    let best=null;const inspected=new Set(),pr=plus.getBoundingClientRect();
-    const inspectRoot=(root,localSource)=>{
-      if(!(root instanceof Element)||inspected.has(root)||!isVisible(root)||insideMessage(root)||root.closest('#kagura-pod-panel')||isSidebarLike(root))return;
-      const r=root.getBoundingClientRect();
-      if(r.width<70||r.height<24||r.width>760||r.height>820||r.bottom<0||r.top>innerHeight||r.right<0||r.left>innerWidth)return;
-      inspected.add(root);
-      const info=findCreateInside(root,plus);
-      if(info&&(!best||info.score>best.score))best={...info,localSource};
-    };
-    for(const root of controlledCreateRoots(plus))inspectRoot(root,'aria-control');
-    if(best)return best;
-
-    // V1.6.8 的固定离散 yOffsets 在实机上会恰好跨过真实“创建图片”菜单行。
-    // 这里只围绕当前 composer 加号上方有限区域做点采样；每个点只检查命中元素及其祖先，绝不全页 querySelectorAll。
-    const px=pr.left+pr.width/2,py=pr.top+pr.height/2;
-    const xOffsets=[-80,0,80,160,240,320,400,480];
-    for(let dy=80;dy<=560;dy+=24){
-      const y=Math.max(2,Math.min(innerHeight-3,py-dy));
-      for(const xo of xOffsets){
-        const x=Math.max(2,Math.min(innerWidth-3,px+xo));
-        const node=document.elementFromPoint(x,y);
-        const info=createCandidateFromPointNode(node,plus);
-        if(info&&(!best||info.score>best.score))best={...info,localSource:'geometry-strip'};
-        if(best&&best.score>=3200)return best;
-      }
-    }
-    return best;
-  }
-  function nearbyVisibleCreateFromRoots(before,plus){
-    const roots=visibleMenuRoots(),fresh=roots.filter(r=>!before?.has?.(r)),pool=fresh.length?fresh:roots;
-    let best=null;
-    for(const root of pool){const info=findCreateInside(root,plus);if(info&&(!best||info.score>best.score))best=info;}
-    return best;
-  }
-  async function waitCreateItemBounded(plus,before,timeout=5200,interval=240){
-    const started=Date.now();let scans=0,localScans=0,nextLocalAt=0;
-    while(Date.now()-started<timeout){
-      if(!state.running)throw new PausedError();
-      const info=nearbyVisibleCreateFromRoots(before,plus);scans++;
-      if(info)return{...info,source:'bounded-visible-root',scans,localScans};
-      const now=Date.now(),expanded=plus?.getAttribute?.('aria-expanded')==='true';
-      if(expanded&&now>=nextLocalAt){
-        const local=findCreateNearPlusLocal(plus);localScans++;nextLocalAt=now+560;
-        if(local)return{...local,source:`bounded-${local.localSource||'local-geometry'}`,scans,localScans};
-      }
-      await sleep(interval);
-    }
-    return null;
-  }
-  function resetCreateMenu(){
-    try{document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',code:'Escape',bubbles:true,cancelable:true}));}catch(_){}
-    try{document.dispatchEvent(new KeyboardEvent('keyup',{key:'Escape',code:'Escape',bubbles:true,cancelable:true}));}catch(_){}
-  }
-  function createMenuDiagnostics(plus=findPlus()){
-    const roots=visibleMenuRoots(),texts=[];for(const root of roots.slice(0,5)){const tx=plainText(root);if(tx)texts.push(tx.slice(0,180));}
-    const p=plus?`aria-expanded=${plus.getAttribute('aria-expanded')||'-'} aria-haspopup=${plus.getAttribute('aria-haspopup')||'-'} testid=${plus.getAttribute('data-testid')||'-'}`:'+按钮未找到';
-    const local=plus&&plus.getAttribute('aria-expanded')==='true'?findCreateNearPlusLocal(plus):null;
-    return `${p}；当前可见弹层根=${roots.length}${texts.length?`；弹层文字=${texts.join(' || ')}`:''}${local?`；局部候选=${local.tx}(${local.localSource||'local'})`:''}`;
-  }
-  function hasCreateChip(){
-    const c=findComposer(),ed=findPromptEditor(),er=ed?.getBoundingClientRect(),re=/^(创建图片|创作图片|生成图片|create\s*image|generate\s*image)$/i;if(!(c instanceof Element))return false;
-    for(const e of c.querySelectorAll('button,[role="button"],[data-testid*="chip"],[data-testid*="tool"],div,span')){if(!isVisible(e)||insideMessage(e)||e.closest('#kagura-pod-panel')||isSidebarLike(e))continue;if(!re.test(plainText(e)))continue;const r=e.getBoundingClientRect();if(!er||r.bottom>=er.top-140&&r.top<=er.bottom+80)return true;}return false;
-  }
-  async function activateCreate(){
-    state.phase='activating_create_image';saveState();
-    if(hasCreateChip()){log('已存在“创建图片”模式，无需重复添加','success');return;}
-    const pathBefore=location.pathname;let last;
-    for(let a=1;a<=3;a++){
-      try{
-        if(location.pathname!==pathBefore)throw new Error('创建图片入口错误：检测到会话跳转');
-        resetCreateMenu();await sleep(180);
-        const plus=await waitUntil(()=>findPlus(),7000,200);if(!plus)throw new Error('未找到当前输入框左侧“+”按钮');
-        const before=new Set(visibleMenuRoots());
-        if(!smartClick(plus))throw new Error('当前输入框“+”按钮点击失败');
-        log(`已点击当前输入框左侧“+”按钮（${a}/3），开始限时检测可见菜单`);
-        const info=await waitCreateItemBounded(plus,before,5200,180);
-        if(location.pathname!==pathBefore)throw new Error('创建图片入口错误：检测到会话跳转');
-        if(!info)throw new Error(`加号菜单已尝试打开，但限时检测未发现“创建图片”。${createMenuDiagnostics(plus)}`);
-        log(`已定位“创建图片”菜单项：${info.tx||'创建图片'}；来源 ${info.source||'bounded-poll'}；坐标 ${Math.round(info.r.left+info.r.width/2)},${Math.round(info.r.top+info.r.height/2)}`);
-        if(!smartClick(info.e))throw new Error('已找到“创建图片”，但点击动作未成功派发');
-        const chip=await waitUntil(()=>{if(location.pathname!==pathBefore)throw new Error('创建图片入口错误：检测到会话跳转');if(!findPromptEditor())throw new Error('创建图片入口错误：当前输入框已消失');return hasCreateChip();},5000,350);
-        if(!chip)throw new Error(`点击后未检测到“创建图片”标签。${createMenuDiagnostics(plus)}`);
-        log('创建图片模式添加成功','success');return;
-      }catch(e){
-        last=e;const msg=e?.message||String(e);log(`第 ${a} 次添加创建图片失败：${msg}`,'warn');
-        if(/会话跳转|当前输入框已消失/.test(msg)){state.running=false;state.phase='error';saveState();throw new Error(msg);}
-        resetCreateMenu();await sleep(450);
-      }
-    }
-    throw new Error(`创建图片模式添加失败：${last?.message||last}`);
-  }
+  function findPlus(){const sels=['button[data-testid="composer-plus-btn"]','#composer-plus-btn','button[aria-label="添加文件等"]','[role="button"][aria-label="添加文件等"]','button[data-testid*="composer-plus"]','[role="button"][data-testid*="composer-plus"]','button[aria-label="Add"]','button[aria-label*="添加文件"]','button[aria-label*="Attach"]'];for(const s of sels){const a=[...document.querySelectorAll(s)].filter(isVisible).filter(e=>!e.closest('#kagura-pod-panel')).filter(e=>!e.disabled&&e.getAttribute('aria-disabled')!=='true');if(a.length)return a.at(-1)}const ed=findPromptEditor(),ar=ed?.getBoundingClientRect();if(!ar)return null;const c=[...document.querySelectorAll('button,[role="button"]')].filter(isVisible).filter(e=>!e.closest('#kagura-pod-panel')).map(e=>{const r=e.getBoundingClientRect(),tx=text(e),test=e.getAttribute('data-testid')||'',aria=e.getAttribute('aria-label')||'';let score=0;const look=/composer-plus/i.test(test)||/添加文件|添加照片|附件|Attach|Add/i.test(`${aria} ${tx}`)||/^\+$/.test(tx);if(/composer-plus-btn/i.test(test))score+=1000;if(aria==='添加文件等')score+=600;if(look)score+=250;if(r.width>=22&&r.width<=76&&r.height>=22&&r.height<=76)score+=120;if(Math.abs((r.top+r.height/2)-(ar.top+ar.height/2))<80)score+=100;return{e,score,look}}).filter(x=>x.look).sort((a,b)=>b.score-a.score);return c[0]?.e||null;}
+  function visibleMenuRoots(){return [...document.querySelectorAll('[popover],[data-radix-popper-content-wrapper],[data-radix-menu-content],[data-headlessui-portal],[data-floating-ui-portal],[role="menu"],[role="dialog"],[role="listbox"],[data-state="open"]')].filter(e=>isVisible(e)&&!insideMessage(e)&&!e.closest('#kagura-pod-panel'));}
+  function findCreateItem(){const re=/(创建图片|创作图片|生成图片|create\s*image|generate\s*image)/i;const cand=[];for(const e of document.querySelectorAll('button,[role="button"],[role="menuitem"],[role="option"],[data-radix-collection-item],div,span')){if(!isVisible(e)||insideMessage(e)||e.closest('#kagura-pod-panel'))continue;const tx=plainText(e);if(!re.test(`${tx} ${e.getAttribute('aria-label')||''}`)||tx.length>240)continue;const r=e.getBoundingClientRect();if(r.width<70||r.height<22||r.height>180)continue;let score=700;if(/^(创建图片|创作图片|生成图片|create\s*image|generate\s*image)(?:\s|$)/i.test(tx))score+=1800;if(/可视化/.test(tx))score+=1000;if(e.matches('button,[role="menuitem"],[role="option"],[role="button"]'))score+=420;if(e.closest('[role="menu"],[role="dialog"],[data-radix-popper-content-wrapper]'))score+=700;cand.push({e,score,tx,r});}cand.sort((a,b)=>b.score-a.score);return cand[0]||null;}
+  function hasCreateChip(){const c=findComposer(),ed=findPromptEditor(),er=ed?.getBoundingClientRect(),re=/^(创建图片|创作图片|生成图片|create\s*image|generate\s*image)$/i;for(const root of [c,document])for(const e of root.querySelectorAll('button,[role="button"],div,span')){if(!isVisible(e)||insideMessage(e)||e.closest('#kagura-pod-panel'))continue;if(!re.test(plainText(e)))continue;const r=e.getBoundingClientRect();if((c instanceof Element&&c.contains(e))||(er&&r.bottom>=er.top-140&&r.top<=er.bottom+80))return true;}return false;}
+  async function activateCreate(){state.phase='activating_create_image';saveState();if(hasCreateChip()){log('已存在“创建图片”模式，无需重复添加','success');return;}let last;for(let a=1;a<=3;a++){try{const plus=await waitUntil(()=>findPlus(),7000,200);if(!plus)throw new Error('未找到输入框左侧“+”按钮');smartClick(plus);log(`已点击输入框左侧“+”按钮（${a}/3）`);await sleep(500);let item=await waitUntil(()=>findCreateItem()?.e,4500,150);if(!item){smartClick(findPlus()||plus);await sleep(450);item=await waitUntil(()=>findCreateItem()?.e,3500,150);}if(!item)throw new Error('加号菜单中未找到“创建图片”');const info=findCreateItem();log(`已定位“创建图片”菜单项：${info?.tx||'创建图片'}`);smartClick(item);if(!await waitUntil(()=>hasCreateChip(),5000,220))throw new Error('点击后未检测到“创建图片”标签');log('创建图片模式添加成功','success');return;}catch(e){last=e;log(`第 ${a} 次添加创建图片失败：${e.message}`,'warn');await sleep(700)}}throw new Error(`创建图片模式添加失败：${last?.message||last}`);}
 
   function setNativeValue(e,v){const p=e instanceof HTMLTextAreaElement?HTMLTextAreaElement.prototype:HTMLInputElement.prototype,d=Object.getOwnPropertyDescriptor(p,'value');d?.set?.call(e,v);e.dispatchEvent(new InputEvent('input',{bubbles:true,composed:true,inputType:'insertText',data:v}));e.dispatchEvent(new Event('change',{bubbles:true,composed:true}));}
   function normalizePrompt(v){return String(v||'').replace(/[\u200B-\u200D\u2060\uFEFF]/g,'').replace(/\r\n?/g,'\n').replace(/[ \t]+/g,' ').replace(/ *\n */g,'\n').trim();}
@@ -972,7 +694,7 @@
     return true;
   }
 
-  // 母版驱动工作流使用普通文本对话，不启用“创建图片”工具。
+  // 风格反推使用普通文本对话，不启用“创建图片”工具。
   async function goNewChatPlain(){
     const d=document.querySelector('a[data-testid="create-new-chat-button"],button[data-testid="create-new-chat-button"],a[aria-label*="新聊天"],button[aria-label*="新聊天"],a[aria-label*="New chat"],button[aria-label*="New chat"]')||findClickable(['新聊天','新建聊天','New chat']);
     if(d)d.click();else{history.pushState({},'', '/');window.dispatchEvent(new PopStateEvent('popstate'));}
@@ -994,7 +716,7 @@
   }
   async function sendPlainPrompt(expectedCount,prompt){
     let btn=await waitReadyPlainSend(expectedCount,prompt),beforeMatch=countUserContaining(prompt),beforeAny=countUserMessages();const observe=Math.max(Number(settings.uploadTimeout)||180000,240000);
-    for(let click=1;click<=2;click++){if(!promptMatches(findPromptEditor(),prompt)){log(`${templateWorkflowMeta().label}步骤提示词已离开输入框，取消重复发送`,'success');return;}smartClick(btn);log(`${templateWorkflowMeta().label}步骤已点击发送（第${click}次），开始确认提交`);const start=Date.now();while(Date.now()-start<observe){if(!styleState.running)throw new PausedError();const still=promptMatches(findPromptEditor(),prompt),newMatch=countUserContaining(prompt)>beforeMatch,newAny=countUserMessages()>beforeAny;if(!still&&(newMatch||newAny)){log(`${templateWorkflowMeta().label}步骤消息已确认提交`,'success');await sleep(800);return;}await sleep(600);}if(!promptMatches(findPromptEditor(),prompt))return;if(click===1){btn=await waitReadyPlainSend(expectedCount,prompt);continue;}throw new Error(`连续两次点击后仍无法确认${templateWorkflowMeta().label}步骤消息提交`);}
+    for(let click=1;click<=2;click++){if(!promptMatches(findPromptEditor(),prompt)){log('风格步骤提示词已离开输入框，取消重复发送','success');return;}smartClick(btn);log(`风格步骤已点击发送（第${click}次），开始确认提交`);const start=Date.now();while(Date.now()-start<observe){if(!styleState.running)throw new PausedError();const still=promptMatches(findPromptEditor(),prompt),newMatch=countUserContaining(prompt)>beforeMatch,newAny=countUserMessages()>beforeAny;if(!still&&(newMatch||newAny)){log('风格步骤消息已确认提交','success');await sleep(800);return;}await sleep(600);}if(!promptMatches(findPromptEditor(),prompt))return;if(click===1){btn=await waitReadyPlainSend(expectedCount,prompt);continue;}throw new Error('连续两次点击后仍无法确认风格步骤消息提交');}
   }
   function assistantMessageText(n){if(!n)return'';try{const c=n.cloneNode(true);c.querySelectorAll('button,svg,[role="button"],[data-testid*="copy"],[aria-label*="复制"],[aria-label*="Copy"]').forEach(x=>x.remove());return String(c.innerText||c.textContent||'').trim();}catch(_){return String(n.innerText||n.textContent||'').trim();}}
   function latestAssistantAfter(anchor){let best=null,score=-Infinity;for(const n of document.querySelectorAll('[data-message-author-role="assistant"],article')){if(n.closest('#kagura-pod-panel,form[data-type="unified-composer"],[data-composer-surface="true"]'))continue;const role=n.getAttribute('data-message-author-role')||'';if(role&&role!=='assistant')continue;if(anchor&&!afterAnchor(n,anchor))continue;const r=n.getBoundingClientRect(),s=r.top+scrollY;if(s>score){best=n;score=s}}return best;}
@@ -1173,9 +895,8 @@
     const resumeKind=state.resumeContext?.kind||'';
     let detectOnly=Boolean(['generation-refresh','sent-waiting'].includes(resumeKind)&&state.currentBatchKeys.length);
     let confirmOnly=Boolean(resumeKind==='send-confirming'&&state.currentBatchKeys.length);
-    let resumeUploadRefresh=Boolean(resumeKind==='upload-refresh'&&state.currentBatchKeys.length);
     if(!tasks.length){tasks=pendingTasks().slice(0,Math.max(1,Math.min(10,Number(settings.batchSize)||3)));if(!tasks.length)return false;state.currentBatchKeys=tasks.map(t=>t.key);state.currentBatchPaths=[];state.batchStartedAt=Date.now();state.generationStartedAt=0;state.detectedGeneratedCount=0;state.expectedGeneratedCount=tasks.length;state.generatedCountChangedAt=Date.now();state.phase='preparing';for(const t of tasks){t.status='running';t.attempts=Number(t.attempts||0)+1;t.error='';t.updatedAt=new Date().toISOString();}saveState();}
-    const prompt=state.resumeContext?.prompt||buildBatchPrompt(tasks);let uploadRetries=Math.max(0,Number(state.resumeContext?.uploadRetries)||0);let execution=0;
+    const prompt=state.resumeContext?.prompt||buildBatchPrompt(tasks);let uploadRetries=0;let execution=0;
     while(true){
       execution++;let sent=detectOnly;
       try{
@@ -1188,12 +909,10 @@
           state.generationStartedAt=state.generationStartedAt||Date.now();state.phase='generating';saveState();
           baseline=new Set();
         }else if(!detectOnly){
-          if(settings.newChatEachBatch&&!resumeUploadRefresh)await goNewChat();
+          if(settings.newChatEachBatch)await goNewChat();
           baseline=new Set(generatedImages().map(i=>i.key));state.phase='uploading_assets';saveState();
           const uploadList=[await handles.template.getFile()];let uploadLabel='公共模板图';if(handles.logo){uploadList.push(await handles.logo.getFile());uploadLabel='公共模板图、公共Logo图';}
-          const expected=await uploadFiles(uploadList,uploadLabel);
-          if(resumeUploadRefresh){state.resumeContext=null;resumeUploadRefresh=false;saveState(false);log('刷新恢复后附件上传成功，继续当前批次；此前未发送提示词','success');}
-          await activateCreate();state.phase='writing_prompt';saveState();await setPromptValue(prompt);state.phase='sending';saveState();await sendPrompt(expected,prompt);
+          const expected=await uploadFiles(uploadList,uploadLabel);await activateCreate();state.phase='writing_prompt';saveState();await setPromptValue(prompt);state.phase='sending';saveState();await sendPrompt(expected,prompt);
           sent=true;markBatchSent(prompt,{expectedCount:expected});state.generationStartedAt=Date.now();state.phase='generating';saveState();
         }else{
           baseline=new Set();state.phase='recovering';state.generationStartedAt=state.generationStartedAt||Date.now();saveState();log('当前批次此前已发送成功，本次只恢复检测，不会重新发送','warn');await sleep(8000);
@@ -1205,20 +924,7 @@
         finishBatchTimers();state.currentBatchKeys=[];state.currentBatchPaths=[];state.resumeContext=null;state.batchNo++;state.phase=pendingTasks().length?'ready':'done';saveState();return true;
       }catch(e){
         if(e instanceof PausedError)throw e;
-        if(e instanceof UploadRetryableError&&!sent&&!confirmOnly&&!['send-confirming','sent-waiting','generation-refresh'].includes(state.resumeContext?.kind)){
-          uploadRetries++;
-          if(uploadRetries===1){
-            log(`检测到上传失败/坏图/卡死，原页面清理附件后重试 1/2：${e.message}`,'warn');
-            await clearComposer();detectOnly=false;confirmOnly=false;resumeUploadRefresh=false;state.resumeContext=null;await sleep(1200);continue;
-          }
-          if(uploadRetries===2){
-            state.resumeContext={kind:'upload-refresh',batchKeys:[...state.currentBatchKeys],batchPaths:[...state.currentBatchPaths],prompt:String(prompt||''),uploadRetries,refreshReason:String(e.message||e),updatedAt:new Date().toISOString()};
-            state.phase='refreshing';saveState();
-            log(`第二次上传仍失败，刷新当前页面后恢复同一批次重新上传；当前批尚未发送：${e.message}`,'warn');
-            setTimeout(()=>location.reload(),300);return new Promise(()=>{});
-          }
-          log(`刷新恢复后上传仍失败，停止自动恢复并暂停当前批：${e.message}`,'error');
-        }
+        if(e instanceof UploadRetryableError&&uploadRetries<2&&!sent&&!confirmOnly&&!['send-confirming','sent-waiting'].includes(state.resumeContext?.kind)){uploadRetries++;log(`模板/Logo图上传失败，整批清理/重试 ${uploadRetries}/2：${e.message}`,'warn');await clearComposer();detectOnly=false;confirmOnly=false;state.resumeContext=null;await sleep(1200);continue;}
         if(sent||['send-confirming','sent-waiting','generation-refresh'].includes(state.resumeContext?.kind)){
           const completed=tasks.filter(t=>t.status==='done');const unresolved=tasks.filter(t=>t.status!=='done');let abnormal={saved:[],failed:[]};if(!completed.length&&state.phase!=='downloading'){const partial=normalizeGallery(generatedImages(prompt),0);abnormal=await downloadAbnormal(partial,state.batchNo,handles.output).catch(()=>({saved:[],failed:[]}));}
           for(const t of unresolved){if(t.status==='done')continue;t.status='confirm';t.error=`已发送后异常：${e.message}；为避免重复生成不自动重发${abnormal.saved.length?`；临时图：${abnormal.saved.join('、')}`:''}`;t.updatedAt=new Date().toISOString();}
@@ -1229,40 +935,40 @@
     }
   }
   async function clearComposer(){const c=findComposer();for(let n=0;n<10&&countAttachments()>0;n++){const b=[...c.querySelectorAll('button[aria-label*="移除"],button[aria-label*="Remove"],button[aria-label*="删除附件"],button[aria-label*="Delete attachment"]')].filter(isVisible);if(!b.length)break;for(const x of b){smartClick(x);await sleep(150)}}const e=findPromptEditor();if(e){try{if(e instanceof HTMLTextAreaElement||e instanceof HTMLInputElement)setNativeValue(e,'');else{e.focus();document.execCommand('selectAll',false);document.execCommand('delete',false)}}catch(_){}}await sleep(500);}
-  async function betweenBatches(){const min=Math.max(0,Number(settings.intervalMin)||0),max=Math.max(min,Number(settings.intervalMax)||min),ms=Math.floor(min+Math.random()*(max-min+1)),end=Date.now()+ms;log(`本批完成，随机等待 ${Math.ceil(ms/1000)} 秒后进入下一批`);while(state.running&&Date.now()<end){state.phase='batch_wait';updateHeartbeat();await sleep(Math.min(1000,end-Date.now()))}if(!state.running)return false;state.phase='ready';saveState();return true;}
+  async function betweenBatches(){const min=Math.max(0,Number(settings.intervalMin)||0),max=Math.max(min,Number(settings.intervalMax)||min),ms=Math.floor(min+Math.random()*(max-min+1)),end=Date.now()+ms;log(`本批完成，随机等待 ${Math.ceil(ms/1000)} 秒后进入下一批`);while(state.running&&Date.now()<end){state.phase='batch_wait';updatePanel();await sleep(Math.min(1000,end-Date.now()))}if(!state.running)return false;state.phase='ready';saveState();return true;}
   async function worker(){if(workerActive||!state.running)return;workerActive=true;try{while(state.running&&pendingTasks().length){const ok=await processBatch();if(!ok)break;if(state.running&&pendingTasks().length&&!await betweenBatches())break;}if(state.running&&!pendingTasks().length){stopRunClock();state.running=false;state.phase='done';saveState();log(`全部完成：${activeTasks().filter(t=>t.status==='done').length} 条已完成，${activeTasks().filter(t=>t.status==='confirm').length} 条待确认`,'success')}}catch(e){if(e instanceof PausedError)log('任务已暂停','warn');else{stopRunClock();state.running=false;state.phase='error';saveState();log(e.message||String(e),'error')}}finally{workerActive=false;updatePanel();}}
-  async function start(){readUiSettings();if(settings.flow!=='batch_generation')throw new Error('当前流程不是图片生成自动化，请切换到“图片生成自动化”');refreshMissingPromptStates();saveState(false);await validateHandles(true);renderTaskList(true);const p=pendingTasks();if(!p.length){const missing=activeTasks().filter(t=>t.status==='error'&&/^缺少Excel完整提示词/.test(String(t.error||''))).length;if(missing)log(`当前范围没有可执行任务；其中 ${missing} 条缺少 Excel 完整提示词`,'warn');else log('当前范围没有待处理任务','warn');return;}state.running=true;const rk=state.resumeContext?.kind||'';state.phase=rk==='send-confirming'?'sending':['sent-waiting','generation-refresh'].includes(rk)?'recovering':'ready';startRunClock();saveState();if(rk==='send-confirming')log(`继续当前批：检测到发送按钮此前已经点击，先核验发送状态，不会直接重复发送`,'warn');else if(['sent-waiting','generation-refresh'].includes(rk))log(`继续当前批：该批已经发送成功，只恢复结果检测/下载，不会重新上传或发送`,'warn');else log(`任务开始：待处理 ${p.length} 条，每批 ${settings.batchSize} 条；每批上传 1 张公共模板图${settings.useLogoFile?' + 1 张公共Logo图':''}`,'success');worker();}
+  async function start(){readUiSettings();if(settings.flow!=='batch_generation')throw new Error('当前流程尚未启用执行器，请切换到“批量生图”');refreshMissingPromptStates();saveState(false);await validateHandles(true);renderTaskList(true);const p=pendingTasks();if(!p.length){const missing=activeTasks().filter(t=>t.status==='error'&&/^缺少Excel完整提示词/.test(String(t.error||''))).length;if(missing)log(`当前范围没有可执行任务；其中 ${missing} 条缺少 Excel 完整提示词`,'warn');else log('当前范围没有待处理任务','warn');return;}state.running=true;const rk=state.resumeContext?.kind||'';state.phase=rk==='send-confirming'?'sending':['sent-waiting','generation-refresh'].includes(rk)?'recovering':'ready';startRunClock();saveState();if(rk==='send-confirming')log(`继续当前批：检测到发送按钮此前已经点击，先核验发送状态，不会直接重复发送`,'warn');else if(['sent-waiting','generation-refresh'].includes(rk))log(`继续当前批：该批已经发送成功，只恢复结果检测/下载，不会重新上传或发送`,'warn');else log(`任务开始：待处理 ${p.length} 条，每批 ${settings.batchSize} 条；每批上传 1 张公共模板图${settings.useLogoFile?' + 1 张公共Logo图':''}`,'success');worker();}
   function pause(){stopRunClock();state.running=false;saveState();const rk=state.resumeContext?.kind||'';if(rk==='send-confirming')log('已暂停：当前批已经点击发送，继续时会先核验是否已提交，不会直接重复发送','warn');else if(['sent-waiting','generation-refresh'].includes(rk))log('已暂停：当前批已经确认发送，继续时只恢复检测/下载，不会重新发送','warn');else log('已请求暂停；当前页面操作结束后停止','warn');}
   function skipCurrent(){const tasks=currentBatchTasks();if(!tasks.length)return;for(const t of tasks){t.status='skipped';t.error='用户跳过当前批';t.updatedAt=new Date().toISOString();}finishBatchTimers();state.currentBatchKeys=[];state.currentBatchPaths=[];state.resumeContext=null;state.batchNo++;state.running=false;state.phase='ready';saveState();log(`已跳过当前批：${tasks.map(t=>t.id).join('、')}`,'warn');}
   function resetProgress(){if(!confirm('确定把任务状态全部重置为待处理吗？已保存图片不会删除。'))return;for(const t of state.tasks){t.status='pending';t.outputFiles=[];t.error='';t.attempts=0;}stopRunClock();state.running=false;state.phase='ready';state.batchNo=1;state.currentBatchKeys=[];state.currentBatchPaths=[];state.resumeContext=null;state.totalRunMs=0;state.startedAt=0;finishBatchTimers();saveState();log('任务状态和运行进度已重置','warn');}
 
 
-  // ========================== 母版驱动动态步骤执行器 ==========================
+  // ========================== 风格反推动态步骤执行器 ==========================
   async function styleStepFiles(step){
-    const m=templateWorkflowMeta(),refs=await getHandle(m.refsKey).catch(()=>null),tpl=await getHandle(m.templateKey).catch(()=>null);const files=[];
-    if(stepNeedsRefs(step)&&Array.isArray(refs))for(const h of refs){if(await permission(h,'read',true)!=='granted')throw new Error(`没有参考素材读取权限：${h.name}`);files.push(await h.getFile());}
-    if(stepAllowsTemplate(step)&&tpl){if(await permission(tpl,'read',true)!=='granted')throw new Error(`没有${m.templateLabel}读取权限`);files.push(await tpl.getFile());}
+    const refs=await getHandle(STYLE_REFS_KEY).catch(()=>null),tpl=await getHandle(STYLE_TEMPLATE_KEY).catch(()=>null);const files=[];
+    if(stepNeedsRefs(step)&&Array.isArray(refs))for(const h of refs){if(await permission(h,'read',true)!=='granted')throw new Error(`没有参考图读取权限：${h.name}`);files.push(await h.getFile());}
+    if(stepNeedsRefs(step)&&stepAllowsTemplate(step)&&tpl){if(await permission(tpl,'read',true)!=='granted')throw new Error('没有白模读取权限');files.push(await tpl.getFile());}
     return files;
   }
   function sameStyleConversation(){return !styleState.conversationPath||location.pathname===styleState.conversationPath;}
   function hasCompletedSelectedStep(){return selectedStyleSteps().some(s=>styleState.statuses[s.id]==='done');}
   async function prepareStyleConversation(step){
-    const m=templateWorkflowMeta();if(styleState.sessionActive){if(!sameStyleConversation())throw new Error(`当前ChatGPT对话已经改变。${m.label}依赖同一对话上下文，请回到原对话，或新建项目重新开始。`);return;}
+    if(styleState.sessionActive){if(!sameStyleConversation())throw new Error('当前ChatGPT对话已经改变。风格流程依赖同一对话上下文，请回到原对话，或新建项目重新开始。');return;}
     if(previousSelectedStyleSteps(step.id).some(s=>styleState.statuses[s.id]==='done')){styleState.sessionActive=true;styleState.conversationPath=location.pathname;return;}
     await goNewChatPlain();styleState.sessionActive=true;styleState.conversationPath='';saveStyleState(false);
   }
   async function runStyleStep(force=false,autoChain=false){
-    const m=templateWorkflowMeta();if(styleState.running)throw new Error(`当前${m.label}步骤正在执行`);const step=styleStep(styleState.currentStep);validateStyleStep(step?.id);if(!force&&styleState.statuses[step.id]==='done'&&!confirm('当前步骤已经完成。重新执行会在当前对话中追加一次新回复，继续？'))return;
+    if(styleState.running)throw new Error('当前风格步骤正在执行');const step=styleStep(styleState.currentStep);validateStyleStep(step.id);if(!force&&styleState.statuses[step.id]==='done'&&!confirm('当前步骤已经完成。重新执行会在当前对话中追加一次新回复，继续？'))return;
     styleState.running=true;styleState.runningStep=step.id;styleState.statuses[step.id]='running';styleState.lastError='';saveStyleState();const prompt=stylePrompt(step.id);
     try{
-      log(`开始${m.label} ${step.code}｜${step.label}${styleState.autoFlow?'（自动模式）':'（手动模式）'}`,'success');await prepareStyleConversation(step);let expected=0;
-      if(stepHasAttachments(step)){const files=await styleStepFiles(step);if(stepNeedsRefs(step)&&!files.length)throw new Error(`${step.code}没有可读取的参考素材`);if(files.length){const parts=[];if(stepNeedsRefs(step))parts.push(m.refsLabel);if(styleState.templateName&&stepAllowsTemplate(step))parts.push(m.templateLabel);expected=await uploadFilesPlain(files,parts.join(' + ')||'步骤素材');}}
+      log(`开始风格流程 ${step.code}｜${step.label}${styleState.autoFlow?'（自动模式）':'（手动模式）'}`,'success');await prepareStyleConversation(step);let expected=0;
+      if(stepNeedsRefs(step)){const files=await styleStepFiles(step);if(!files.length)throw new Error(`${step.code}没有可读取的参考图`);expected=await uploadFilesPlain(files,styleState.templateName&&stepAllowsTemplate(step)?'对标参考图 + 可选白模':'对标服装参考图');}
       await setPlainPromptValue(prompt);await sendPlainPrompt(expected,prompt);const result=await waitAssistantText(prompt);styleState.results[step.id]=result;styleState.statuses[step.id]='done';styleState.running=false;styleState.runningStep=0;styleState.sessionActive=true;styleState.conversationPath=location.pathname;const next=nextSelectedStyleStep(step.id);if(next)styleState.currentStep=next.id;saveStyleState(false);renderWorkspace();log(`${step.code}回复完成并已存档${next?`；${styleState.autoFlow?'自动继续':'等待手动执行'} ${next.code}`:'；所选流程已完成'}`,'success');
       if(next&&styleState.autoFlow){await sleep(1200);return runStyleStep(false,true);}
-    }catch(e){styleState.running=false;styleState.runningStep=0;if(step){if(e instanceof PausedError)styleState.statuses[step.id]='paused';else styleState.statuses[step.id]='error';}styleState.lastError=e.message||String(e);saveStyleState(false);renderWorkspace();if(!(e instanceof PausedError)){log(`${m.label}步骤失败：${styleState.lastError}`,'error');throw e;}}
+    }catch(e){styleState.running=false;styleState.runningStep=0;if(e instanceof PausedError){styleState.statuses[step.id]='paused';}else styleState.statuses[step.id]='error';styleState.lastError=e.message||String(e);saveStyleState(false);renderWorkspace();if(!(e instanceof PausedError)){log(`风格步骤失败：${styleState.lastError}`,'error');throw e;}}
   }
-  function pauseStyleStep(){if(!styleState.running)return;const m=templateWorkflowMeta(),id=styleState.runningStep||styleState.currentStep;styleState.running=false;styleState.runningStep=0;if(id)styleState.statuses[id]='paused';saveStyleState(false);renderWorkspace();log(`${m.label}步骤已暂停；如果消息已经成功发送，请先等待页面回复完成，避免重复发送`,'warn');}
-  function captureStyleReply(){const step=styleStep(styleState.currentStep);if(!step)throw new Error('当前没有可存档步骤');const prompt=(()=>{try{return stylePrompt(step.id)}catch(_){return''}})(),anchor=latestUserAnchor(prompt)||latestUserAnchor(''),n=latestAssistantAfter(anchor),tx=assistantMessageText(n);if(!tx)throw new Error('当前页面没有找到可存档的 ChatGPT 回复');styleState.results[step.id]=tx;styleState.statuses[step.id]='done';saveStyleState(false);renderWorkspace();log(`${step.code}回复已手动存档；不会被重新拼进下一步提示词`,'success');}
+  function pauseStyleStep(){if(!styleState.running)return;const id=styleState.runningStep||styleState.currentStep;styleState.running=false;styleState.runningStep=0;styleState.statuses[id]='paused';saveStyleState(false);renderWorkspace();log('风格步骤已暂停；如果消息已经成功发送，请先等待页面回复完成，避免重复发送','warn');}
+  function captureStyleReply(){const step=styleStep(styleState.currentStep),prompt=(()=>{try{return stylePrompt(step.id)}catch(_){return''}})(),anchor=latestUserAnchor(prompt)||latestUserAnchor(''),n=latestAssistantAfter(anchor),tx=assistantMessageText(n);if(!tx)throw new Error('当前页面没有找到可存档的 ChatGPT 回复');styleState.results[step.id]=tx;styleState.statuses[step.id]='done';saveStyleState(false);renderWorkspace();log(`${step.code}回复已手动存档；不会被重新拼进下一步提示词`,'success');}
   function gotoStyleStep(stepId){if(styleState.running)return;const id=Number(stepId);if(!styleState.selectedStepIds.includes(id))return;styleState.currentStep=id;saveStyleState(false);renderWorkspace();}
 
   function parseStyleResultTable(raw){
@@ -1273,24 +979,19 @@
     throw new Error('当前批量提示词步骤的回复中没有识别到包含“编号 + 最终完整生图提示词”的表格。可先让ChatGPT把最终通过数据输出为Markdown表格。');
   }
   function styleBatchResultStep(){return styleSteps().find(isStyleBatchPromptStep)||styleStep(styleState.currentStep);}
-  async function exportStyle04Excel(){
-    if(isProductionWorkflow())throw new Error('生产文件设计不使用批量提示词Excel导出；请使用“导出本步骤结果”，后续可由生产母版定义专用交付格式。');
-    const st=styleBatchResultStep();if(!st)throw new Error('没有找到可导出的批量提示词步骤');const t=parseStyleResultTable(styleState.results[st.id]);const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet([t.headers,...t.rows]);XLSX.utils.book_append_sheet(wb,ws,'图片生成任务');
-    const arr=XLSX.write(wb,{bookType:'xlsx',type:'array'}),name=`${sanitizeName(styleState.projectName||'视觉风格解析')}_图片生成任务.xlsx`,dir=await workflowProjectOutputDir(true);await writeBlob(dir,name,new Blob([arr],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));log(`${st.code}结果已导出到视觉风格解析输出文件夹：${name}`,'success');
-  }
+  function exportStyle04Excel(){const st=styleBatchResultStep(),t=parseStyleResultTable(styleState.results[st.id]);const wb=XLSX.utils.book_new(),ws=XLSX.utils.aoa_to_sheet([t.headers,...t.rows]);XLSX.utils.book_append_sheet(wb,ws,'批量生图任务');XLSX.writeFile(wb,`${sanitizeName(styleState.projectName||'风格反推')}_批量生图任务.xlsx`);log(`${st.code}结果已导出为Excel`,'success');}
   function style04ToBatch(){
-    if(isProductionWorkflow())throw new Error('生产文件设计不能直接转入图片生成自动化');
-    const st=styleBatchResultStep();if(!st)throw new Error('没有找到批量提示词步骤');const t=parseStyleResultTable(styleState.results[st.id]),idCol=t.headers.findIndex(h=>/编号/.test(h)),pCol=t.headers.findIndex(h=>/最终完整生图提示词|完整中文生图提示词|完整提示词/.test(h)),sCol=t.headers.findIndex(h=>/最终状态/.test(h));
-    const rows=t.rows.filter(r=>sCol<0||!/待重写/.test(String(r[sCol]||''))).filter(r=>String(r[pCol]||'').trim());if(!rows.length)throw new Error('当前批量提示词步骤中没有可转入图片生成自动化的有效提示词');
+    const st=styleBatchResultStep(),t=parseStyleResultTable(styleState.results[st.id]),idCol=t.headers.findIndex(h=>/编号/.test(h)),pCol=t.headers.findIndex(h=>/最终完整生图提示词|完整中文生图提示词|完整提示词/.test(h)),sCol=t.headers.findIndex(h=>/最终状态/.test(h));
+    const rows=t.rows.filter(r=>sCol<0||!/待重写/.test(String(r[sCol]||''))).filter(r=>String(r[pCol]||'').trim());if(!rows.length)throw new Error('当前批量提示词步骤中没有可转入批量生图的有效提示词');
     state.tasks=rows.map((r,i)=>{const id=taskId(r[idCol],i);return{key:`style${st.code}::${id}::${i+1}`,id,prompt:String(r[pCol]||'').trim(),status:'pending',outputFiles:[],error:'',attempts:0,row:i+2,updatedAt:new Date().toISOString()}});
-    state.importedFileName=`${sanitizeName(styleState.projectName||'视觉风格解析')}_${st.code}结果.xlsx`;state.importedSheetName=`${st.code}${st.label}`;state.importedHeaders={id:t.headers[idCol]||'编号',prompt:t.headers[pCol]||'最终完整生图提示词'};state.importedStats={headerRow:1,idCount:state.tasks.length,promptCount:state.tasks.length,taskRows:state.tasks.length,candidateCount:1};state.batchNo=1;state.currentBatchKeys=[];state.currentBatchPaths=[];state.resumeContext=null;state.phase='ready';saveState(false);settings.flow='batch_generation';saveSettings();renderWorkspace();updateFolderLabels();updatePanel();log(`${st.code}结果已直接转入图片生成自动化：${state.tasks.length} 条`,'success');
+    state.importedFileName=`${sanitizeName(styleState.projectName||'风格反推')}_${st.code}结果.xlsx`;state.importedSheetName=`${st.code}${st.label}`;state.importedHeaders={id:t.headers[idCol]||'编号',prompt:t.headers[pCol]||'最终完整生图提示词'};state.importedStats={headerRow:1,idCount:state.tasks.length,promptCount:state.tasks.length,taskRows:state.tasks.length,candidateCount:1};state.batchNo=1;state.currentBatchKeys=[];state.currentBatchPaths=[];state.resumeContext=null;state.phase='ready';saveState(false);settings.flow='batch_generation';saveSettings();renderWorkspace();updateFolderLabels();updatePanel();log(`${st.code}结果已直接转入批量生图：${state.tasks.length} 条`,'success');
   }
 
   // ========================== 统一工作台 UI ==========================
   const FLOW_DEFS = {
-    batch_generation: { label: '图片生成自动化', enabled: true },
-    style_reverse: { label: '视觉风格解析', enabled: true },
-    production_design: { label: '生产文件设计', enabled: true },
+    batch_generation: { label: '批量生图', enabled: true },
+    style_reverse: { label: '风格反推', enabled: true },
+    diecut_design: { label: '刀版设计', enabled: false },
   };
 
   function addStyle(){GM_addStyle(`
@@ -1311,7 +1012,7 @@
 #kagura-pod-log-window{position:fixed;z-index:2147483647;left:7vw;top:7vh;width:min(820px,86vw);height:76vh;min-width:420px;min-height:260px;resize:both;overflow:hidden;display:none;flex-direction:column;background:#0f172a;color:#e5e7eb;border:1px solid #334155;border-radius:12px;box-shadow:0 18px 50px rgba(2,6,23,.45);font:12px/1.5 Consolas,"Microsoft YaHei",monospace}.plw-head{display:flex;gap:8px;align-items:center;padding:9px 10px;background:#111827;cursor:move}.plw-head b{flex:1}.plw-head [data-role="metrics"]{color:#a7f3d0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%}.plw-head button,.plw-foot button{border:0;border-radius:6px;padding:6px 9px;background:#334155;color:#fff;cursor:pointer}.plw-body{flex:1;overflow:auto;padding:9px;background:#020617}.plw-line{padding:2px 0;border-bottom:1px solid rgba(51,65,85,.2)}.plw-line.error{color:#fda4af}.plw-line.warn{color:#fde68a}.plw-line.success{color:#86efac}.plw-foot{display:flex;gap:7px;justify-content:flex-end;padding:8px 10px;background:#111827}
 `)}
 
-  function flowLabel(){ return FLOW_DEFS[settings.flow]?.label || '图片生成自动化'; }
+  function flowLabel(){ return FLOW_DEFS[settings.flow]?.label || '批量生图'; }
 
   function createPanel(){
     addStyle();
@@ -1323,9 +1024,9 @@
         <div class="pod-flowbar">
           <b>当前流程</b>
           <select data-role="flow">
-            <option value="batch_generation">图片生成自动化</option>
-            <option value="style_reverse">视觉风格解析</option>
-            <option value="production_design">生产文件设计</option>
+            <option value="batch_generation">批量生图</option>
+            <option value="style_reverse">风格反推</option>
+            <option value="diecut_design" disabled>刀版设计（预留）</option>
           </select>
           <div class="pod-flow-note">一个界面完成一个完整流程。公共的 ChatGPT 交互/检测核心只维护一份；以后新增流程时只增加该流程的任务规则与参数。</div>
         </div>
@@ -1338,13 +1039,10 @@
     const flow=panel.querySelector('[data-role="flow"]');
     flow.value=settings.flow;
     flow.addEventListener('change',e=>{
-      if(state.running||styleFlowState.running||productionFlowState.running){e.target.value=settings.flow;alert('任务运行中不能切换流程，请先暂停。');return;}
-      if(isTemplateWorkflowFlow(settings.flow))saveStyleState(false);
+      if(state.running||styleState.running){e.target.value=settings.flow;alert('任务运行中不能切换流程，请先暂停。');return;}
       settings.flow=e.target.value;
-      if(isTemplateWorkflowFlow(settings.flow))activateTemplateWorkflow(settings.flow);
       saveSettings();
       renderWorkspace();
-      updateFolderLabels();
     });
     panel.querySelector('.pod-version').onclick=()=>checkUpdate(true);
     renderWorkspace();
@@ -1373,29 +1071,22 @@
 
 
   function renderStyleWorkspace(workspace){
-    const m=templateWorkflowMeta(),steps=styleSteps(),selected=selectedStyleSteps(),step=styleStep(styleState.currentStep),projects=styleProjects(),projectNames=Object.keys(projects).sort();
-    const projectSection=`<div class="pod-section"><div class="pod-section-title"><span>${escapeHtml(m.label)}｜${escapeHtml(m.projectLabel)}</span><span class="pod-section-sub">母版驱动动态步骤</span></div><div class="pod-style-project"><label class="wide">当前项目<input data-style-field="projectName" value="${escapeAttr(styleState.projectName)}"></label><select data-role="style-project-select"><option value="">历史项目…</option>${projectNames.map(n=>`<option value="${escapeAttr(n)}">${escapeHtml(n)}</option>`).join('')}</select><button class="pod-btn success" data-style-act="loadProject">载入</button></div><div class="pod-row"><span class="pod-label">输出文件夹</span><span class="pod-value" data-role="workflow-output">读取中…</span></div><div class="pod-mini-note">导出文件会优先保存到：所选输出文件夹 / 当前项目名 / 文件。两个母版流程分别记忆自己的输出文件夹，互不覆盖。</div><div class="pod-buttons" style="grid-template-columns:1fr 1fr 1fr 1fr"><button class="pod-btn primary" data-style-act="saveProject">保存项目</button><button class="pod-btn" data-style-act="newProject">新建项目</button><button class="pod-btn success" data-style-act="chooseOutput">选择输出文件夹</button><button class="pod-btn success" data-style-act="logs">运行日志</button></div></div>`;
-    const masterInput='<input data-role="style-master-file" type="file" accept=".xlsx,.xls,.xlsm" hidden>';
-    if(!steps.length){
-      workspace.innerHTML=`${projectSection}<div class="pod-section"><div class="pod-section-title"><span>母版与步骤选择</span><span class="pod-section-sub">尚未导入母版</span></div>${masterInput}<div class="pod-buttons" style="grid-template-columns:1fr"><button class="pod-btn success" data-style-act="master">导入生产文件设计母版</button></div><div class="pod-master-meta">${escapeHtml(m.label)}使用与视觉风格解析相同的母版Excel工作流引擎：读取流程总控、动态步骤、完整提示词、变量占位符，并在同一ChatGPT对话中按所选步骤自动或手动连续执行。当前没有内置生产母版，避免脚本擅自假设你的生产流程；请先导入对应母版Excel。</div></div>`;
-      bindStyleEvents(workspace);updateTemplateWorkflowFolderLabel();return;
-    }
-    const stepButtons=selected.map(stp=>{const st=styleState.statuses[stp.id]||'pending';return `<button class="pod-style-step ${stp.id===step?.id?'active ':''}${st}" data-style-step="${stp.id}">${escapeHtml(stp.code)}｜${escapeHtml(stp.label)}<br><span>${escapeHtml(styleStatusLabel(st))}</span></button>`}).join('');
-    const masterChecks=steps.map(stp=>`<label class="pod-master-step"><input type="checkbox" data-style-select="${stp.id}" ${styleState.selectedStepIds.includes(stp.id)?'checked':''}><span><b>${escapeHtml(stp.code)}｜${escapeHtml(stp.label)}</b><br>${escapeHtml(stp.input||stp.output||stp.sheetName||'已识别完整提示词')}</span></label>`).join('');
+    const steps=styleSteps(),selected=selectedStyleSteps(),step=styleStep(styleState.currentStep),projects=styleProjects(),projectNames=Object.keys(projects).sort();
+    const stepButtons=selected.map(s=>{const st=styleState.statuses[s.id]||'pending';return `<button class="pod-style-step ${s.id===step.id?'active ':''}${st}" data-style-step="${s.id}">${escapeHtml(s.code)}｜${escapeHtml(s.label)}<br><span>${escapeHtml(styleStatusLabel(st))}</span></button>`}).join('');
+    const masterChecks=steps.map(s=>`<label class="pod-master-step"><input type="checkbox" data-style-select="${s.id}" ${styleState.selectedStepIds.includes(s.id)?'checked':''}><span><b>${escapeHtml(s.code)}｜${escapeHtml(s.label)}</b><br>${escapeHtml(s.input||s.output||s.sheetName||'已识别完整提示词')}</span></label>`).join('');
     const varKeys=stepVariableKeys(step),varFields=varKeys.length?`<div class="pod-style-fields">${varKeys.map(k=>`<label>${escapeHtml(k)}<input data-style-var="${escapeAttr(k)}" value="${escapeAttr(styleState.variables?.[k]??'')}" placeholder="留空则保留 {${escapeAttr(k)}}"></label>`).join('')}</div>`:'';
-    const needsRefs=stepNeedsRefs(step),usesTemplate=stepAllowsTemplate(step);let attachments='';if(needsRefs||usesTemplate){const rows=[];if(needsRefs)rows.push(`<div class="pod-row"><span class="pod-label">${escapeHtml(m.refsLabel)}</span><span class="pod-value pod-style-filelist">${escapeHtml(styleState.imageNames?.length?styleState.imageNames.join('、'):'未选择（本步骤需要，可多选）')}</span></div>`);if(usesTemplate)rows.push(`<div class="pod-row"><span class="pod-label">${escapeHtml(m.templateLabel)}</span><span class="pod-value">${escapeHtml(styleState.templateName||'未选择（可选）')}</span></div>`);const buttons=[];if(needsRefs)buttons.push('<button class="pod-btn success" data-style-act="refs">选择参考素材</button>');if(usesTemplate)buttons.push(`<button class="pod-btn success" data-style-act="styleTemplate">选择${escapeHtml(m.templateLabel)}</button>`);if(needsRefs)buttons.push('<button class="pod-btn warn" data-style-act="clearRefs">清参考素材</button>');if(usesTemplate)buttons.push(`<button class="pod-btn warn" data-style-act="clearStyleTemplate">清${escapeHtml(m.templateLabel)}</button>`);attachments=rows.join('')+`<div class="pod-buttons" style="grid-template-columns:repeat(${Math.min(4,Math.max(1,buttons.length))},1fr)">${buttons.join('')}</div>`;}
-    const needsProduct=/98|当前产品|产品配置/.test(step.input),needsCarrier=/白模参数|产品载体|载体参数|生产参数|工厂参数/.test(step.input);let extras='';if(needsProduct)extras+=`<div class="pod-mini-note">当前产品与固定配置</div><textarea class="pod-textarea" data-style-field="productConfig">${escapeHtml(styleState.productConfig||'')}</textarea>`;if(needsCarrier)extras+=`<div class="pod-mini-note">固定产品载体 / 生产参数（可留空）</div><textarea class="pod-textarea" data-style-field="carrierInfo" style="min-height:90px">${escapeHtml(styleState.carrierInfo||'')}</textarea>`;
-    const archived=String(styleState.results[step.id]||''),isBatch=settings.flow==='style_reverse'&&isStyleBatchPromptStep(step);
+    let attachments='';if(stepNeedsRefs(step))attachments=`<div class="pod-row"><span class="pod-label">对标参考图</span><span class="pod-value pod-style-filelist">${escapeHtml(styleState.imageNames?.length?styleState.imageNames.join('、'):'未选择（本步骤需要，可多选）')}</span></div>${stepAllowsTemplate(step)?`<div class="pod-row"><span class="pod-label">产品白模</span><span class="pod-value">${escapeHtml(styleState.templateName||'未选择（可选）')}</span></div>`:''}<div class="pod-buttons" style="grid-template-columns:1fr 1fr 1fr 1fr"><button class="pod-btn success" data-style-act="refs">选择参考图</button>${stepAllowsTemplate(step)?'<button class="pod-btn success" data-style-act="styleTemplate">选择白模</button>':'<span></span>'}<button class="pod-btn warn" data-style-act="clearRefs">清参考图</button>${stepAllowsTemplate(step)?'<button class="pod-btn warn" data-style-act="clearStyleTemplate">清白模</button>':'<span></span>'}</div>`;
+    const needsProduct=/98|当前产品|产品配置/.test(step.input),needsCarrier=/白模参数|产品载体|载体参数/.test(step.input);let extras='';if(needsProduct)extras+=`<div class="pod-mini-note">当前产品与主图固定配置</div><textarea class="pod-textarea" data-style-field="productConfig">${escapeHtml(styleState.productConfig||'')}</textarea>`;if(needsCarrier)extras+=`<div class="pod-mini-note">固定产品载体信息 / 白模参数（可留空）</div><textarea class="pod-textarea" data-style-field="carrierInfo" style="min-height:90px">${escapeHtml(styleState.carrierInfo||'')}</textarea>`;
+    const archived=String(styleState.results[step.id]||'');const isBatch=isStyleBatchPromptStep(step);
     workspace.innerHTML=`
-      ${projectSection}
-      <div class="pod-section"><div class="pod-section-title"><span>母版与步骤选择</span><span class="pod-section-sub">已识别 ${steps.length} 步｜已选择 ${selected.length} 步</span></div>${masterInput}<div class="pod-buttons" style="grid-template-columns:1fr 1fr"><button class="pod-btn success" data-style-act="master">导入/更新提示词母版</button><button class="pod-btn" data-style-act="selectDefault">恢复推荐步骤</button></div><div class="pod-master-meta">当前母版：${escapeHtml(styleState.masterFileName||styleState.masterName||m.defaultMasterLabel)}。脚本优先读取“流程总控”的阶段列表，再从对应阶段工作表的“完整提示词”列读取母提示词。</div><div class="pod-master-steps">${masterChecks}</div><label class="pod-auto-flow"><input type="checkbox" data-style-auto ${styleState.autoFlow?'checked':''}> 自动完成所选流程（同一ChatGPT对话内，当前步骤回复完成后自动发送下一步）</label></div>
+      <div class="pod-section"><div class="pod-section-title"><span>风格反推｜系列项目</span><span class="pod-section-sub">母版驱动动态步骤</span></div><div class="pod-style-project"><label class="wide">当前项目<input data-style-field="projectName" value="${escapeAttr(styleState.projectName)}"></label><select data-role="style-project-select"><option value="">历史项目…</option>${projectNames.map(n=>`<option value="${escapeAttr(n)}">${escapeHtml(n)}</option>`).join('')}</select><button class="pod-btn success" data-style-act="loadProject">载入</button></div><div class="pod-buttons"><button class="pod-btn primary" data-style-act="saveProject">保存项目</button><button class="pod-btn" data-style-act="newProject">新建项目</button><button class="pod-btn success" data-style-act="logs">运行日志</button></div></div>
+      <div class="pod-section"><div class="pod-section-title"><span>母版与步骤选择</span><span class="pod-section-sub">已识别 ${steps.length} 步｜已选择 ${selected.length} 步</span></div><input data-role="style-master-file" type="file" accept=".xlsx,.xls,.xlsm" hidden><div class="pod-buttons" style="grid-template-columns:1fr 1fr"><button class="pod-btn success" data-style-act="master">导入/更新提示词母版</button><button class="pod-btn" data-style-act="selectDefault">恢复推荐步骤</button></div><div class="pod-master-meta">当前母版：${escapeHtml(styleState.masterFileName||styleState.masterName||'内置母版')}。脚本会优先读取“流程总控”的阶段列表，再从对应阶段工作表的“完整提示词”列读取母提示词。</div><div class="pod-master-steps">${masterChecks}</div><label class="pod-auto-flow"><input type="checkbox" data-style-auto ${styleState.autoFlow?'checked':''}> 自动完成所选流程（同一ChatGPT对话内，当前步骤回复完成后自动发送下一步）</label></div>
       <div class="pod-section"><div class="pod-section-title"><span>步骤导航</span><span class="pod-section-sub">所选 ${selected.length} 步｜当前 ${escapeHtml(step.code)}｜${escapeHtml(step.label)}</span></div><div class="pod-style-stepbar">${stepButtons}</div>${attachments}${varFields}${extras}</div>
-      <div class="pod-section"><div class="pod-section-title"><span>${escapeHtml(step.code)}｜本步骤提示词</span><span class="pod-section-sub">来自母版，可按项目单独修改</span></div><textarea class="pod-textarea pod-style-prompt" data-role="style-prompt">${escapeHtml(styleState.prompts[step.id]||step.prompt||'')}</textarea><div class="pod-mini-note">后续步骤直接依赖同一聊天里的前文上下文，不会把上一轮GPT回复重新复制进本提示词。只替换你填写的母版变量，并按本步骤“主要输入”追加必要配置。</div></div>
-      <div class="pod-section"><div class="pod-section-title"><span>${escapeHtml(step.code)}｜执行</span><span class="pod-section-sub">${escapeHtml(styleStatusLabel(styleState.statuses[step.id]||'pending'))}</span></div><div class="pod-status" data-role="style-status">${styleState.running?`正在执行 ${escapeHtml(styleStep(styleState.runningStep||step.id)?.code||'')}…`:styleState.lastError?`上次错误：${escapeHtml(styleState.lastError)}`:(styleState.autoFlow?'自动模式：点击开始后会连续完成剩余已选步骤':'手动模式：每一步回复完成后停在下一步，等待你再次点击执行')}</div><div class="pod-buttons" style="grid-template-columns:1fr 1fr 1fr 1fr"><button class="pod-btn primary" data-style-act="run">${styleState.autoFlow?'开始/继续自动流程':'执行当前步骤'}</button><button class="pod-btn" data-style-act="pause">暂停</button><button class="pod-btn warn" data-style-act="rerun">重新执行当前步骤</button><button class="pod-btn success" data-style-act="exportResult">导出本步骤结果</button></div><details style="margin-top:7px"><summary style="cursor:pointer;font-size:10.5px;color:#667085">查看本步骤回复存档（仅项目记录/导出，不会重新发送到下一步）${archived?` · ${archived.length}字`:''}</summary><textarea class="pod-textarea pod-style-result" data-role="style-result" placeholder="回复完成后会被动存档；不影响下一步上下文。">${escapeHtml(archived)}</textarea><div class="pod-buttons" style="grid-template-columns:1fr 1fr"><button class="pod-btn success" data-style-act="capture">重新捕获当前页面最后回复到本步骤</button><button class="pod-btn" data-style-act="copyResult">复制本步回复存档</button></div></details>${isBatch?`<div class="pod-buttons" style="grid-template-columns:1fr 1fr"><button class="pod-btn success" data-style-act="export04">解析本步骤结果并导出Excel</button><button class="pod-btn primary" data-style-act="toBatch">转入图片生成自动化</button></div>`:''}</div>
+      <div class="pod-section"><div class="pod-section-title"><span>${escapeHtml(step.code)}｜本步骤提示词</span><span class="pod-section-sub">来自母版，可按项目单独修改</span></div><textarea class="pod-textarea pod-style-prompt" data-role="style-prompt">${escapeHtml(styleState.prompts[step.id]||step.prompt||'')}</textarea><div class="pod-mini-note">后续步骤直接依赖同一聊天里的前文上下文，不会把上一轮GPT回复重新复制进本提示词。仅替换你填写的 {N} / {BATCH} / 其他母版变量，并按本步骤“主要输入”追加必要的产品配置。</div></div>
+      <div class="pod-section"><div class="pod-section-title"><span>${escapeHtml(step.code)}｜执行</span><span class="pod-section-sub">${escapeHtml(styleStatusLabel(styleState.statuses[step.id]||'pending'))}</span></div><div class="pod-status" data-role="style-status">${styleState.running?`正在执行 ${escapeHtml(styleStep(styleState.runningStep||step.id).code)}…`:styleState.lastError?`上次错误：${escapeHtml(styleState.lastError)}`:(styleState.autoFlow?'自动模式：点击开始后会连续完成剩余已选步骤':'手动模式：每一步回复完成后停在下一步，等待你再次点击执行')}</div><div class="pod-buttons"><button class="pod-btn primary" data-style-act="run">${styleState.autoFlow?'开始/继续自动流程':'执行当前步骤'}</button><button class="pod-btn" data-style-act="pause">暂停</button><button class="pod-btn warn" data-style-act="rerun">重新执行当前步骤</button><button class="pod-btn" data-style-act="copyResult">复制本步回复存档</button></div><details style="margin-top:7px"><summary style="cursor:pointer;font-size:10.5px;color:#667085">查看本步骤回复存档（仅项目记录/导出，不会重新发送到下一步）${archived?` · ${archived.length}字`:''}</summary><textarea class="pod-textarea pod-style-result" data-role="style-result" placeholder="回复完成后会被动存档；不影响下一步上下文。">${escapeHtml(archived)}</textarea><div class="pod-buttons" style="grid-template-columns:1fr"><button class="pod-btn success" data-style-act="capture">重新捕获当前页面最后回复到本步骤</button></div></details>${isBatch?`<div class="pod-buttons" style="grid-template-columns:1fr 1fr"><button class="pod-btn success" data-style-act="export04">解析本步骤结果并导出Excel</button><button class="pod-btn primary" data-style-act="toBatch">转入批量生图</button></div>`:''}</div>
     `;
-    bindStyleEvents(workspace);updateTemplateWorkflowFolderLabel();
+    bindStyleEvents(workspace);
   }
-  async function updateTemplateWorkflowFolderLabel(){if(!panel||!isTemplateWorkflowFlow())return;const m=templateWorkflowMeta(),h=await getHandle(m.outputKey).catch(()=>null);panel.querySelectorAll('[data-role="workflow-output"]').forEach(n=>n.textContent=h?h.name:'未选择');}
   function bindStyleEvents(v){
     const masterInput=v.querySelector('[data-role="style-master-file"]');masterInput?.addEventListener('change',e=>{const f=e.target.files?.[0];if(f)importStyleMaster(f).catch(x=>{log(x.message||String(x),'error');alert(x.message||x)});e.target.value=''});
     v.querySelectorAll('[data-style-step]').forEach(b=>b.onclick=()=>gotoStyleStep(Number(b.dataset.styleStep)));
@@ -1403,19 +1094,22 @@
     v.querySelector('[data-style-auto]')?.addEventListener('change',e=>{styleState.autoFlow=e.target.checked;saveStyleState(false);renderWorkspace();});
     v.querySelector('[data-role="style-prompt"]')?.addEventListener('change',e=>{styleState.prompts[styleState.currentStep]=e.target.value;saveStyleState(false)});
     v.querySelector('[data-role="style-result"]')?.addEventListener('change',e=>{styleState.results[styleState.currentStep]=e.target.value;saveStyleState(false)});
-    v.querySelectorAll('[data-style-var]').forEach(e=>e.addEventListener('change',()=>{styleState.variables=styleState.variables||{};styleState.variables[e.dataset.styleVar]=e.value;if(e.dataset.styleVar==='N')styleState.targetCount=Math.max(1,Number(e.value)||(isProductionWorkflow()?1:500));if(e.dataset.styleVar==='BATCH')styleState.batch=e.value;if(e.dataset.styleVar==='SERIES_CODE')styleState.seriesCode=e.value;saveStyleState(false)}));
+    v.querySelectorAll('[data-style-var]').forEach(e=>e.addEventListener('change',()=>{styleState.variables=styleState.variables||{};styleState.variables[e.dataset.styleVar]=e.value;if(e.dataset.styleVar==='N')styleState.targetCount=Math.max(1,Number(e.value)||500);if(e.dataset.styleVar==='BATCH')styleState.batch=e.value;if(e.dataset.styleVar==='SERIES_CODE')styleState.seriesCode=e.value;saveStyleState(false)}));
     v.querySelectorAll('[data-style-field]').forEach(e=>e.addEventListener('change',()=>{const k=e.dataset.styleField;styleState[k]=e.value;saveStyleState(false)}));
-    const a={master:()=>masterInput?.click(),selectDefault:()=>{const steps=styleSteps(),d=defaultSelectedStepIds(steps,isProductionWorkflow());if(!steps.length)throw new Error('请先导入提示词母版');styleState.selectedStepIds=d;styleState.currentStep=d[0]||steps[0].id;styleState.sessionActive=false;styleState.conversationPath='';saveStyleState(false);renderWorkspace();},refs:chooseStyleRefs,styleTemplate:chooseStyleTemplate,clearRefs:clearStyleRefs,clearStyleTemplate:clearStyleTemplate,chooseOutput:()=>chooseStyleOutput(),saveProject:()=>saveStyleProject(),newProject:()=>newStyleProject(),loadProject:()=>{const n=v.querySelector('[data-role="style-project-select"]')?.value;if(!n)throw new Error('请先选择历史项目');return loadStyleProject(n)},logs:openLogWindow,run:()=>runStyleStep(false),rerun:()=>runStyleStep(true),pause:()=>pauseStyleStep(),capture:()=>captureStyleReply(),exportResult:()=>exportCurrentWorkflowResult(),copyResult:async()=>{const st=styleStep(),t=String(styleState.results[styleState.currentStep]||'');if(!t)throw new Error('当前步骤还没有回复存档');try{await navigator.clipboard.writeText(t)}catch(_){downloadText(`${sanitizeName(templateWorkflowMeta().label)}_步骤${st?.code||''}_结果_${stamp()}.txt`,t)}log('当前步骤回复已复制/导出','success')},export04:()=>exportStyle04Excel(),toBatch:()=>style04ToBatch()};
+    const a={master:()=>masterInput?.click(),selectDefault:()=>{const d=defaultSelectedStepIds(styleSteps());styleState.selectedStepIds=d;styleState.currentStep=d[0]||styleSteps()[0].id;styleState.sessionActive=false;styleState.conversationPath='';saveStyleState(false);renderWorkspace();},refs:chooseStyleRefs,styleTemplate:chooseStyleTemplate,clearRefs:clearStyleRefs,clearStyleTemplate:clearStyleTemplate,saveProject:()=>saveStyleProject(),newProject:()=>newStyleProject(),loadProject:()=>{const n=v.querySelector('[data-role="style-project-select"]')?.value;if(!n)throw new Error('请先选择历史项目');return loadStyleProject(n)},logs:openLogWindow,run:()=>runStyleStep(false),rerun:()=>runStyleStep(true),pause:()=>pauseStyleStep(),capture:()=>captureStyleReply(),copyResult:async()=>{const t=String(styleState.results[styleState.currentStep]||'');if(!t)throw new Error('当前步骤还没有回复存档');try{await navigator.clipboard.writeText(t)}catch(_){downloadText(`风格步骤${styleStep().code}_结果_${stamp()}.txt`,t)}log('当前步骤回复已复制/导出','success')},export04:()=>exportStyle04Excel(),toBatch:()=>style04ToBatch()};
     v.querySelectorAll('[data-style-act]').forEach(b=>b.addEventListener('click',()=>Promise.resolve(a[b.dataset.styleAct]?.()).then(()=>updateStylePanel()).catch(e=>{if(e?.name==='AbortError')return;log(e.message||String(e),'error');alert(e.message||e)})));
   }
-  function updateStylePanel(){if(!panel||!isTemplateWorkflowFlow())return;const m=templateWorkflowMeta(),st=styleStep(styleState.runningStep||styleState.currentStep),box=panel.querySelector('[data-role="style-status"]');if(box)box.textContent=styleState.running?`正在执行 ${st?.code||''}｜等待 ChatGPT 回复完成${styleState.autoFlow?'，完成后自动进入下一步':''}`:styleState.lastError?`上次错误：${styleState.lastError}`:(styleSteps().length?(styleState.autoFlow?'自动模式待命':'手动模式待命'):`${m.label}等待导入提示词母版`);renderLogWindow();}
+  function updateStylePanel(){if(!panel||settings.flow!=='style_reverse')return;const s=panel.querySelector('[data-role="style-status"]');if(s)s.textContent=styleState.running?`正在执行 ${styleStep(styleState.runningStep||styleState.currentStep).code}｜等待 ChatGPT 回复完成${styleState.autoFlow?'，完成后自动进入下一步':''}`:styleState.lastError?`上次错误：${styleState.lastError}`:(styleState.autoFlow?'自动模式待命':'手动模式待命');renderLogWindow();}
 
   function renderWorkspace(){
     if(!panel)return;
     const workspace=panel.querySelector('[data-role="workspace"]');
     if(!workspace)return;
-    if(isTemplateWorkflowFlow()){activateTemplateWorkflow(settings.flow);renderStyleWorkspace(workspace);return;}
-    if(settings.flow!=='batch_generation')return;
+    if(settings.flow==='style_reverse'){renderStyleWorkspace(workspace);return;}
+    if(settings.flow!=='batch_generation'){
+      workspace.innerHTML=`<div class="pod-placeholder"><b>${escapeHtml(flowLabel())}</b>这个流程入口已经预留，但当前版本还没有启用执行逻辑。后续开发时会继续使用同一个工作台，不会再拆成第二套窗口。</div>`;
+      return;
+    }
     workspace.innerHTML=`
       <div class="pod-section">
         <div class="pod-section-title"><span>1. 任务与文件</span><span class="pod-section-sub" data-role="task-source-summary"></span></div>
@@ -1428,7 +1122,7 @@
           <div class="pod-row"><span class="pod-label">提示词列</span><span class="pod-value" data-role="excel-prompt-header">-</span></div>
           <div class="pod-row"><span class="pod-label">识别任务</span><span class="pod-value pod-progress" data-role="excel-task-count">0 条</span></div>
         </div>
-        <div style="font-size:10.5px;color:#758196;margin:5px 0 8px">脚本会扫描所有工作表并按实际有效任务量选择主任务表；“完整中文生图提示词”优先级最高。图片生成自动化不再匹配参考图。</div>
+        <div style="font-size:10.5px;color:#758196;margin:5px 0 8px">脚本会扫描所有工作表并按实际有效任务量选择主任务表；“完整中文生图提示词”优先级最高。批量生图不再匹配参考图。</div>
         <div class="pod-row"><span class="pod-label">公共模板图</span><span class="pod-value" data-role="template">未选择</span></div>
         <div class="pod-row"><span class="pod-label">公共Logo图</span><span class="pod-value" data-role="logo">未使用（可选）</span></div>
         <div class="pod-row"><span class="pod-label">输出目录</span><span class="pod-value" data-role="output">未选择</span></div>
@@ -1440,13 +1134,13 @@
       </div>
 
       <div class="pod-section">
-        <div class="pod-section-title"><span>2. 图片生成规则</span><span class="pod-section-sub">POD业务逻辑已经合并在本流程内</span></div>
+        <div class="pod-section-title"><span>2. 批量生图规则</span><span class="pod-section-sub">POD业务逻辑已经合并在本流程内</span></div>
         <textarea class="pod-textarea" data-role="publicPrompt" placeholder="公共提示词（可选，可编辑）｜用于说明模板图与可选Logo图的共同使用规则"></textarea>
         <div style="font-size:10.5px;color:#758196;margin-top:5px">公共提示词可以留空并会自动保存。你可以在这里说明模板图如何使用、Logo 何时使用/不得误用等共同规则；脚本只负责追加批次任务映射、结果数量要求等固定结构，Excel 每行完整提示词保持原文进入对应任务。</div>
       </div>
 
       <div class="pod-section">
-        <div class="pod-section-title"><span>3. 运行参数</span><span class="pod-section-sub">只影响当前“图片生成自动化”流程</span></div>
+        <div class="pod-section-title"><span>3. 运行参数</span><span class="pod-section-sub">只影响当前“批量生图”流程</span></div>
         <div class="pod-settings">
           <label>每批数量<input data-setting="batchSize" type="number" min="1" max="10" value="${settings.batchSize}"></label>
           <label>范围起点<input data-setting="rangeStart" type="number" min="1" value="${settings.rangeStart}"></label>
@@ -1515,19 +1209,14 @@
     v.querySelectorAll('[data-act]').forEach(b=>b.addEventListener('click',()=>Promise.resolve(actions[b.dataset.act]?.()).then(()=>{updatePanel();renderTaskList();}).catch(e=>{log(e.message||String(e),'error');if(e?.name!=='AbortError')alert(e.message||e)})));
   }
 
-  const TASK_LIST_RENDER_LIMIT=80;
   function renderTaskList(force=false){
     if(!panel||settings.flow!=='batch_generation')return;
     const box=panel.querySelector('[data-role="task-list"]');if(!box)return;
-    const allTasks=filteredTasks(),tasks=allTasks.slice(0,TASK_LIST_RENDER_LIMIT);
-    const signature=JSON.stringify([allTasks.length,...tasks.map(t=>[t.key,t.id,t.row,t.status,t.updatedAt||'',(t.outputFiles||[]).length])]);
+    const tasks=filteredTasks();
+    const signature=JSON.stringify(tasks.map(t=>[t.key,t.id,t.row,t.prompt,t.status,t.error,(t.outputFiles||[]).join('|')]));
     if(!force&&signature===lastTaskListSignature)return;
     lastTaskListSignature=signature;
-    if(!allTasks.length){box.innerHTML='<div style="padding:15px;text-align:center;color:#98a2b3">暂无任务</div>';return;}
-    const rows=tasks.map(t=>`<div class="pod-task"><b>${escapeHtml(t.id)}</b><div class="pod-task-main"><div class="pod-task-file">Excel 第${escapeHtml(t.row||'-')}行 · 完整提示词</div><div class="pod-task-prompt" title="${escapeAttr(t.error||t.prompt||'')}">${escapeHtml(t.error||t.prompt||'缺少Excel完整提示词')}</div></div><span class="pod-badge s-${t.status}">${statusLabel(t.status)}</span></div>`).join('');
-    const hidden=allTasks.length-tasks.length;
-    const more=hidden>0?`<div style="padding:9px 12px;text-align:center;color:#667085;font-size:11px">为保持页面流畅，仅显示前 ${TASK_LIST_RENDER_LIMIT} / ${allTasks.length} 条；可用搜索或状态筛选缩小范围。</div>`:'';
-    box.innerHTML=rows+more;
+    box.innerHTML=tasks.length?tasks.map(t=>`<div class="pod-task"><b>${escapeHtml(t.id)}</b><div class="pod-task-main"><div class="pod-task-file">Excel 第${escapeHtml(t.row||'-')}行 · 完整提示词</div><div class="pod-task-prompt" title="${escapeAttr(t.error||t.prompt||'')}">${escapeHtml(t.error||t.prompt||'缺少Excel完整提示词')}</div></div><span class="pod-badge s-${t.status}">${statusLabel(t.status)}</span></div>`).join(''):'<div style="padding:15px;text-align:center;color:#98a2b3">暂无任务</div>';
   }
 
   async function exportTasks(){const payload={version:APP_VERSION,flow:settings.flow,exportedAt:new Date().toISOString(),file:state.importedFileName,sheet:state.importedSheetName,headers:state.importedHeaders,importStats:state.importedStats,settings:{...settings},tasks:state.tasks};const name=`POD任务记录_V${APP_VERSION}_${stamp()}.json`,body=JSON.stringify(payload,null,2);try{const root=await getHandle(OUTPUT_KEY);if(root){const dir=await getTaskOutputDir(root,{create:true,requestPermission:true});await writeBlob(dir,name,new Blob([body],{type:'application/json;charset=utf-8'}));log(`POD任务记录已保存到输出文件夹：${name}`,'success');return;}}catch(e){log(`任务记录写入输出文件夹失败，改为浏览器下载：${e.message||e}`,'warn');}downloadText(name,body,'application/json;charset=utf-8');log('POD任务记录已通过浏览器下载','success');}
@@ -1538,12 +1227,12 @@
 
   function renderLogWindow(force=false){if(!logWindow)return;const b=logWindow.querySelector('[data-role="body"]');const last=logs.at(-1),signature=`${logs.length}|${last?.time||''}|${last?.type||''}|${last?.message||''}`;if(force||signature!==lastLogWindowSignature){lastLogWindowSignature=signature;b.innerHTML=logs.map(e=>`<div class="plw-line ${e.type}">${escapeHtml(logLine(e))}</div>`).join('');if(logAutoScroll)b.scrollTop=b.scrollHeight;}const m=logWindow.querySelector('[data-role="metrics"]');if(m)m.textContent=`${flowLabel()} ｜ 总运行 ${formatDuration(totalRunMs())} ｜ 第${state.batchNo}批 ｜ ${phaseLabel()} ｜ 生图 ${state.detectedGeneratedCount}/${state.expectedGeneratedCount}`;}
 
-  async function updateFolderLabels(){if(!panel)return;if(isTemplateWorkflowFlow()){updateStylePanel();await updateTemplateWorkflowFolderLabel();return;}if(settings.flow!=='batch_generation')return;const [t,l,o]=await Promise.all([getHandle(TEMPLATE_KEY),getHandle(LOGO_KEY),getHandle(OUTPUT_KEY)]).catch(()=>[null,null,null]);const set=(role,val)=>panel.querySelectorAll(`[data-role="${role}"]`).forEach(n=>n.textContent=val);set('template',t?t.name:'未选择');set('logo',l?l.name:'未使用（可选）');set('output',outputDisplayName(o));settings.useLogoFile=Boolean(l);}
+  async function updateFolderLabels(){if(!panel)return;if(settings.flow==='style_reverse'){updateStylePanel();return;}if(settings.flow!=='batch_generation')return;const [t,l,o]=await Promise.all([getHandle(TEMPLATE_KEY),getHandle(LOGO_KEY),getHandle(OUTPUT_KEY)]).catch(()=>[null,null,null]);const set=(role,val)=>panel.querySelectorAll(`[data-role="${role}"]`).forEach(n=>n.textContent=val);set('template',t?t.name:'未选择');set('logo',l?l.name:'未使用（可选）');set('output',outputDisplayName(o));settings.useLogoFile=Boolean(l);}
 
   function updatePanel(){
     if(!panel)return;
     panel.querySelector('[data-role="flow"]')?.setAttribute('data-current',settings.flow);
-    if(isTemplateWorkflowFlow()){updateStylePanel();return;}
+    if(settings.flow==='style_reverse'){updateStylePanel();return;}
     if(settings.flow!=='batch_generation'){renderLogWindow();return;}
     const all=activeTasks();
     const done=all.filter(t=>t.status==='done').length,confirm=all.filter(t=>t.status==='confirm').length,error=all.filter(t=>t.status==='error').length,skipped=all.filter(t=>t.status==='skipped').length;
@@ -1567,19 +1256,8 @@
     const status=panel.querySelector('[data-role="status"]');
     if(status){if(!state.tasks.length)status.textContent='请先导入 Excel 任务表，再选择公共模板图、可选Logo图和输出目录';else if(state.running&&state.phase==='batch_wait')status.textContent='批次完成，正在等待下一批';else if(state.running&&state.phase==='generating')status.textContent=`正在生图：${det}/${expected||'?'} · 当前批次 ${compactBatch()}`;else if(state.running)status.textContent=`运行中：${phaseLabel()} · 当前 ${compactBatch()}`;else if(state.phase==='done')status.textContent=confirm?`全部可执行任务已结束；待确认 ${confirm} 条`:'全部完成';else if(state.phase==='error')status.textContent='发生错误，已暂停';else status.textContent='等待/已暂停';}
     const startBtn=panel.querySelector('[data-act="start"]');if(startBtn)startBtn.textContent=state.running?'运行中':'开始/继续';
+    renderTaskList();
     renderLogWindow(); // 只更新日志窗口顶部计时；正文仅在日志内容变化时重绘
-  }
-
-  function updateHeartbeat(){
-    if(!panel)return;
-    if(isTemplateWorkflowFlow()){renderLogWindow();return;}
-    if(settings.flow!=='batch_generation'){renderLogWindow();return;}
-    const set=(role,val)=>{const el=panel.querySelector(`[data-role="${role}"]`);if(el)el.textContent=val;};
-    set('total-time',formatDuration(totalRunMs()));
-    set('batch-time',formatDuration(batchElapsed()));
-    set('generation-time',formatDuration(generationElapsed()));
-    set('generated',`${Number(state.detectedGeneratedCount||0)} / ${Number(state.expectedGeneratedCount||0)}`);
-    renderLogWindow();
   }
 
   function compareVersion(a,b){const aa=String(a||'').split('.').map(x=>Number(x)||0),bb=String(b||'').split('.').map(x=>Number(x)||0),n=Math.max(aa.length,bb.length);for(let i=0;i<n;i++){if((aa[i]||0)>(bb[i]||0))return 1;if((aa[i]||0)<(bb[i]||0))return-1;}return 0;}
@@ -1667,17 +1345,7 @@
     }
   }catch(_){}
 
-  async function boot(){
-    refreshMissingPromptStates();saveState(false);saveSettings();
-    if(styleFlowState.running){styleFlowState.running=false;styleFlowState.runningStep=0;GM_setValue(STYLE_STATE_KEY,styleFlowState);}
-    if(productionFlowState.running){productionFlowState.running=false;productionFlowState.runningStep=0;GM_setValue(PRODUCTION_STATE_KEY,productionFlowState);}
-    if(isTemplateWorkflowFlow())activateTemplateWorkflow(settings.flow);
-    createPanel();GM_setValue(LOG_KEY,logs);await updateFolderLabels();setTimeout(()=>checkUpdate(false),1600);setInterval(()=>{try{updateHeartbeat()}catch(_){}},1000);
-    if(state.running&&['generation-refresh','upload-refresh'].includes(state.resumeContext?.kind)){const rr=state.resumeContext?.refreshReason?`；原因：${state.resumeContext.refreshReason}`:'';if(state.resumeContext?.kind==='upload-refresh')log(`检测到上传刷新恢复：第${state.batchNo}批重新上传附件；此前未发送提示词${rr}`,'warn');else log(`检测到刷新恢复：第${state.batchNo}批只恢复检测，不重新发送${rr}`,'warn');setTimeout(()=>worker(),1500);}
-    else if(state.running){stopRunClock();state.running=false;state.phase='ready';saveState();log('页面重新加载后已自动暂停；点击“开始/继续”可继续未完成任务','warn');}
-    else if(settings.flow==='batch_generation')log(`POD统一工作台已启动 V${APP_VERSION}；当前流程：图片生成自动化；Excel完整提示词 + 公共模板图${settings.useLogoFile?' + 公共Logo图':''}`,'success');
-    else log(`POD统一工作台已启动 V${APP_VERSION}；当前流程：${flowLabel()}；母版驱动动态步骤｜已选 ${selectedStyleSteps().length}/${styleSteps().length} 步｜${styleState.autoFlow?'自动':'手动'}执行`,'success');
-  }
+  async function boot(){refreshMissingPromptStates();saveState(false);saveSettings();if(styleState.running){styleState.running=false;styleState.runningStep=0;saveStyleState(false);}createPanel();GM_setValue(LOG_KEY,logs);await updateFolderLabels();setTimeout(()=>checkUpdate(false),1600);setInterval(()=>{try{updatePanel()}catch(_){}},1000);if(state.running&&state.resumeContext?.kind==='generation-refresh'){const rr=state.resumeContext?.refreshReason?`；原因：${state.resumeContext.refreshReason}`:'';log(`检测到刷新恢复：第${state.batchNo}批只恢复检测，不重新发送${rr}`,'warn');setTimeout(()=>worker(),1500);}else if(state.running){stopRunClock();state.running=false;state.phase='ready';saveState();log('页面重新加载后已自动暂停；点击“开始/继续”可继续未完成任务','warn');}else{log(`POD统一工作台已启动 V${APP_VERSION}；当前流程：${flowLabel()}${settings.flow==='batch_generation'?`；批量生图模式：Excel完整提示词 + 公共模板图${settings.useLogoFile?' + 公共Logo图':''}`:`；风格反推模式：母版驱动动态步骤｜已选 ${selectedStyleSteps().length}/${styleSteps().length} 步｜${styleState.autoFlow?'自动':'手动'}执行`}`,'success');}}
 
   boot().catch(e=>{console.error(e);alert(`POD统一工作台启动失败：${e.message||e}`)});
 })();

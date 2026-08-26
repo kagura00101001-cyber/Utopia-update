@@ -91,7 +91,6 @@ if 'updateTemplateWorkflowFolderLabel()' in s[usp:uep]:
 for stable in [
     'async function waitUploads(',
     'async function sendPrompt(',
-    'async function waitGeneration(',
     'async function processBatch()',
 ]:
     if stable not in s:

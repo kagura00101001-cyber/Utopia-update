@@ -1,12 +1,12 @@
 {
-  "version": "1.6.7",
+  "version": "1.6.8",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "download_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "published_at": "2026-08-26",
   "changelog": [
-    "修复 ChatGPT 当前新版“+”菜单已经 aria-expanded=true，但真实菜单没有命中 role=menu/Radix 等标准弹层根，导致脚本只看到左侧历史/项目区域而找不到“创建图片”的问题。",
-    "移除菜单根选择器中的通用 [data-state=\"open\"]，避免把侧栏、抽屉或其他长期打开区域误当成当前“+”菜单。",
-    "当“+”已确认展开时，增加受控兜底：只扫描可交互节点，严格匹配“创建图片/创作图片/生成图片”开头，并要求节点与当前 composer 加号空间距离足够近；约650ms一次，最多7次。",
-    "继续禁止全页 div/span 高频扫描与全页 MutationObserver；V1.6.6 的输出目录句柄性能修复、上传恢复、发送 at-most-once、生图检测、下载与恢复核心保持不变。"
+    "任务列表从1秒状态心跳中彻底移除：只有导入Excel、任务状态持久化、搜索/筛选、手动操作等真实事件才刷新任务列表，避免空闲和生图期间持续处理整批任务数据。",
+    "任务列表变更签名不再包含完整提示词正文；任务记录DOM最多显示当前筛选结果前80条，更多任务通过搜索/状态筛选查看，降低500条长提示词带来的主线程和DOM压力。",
+    "创建图片入口删除V1.6.7的document全页交互节点兜底；菜单未命中标准弹层根时，优先使用加号aria-controls/aria-owns，再以加号附近少量elementFromPoint坐标探测真实局部菜单容器，只在局部容器内匹配创建图片。",
+    "1秒心跳仅更新运行时间、生图计数和日志窗口计时；保留当前composer绑定、严格创建图片前缀、侧栏排除和会话路径保护。上传恢复、发送at-most-once、生图检测、下载隔离、任务映射与暂停恢复核心不变。"
   ]
 }

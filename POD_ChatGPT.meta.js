@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ChatGPT服装POD统一工作台 V1.2.2
-// @name:zh-CN   ChatGPT服装POD统一工作台 V1.6.7
+// @name:zh-CN   ChatGPT服装POD统一工作台 V1.6.8
 // @namespace    https://github.com/Kagura-userscripts
-// @version      1.6.7
-// @description  服装POD统一工作台：V1.6.7 修复 ChatGPT 新版“+”菜单未命中标准弹层根导致无法定位创建图片；保持限频近加号兜底与性能保护。
+// @version      1.6.8
+// @description  服装POD统一工作台：V1.6.8 性能架构修复：任务列表退出1秒心跳并限制可见DOM；创建图片改为加号局部几何探测，删除全页交互扫描。
 // @author       Kagura
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js

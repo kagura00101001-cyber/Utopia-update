@@ -1,0 +1,97 @@
+name: POD publish V1.5.5 final
+
+on:
+  push:
+    paths:
+      - '.pod_release/v155_final/READY'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch clean V1.5.4 baseline to V1.5.5
+        run: python .pod_release/v155_final/patch_v155.py
+
+      - name: Validate V1.5.5
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check POD_ChatGPT.user.js
+          grep -q '^// @name         ChatGPT服装POD统一工作台 V1.2.2$' POD_ChatGPT.user.js
+          grep -q '^// @name:zh-CN   ChatGPT服装POD统一工作台 V1.5.5$' POD_ChatGPT.user.js
+          grep -q '^// @version      1.5.5$' POD_ChatGPT.user.js
+          grep -q '^// @version      1.5.5$' POD_ChatGPT.meta.js
+          grep -Fq "const APP_VERSION = '1.5.5';" POD_ChatGPT.user.js
+          grep -Fq 'function flattenPromptForComposer' POD_ChatGPT.user.js
+          grep -Fq 'function promptLightMatches' POD_ChatGPT.user.js
+          grep -Fq 'function fetchVersionHistory' POD_ChatGPT.user.js
+          grep -Fq '历史版本 / 手动切换' POD_ChatGPT.user.js
+          test -f 'versions/POD_ChatGPT统一工作台_V1.5.5.txt'
+          python - <<'PY'
+          from pathlib import Path
+          import json,re
+          s=Path('POD_ChatGPT.user.js').read_text(encoding='utf-8')
+          assert 'findCreateNearPlusLocal' not in s
+          assert 'findCreateNearPlusFallback' not in s
+          assert "return flattenPromptForComposer(lines.filter((x,i,a)=>!(x===''&&a[i-1]==='')).join('\\n').trim());" in s
+          a=s.index('  async function waitReadyToSend(expectedCount,prompt){')
+          b=s.index('  function setBatchResumeContext(',a)
+          ready=s[a:b]
+          assert 'promptLightMatches' in ready
+          assert 'promptMatches(' not in ready
+          a=s.index('  async function sendPrompt(expectedCount,prompt){')
+          b=s.index('  // 风格反推使用普通文本对话',a)
+          send=s[a:b]
+          assert send.count('promptLightMatches(findPromptEditor(),prompt)') >= 5
+          assert send.count('promptMatches(findPromptEditor(),prompt)') <= 2
+          assert 'strict-check-left-before-second-click' in send
+          assert 'resume-strict-prompt-left' in send
+          h=json.loads(Path('POD_ChatGPT.history.json').read_text(encoding='utf-8'))
+          assert h['versions'][0]['version']=='1.5.5'
+          assert h['versions'][0]['status']=='current'
+          v169=next(v for v in h['versions'] if v['version']=='1.6.9')
+          assert v169.get('status')=='withdrawn'
+          assert v169.get('install_url','').endswith('/POD_ChatGPT.user.js')
+          for p in ['POD_ChatGPT.latest.json','POD_ChatGPT_latest.json']:
+              d=json.loads(Path(p).read_text(encoding='utf-8'));assert d['version']=='1.5.5'
+          PY
+
+      - name: Commit and push official V1.5.5
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Kagura Update Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add POD_ChatGPT.user.js POD_ChatGPT.meta.js POD_ChatGPT.latest.json POD_ChatGPT_latest.json POD_ChatGPT.history.json versions
+          git commit -m 'release: POD ChatGPT V1.5.5 long-prompt performance and version manager'
+          git push origin HEAD:main
+
+      - name: Finalize current history link and self-clean
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_sha="$(git rev-parse HEAD)"
+          python - "$release_sha" <<'PY'
+          from pathlib import Path
+          import json,sys
+          sha=sys.argv[1]
+          p=Path('POD_ChatGPT.history.json')
+          h=json.loads(p.read_text(encoding='utf-8'))
+          cur=next(v for v in h['versions'] if v['version']=='1.5.5')
+          cur['commit']=sha
+          cur['install_url']=f'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/{sha}/POD_ChatGPT.user.js'
+          p.write_text(json.dumps(h,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          PY
+          rm -rf .pod_release/v155_final
+          rm -f .github/workflows/pod_publish_v155_final.yml
+          git add POD_ChatGPT.history.json .pod_release .github/workflows
+          git commit -m 'chore: finalize POD V1.5.5 history links and clean publisher'
+          git push origin HEAD:main

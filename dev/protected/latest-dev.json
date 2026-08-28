@@ -1,10 +1,12 @@
 {
   "channel": "protected-dev",
-  "version": "4.0.0-dev.11",
+  "version": "4.0.0-dev.12",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/dev/protected/Ozon_ChatGPT_DEV.user.js",
   "changelog": [
-    "验证 V4 DEV 热更新闭环",
-    "无需重新下载 ZIP，直接通过脚本检查更新升级",
-    "继续保持测试通道与正式 main 完全隔离"
+    "修复不同 ChatGPT 前端结构下“创建图片”误点、点击无效和误判成功的问题",
+    "只有在 Composer 工具区真实检测到“创建图片”标签后，才继续上传模板图和发送任务",
+    "若误激活“深度研究/网页搜索”等工具会立即拦截，禁止继续本批",
+    "生成图下载失败自动重试最多 3 次，降低临时 HTTP 500 导致的漏保存",
+    "保持“原图 → 创建图片 → 模板图 → 提示词 → 发送”的已验证流程顺序不变"
   ]
 }

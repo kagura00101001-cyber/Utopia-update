@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ozon主图下载 + ChatGPT批量生图助手 V4 DEV
 // @namespace    https://github.com/Kagura-userscripts/v4-dev
-// @version      4.0.0-dev.18
+// @version      4.0.0-dev.19
 // @description  Kagura AI 电商图片助手 V4 DEV：Ozon 主图下载 + ChatGPT 批量生图自动化；支持 Auth v2 邀请码自助注册、账号授权、设备审批与会话校验，并使用受保护混淆构建。
 // @author       Kagura
 // @match        https://www.ozon.ru/*

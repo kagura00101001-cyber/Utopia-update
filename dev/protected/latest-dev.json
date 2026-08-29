@@ -1,6 +1,6 @@
 {
   "channel": "protected-dev",
-  "version": "4.0.0-dev.22",
+  "version": "4.0.0-dev.23",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/dev/protected/Ozon_ChatGPT_DEV.user.js",
   "state_schema": 3,
   "task_queue_schema": 3,
@@ -8,12 +8,11 @@
   "cloud_handoff_protocol": "kagura-imageflow-handoff-v1",
   "cloud_handoff_backend": "kagura-workflow-v1-staging",
   "changelog": [
-    "新增“云端跨账号接力”：可把当前运行的任务配置、已完成任务和已完成批次索引上传到 Kagura 云端，再在另一个浏览器/ChatGPT账号中接管继续",
-    "云端接力接入独立 Kagura Workflow Engine staging Worker 与独立 workflow D1，不占用 License Center 数据库；只保存轻量任务状态，不上传原图、模板图、生成图、ChatGPT Cookie、Kagura access/refresh token",
-    "云端记录按当前 Kagura 授权账号隔离，最多保留20条、单条最大512KB、7天自动过期；支持查看、接管和手动删除",
-    "换浏览器接管后，未完成任务必须重新授权原图目录、模板图和成品目录，并重新绑定新 ChatGPT 账号中的具体聊天；已完成任务不重新执行",
-    "重新授权原图目录时会严格校验云端记录中的已完成文件前缀与新浏览器扫描结果一致，避免因目录或排序变化导致从错误SKU位置继续",
-    "跨账号无法继承旧 ChatGPT 对话中的正在发送/生图状态；若接力时当前批已进入发送确认或生成阶段，会明确提示风险，并要求用户确认是否在新账号重做当前批",
-    "继续保留 dev.21 的“同步最新配置并继续”、任务开关、指定聊天和 at-most-once 保护；稳定版3.2.0不受影响"
+    "新增 ChatGPT 文件上传额度识别：可识别“你已用完所有可用的文件上传额度”等页面提示，并只在存在未完成运行任务时触发保护流程",
+    "检测到文件上传额度耗尽后会自动安全暂停当前运行，保留已完成任务、已完成批次和当前未完成位置，不会把失败上传误记为已完成",
+    "在当前批没有已发送待确认风险时，会自动把最新运行快照保存到独立 Workflow Engine 云端，并提示可以切换浏览器/ChatGPT账号接管继续",
+    "同一任务同一进度的额度提示只自动上传一次，避免页面重复渲染同一红色提示导致云端产生重复接力记录",
+    "如果检测到当前批已经进入发送确认/生图等 at-most-once 敏感状态，只自动暂停，不自动重建或重发该批，要求先确认旧账号结果后再手动接力",
+    "继续保留 dev.22 云端跨账号接力、dev.21 最新配置续跑、任务开关、指定聊天和断点恢复；Stable 3.2.0 不受影响"
   ]
 }

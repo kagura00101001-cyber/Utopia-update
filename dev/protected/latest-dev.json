@@ -1,6 +1,8 @@
 {
   "channel": "protected-dev",
   "version": "4.0.0-dev.23",
+  "release_status": "internal-test",
+  "recommended": false,
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/dev/protected/Ozon_ChatGPT_DEV.user.js",
   "state_schema": 3,
   "task_queue_schema": 3,
@@ -8,6 +10,7 @@
   "cloud_handoff_protocol": "kagura-imageflow-handoff-v1",
   "cloud_handoff_backend": "kagura-workflow-v1-staging",
   "changelog": [
+    "【内部测试版本】dev.23 仅用于验证“额度不足后自动暂停并自动上传云端接力”方案；该路线已停止继续开发，不作为后续版本基线",
     "新增 ChatGPT 文件上传额度识别：可识别“你已用完所有可用的文件上传额度”等页面提示，并只在存在未完成运行任务时触发保护流程",
     "检测到文件上传额度耗尽后会自动安全暂停当前运行，保留已完成任务、已完成批次和当前未完成位置，不会把失败上传误记为已完成",
     "在当前批没有已发送待确认风险时，会自动把最新运行快照保存到独立 Workflow Engine 云端，并提示可以切换浏览器/ChatGPT账号接管继续",

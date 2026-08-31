@@ -1,6 +1,6 @@
 {
   "channel": "protected-dev",
-  "version": "4.0.0-dev.29",
+  "version": "4.0.0-dev.30",
   "release_status": "dev",
   "recommended": true,
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/dev/protected/Ozon_ChatGPT_DEV.user.js",
@@ -10,11 +10,11 @@
   "cloud_handoff_protocol": "kagura-imageflow-handoff-v1",
   "cloud_handoff_backend": "kagura-workflow-v1-staging",
   "changelog": [
-    "dev.29 修复上传异常恢复阶段的 ReferenceError：cQuotaFindVisibleLimitNotice is not defined。根因是 dev.27 替换额度等待函数时覆盖了 dev.25 插入的额度主动扫描辅助函数声明，但保留了调用点",
-    "恢复 cQuotaFindVisibleLimitNotice 与 cQuotaActiveProbe 两个运行时函数；模板上传超时、附件不足、清理残留附件等发送前异常现在可以继续进入额度判断、同页重试、页面刷新或30分钟周期恢复，而不会被未定义函数直接中断",
-    "新增构建期回归校验：最终源码中两个额度探测函数必须各且仅各存在1个定义，同时必须保留上传异常直接探测调用和每秒主动探测调用；再出现“有调用无定义”时CI直接失败，禁止发布",
-    "继续保留dev.28本地接力导入/下载，不依赖云端接力授权；继续保留dev.27明确恢复时间T+15秒/T+1分钟与无明确时间30分钟周期重试逻辑",
-    "所有自动上传恢复仍只允许发生在send_confirming之前；发送确认、生图、下载等at-most-once敏感阶段不会因此重发当前批",
-    "Stable 3.2.0、DEV脚本@name/@namespace、Auth v2 appId、云端接力协议及dev.23内部测试状态均未修改"
+    "dev.30 新增“Ozon直链”洗图来源模式：Ozon爬图端在继续保存JPG的同时，把识别到的商品主图公开直链、搜索SKU、自定义SKU和商品链接写入同一Tampermonkey数据桥，最近保留5个采集批次，并可单独导出直链CSV",
+    "ChatGPT主面板新增来源模式“本地图片 / Ozon直链”。直链模式可直接加载最近Ozon采集批次，每批支持1-10个URL；商品原图不再作为附件上传，每批只上传1张模板图，因此显著降低文件上传额度消耗",
+    "直链模式使用三层Prompt Builder：公共母提示词可自由修改、本次任务补充要求可自由修改、URL任务区块由脚本固定拼接。固定区块自动写入本批URL总数、逐条序号、商品标识与裸URL，并再次强调输出数量必须严格等于URL数量、模板图不计入数量",
+    "直链默认公共母提示词已融合原有Ozon主图提示词与多URL严格一一对应规则；本地图片模式保留原来的提示词和上传逻辑，不会被直链默认提示词覆盖",
+    "直链批次仍复用现有发送确认、生图检测、数量不一致待确认、下载命名、断点恢复和at-most-once保护；当10个URL只识别到少于10张生成图时，不会按顺序强行命名，仍进入待确认以避免SKU错配",
+    "继续保留dev.29额度探测修复、dev.28本地接力、dev.27明确恢复时间T+15秒/T+1分钟与30分钟周期重试；Stable 3.2.0、DEV脚本@name/@namespace、Auth v2 appId及云端接力协议均未修改"
   ]
 }

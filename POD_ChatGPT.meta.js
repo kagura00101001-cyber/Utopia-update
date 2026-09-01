@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         ChatGPT服装POD统一工作台 V1.2.2
-// @name:zh-CN   ChatGPT服装POD统一工作台 V1.5.6
+// @name:zh-CN   ChatGPT服装POD统一工作台 V1.5.7
 // @namespace    https://github.com/Kagura-userscripts
-// @version      1.5.6
-// @description  服装POD统一工作台：V1.5.6 优化后台断层恢复：计时断层先恢复检测、不再45秒立即刷新；同时修复版本历史界面并标识已撤回开发版。
+// @version      1.5.7
+// @description  服装POD统一工作台：V1.5.7 新增发送前检查详细诊断与最多2次安全原地恢复；保留长提示词性能修复、后台断层保护与发送后at-most-once规则。
 // @author       Kagura
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js

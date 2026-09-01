@@ -1,6 +1,6 @@
 {
   "channel": "protected-dev",
-  "version": "4.0.0-dev.32",
+  "version": "4.1.0-dev.1",
   "release_status": "dev",
   "recommended": true,
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/dev/protected/Ozon_ChatGPT_DEV.user.js",
@@ -10,10 +10,10 @@
   "cloud_handoff_protocol": "kagura-imageflow-handoff-v1",
   "cloud_handoff_backend": "kagura-workflow-v1-staging",
   "changelog": [
-    "dev.32 作为回退后的新生产基线发布：实际功能代码回到 dev.29，不包含 dev.30-dev.31 的 Ozon 直链生图测试模块",
-    "由于已安装 dev.30/dev.31 的浏览器不会把 dev.29 识别为“新版本”，因此使用更高版本号 dev.32 发布同一套 dev.29 功能，以便现有用户正常收到热更新提示并完成覆盖升级",
-    "dev.30-dev.31 已单独封存并备注为“直链生图测试版”，保留后续研究价值，但不再属于当前推荐生产通道",
-    "继续保留 dev.29 额度探测修复、dev.28 本地接力、dev.27 上传恢复及现有 at-most-once 保护；不包含任何 URL直链/Ozon直链/直链计数/URL Prompt Builder 代码",
-    "Stable 3.2.0、DEV脚本 @name/@namespace、Auth v2 appId、云端接力协议和现有任务/断点数据结构均未修改"
+    "4.1.0-dev.1 启用新的版本阶段编号规则：后续同阶段使用 4.1.0-dev.N，避免长期堆叠 4.0.0-dev.N",
+    "修复“历史更新说明”仍读取 Stable history.json 的问题；DEV 版本改为读取独立 dev/protected/history-dev.json，只显示 DEV 历史",
+    "修复云端接力的冗余强制 /api/v2/me 预检：云端接力现在先检查本地登录态与设备标识，再由 Workflow 接口作为最终授权判定；401 时继续自动刷新 Token 后重试一次",
+    "云端接力错误提示补齐账号、应用、设备与登录态的安全映射，不显示 Token、到期时间、设备上限或管理员信息",
+    "继续沿用 dev.32 的生产功能基线，也就是 dev.29 功能集合；dev.30-dev.31 直链生图测试模块继续封存，不重新加入生产通道"
   ]
 }

@@ -13,7 +13,9 @@
         "初检 + 2次安全恢复仍失败才停止，并把最后一次诊断写入错误；发送按钮一旦点击后仍完全沿用既有at-most-once确认规则，不扩大重发范围。",
         "继续保留V1.5.5长提示词压平/轻量守卫与V1.5.6后台计时断层保护；不引入V1.6.x已撤回开发版逻辑。"
       ],
-      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.7.txt"
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.7.txt",
+      "commit": "5c2edc2a52b1af01fbd04d30c465c53626b69ec0",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/5c2edc2a52b1af01fbd04d30c465c53626b69ec0/POD_ChatGPT.user.js"
     },
     {
       "version": "1.5.6",

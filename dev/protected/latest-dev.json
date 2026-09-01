@@ -1,6 +1,6 @@
 {
   "channel": "protected-dev",
-  "version": "4.1.0-dev.1",
+  "version": "4.1.0-dev.2",
   "release_status": "dev",
   "recommended": true,
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/dev/protected/Ozon_ChatGPT_DEV.user.js",
@@ -10,10 +10,9 @@
   "cloud_handoff_protocol": "kagura-imageflow-handoff-v1",
   "cloud_handoff_backend": "kagura-workflow-v1-staging",
   "changelog": [
-    "4.1.0-dev.1 启用新的版本阶段编号规则：后续同阶段使用 4.1.0-dev.N，避免长期堆叠 4.0.0-dev.N",
-    "修复“历史更新说明”仍读取 Stable history.json 的问题；DEV 版本改为读取独立 dev/protected/history-dev.json，只显示 DEV 历史",
-    "修复云端接力的冗余强制 /api/v2/me 预检：云端接力现在先检查本地登录态与设备标识，再由 Workflow 接口作为最终授权判定；401 时继续自动刷新 Token 后重试一次",
-    "云端接力错误提示补齐账号、应用、设备与登录态的安全映射，不显示 Token、到期时间、设备上限或管理员信息",
-    "继续沿用 dev.32 的生产功能基线，也就是 dev.29 功能集合；dev.30-dev.31 直链生图测试模块继续封存，不重新加入生产通道"
+    "4.1.0-dev.2 新增云端接力安全授权诊断：显示本地登录态、设备标识是否存在、Auth /me 结果码以及 Workflow 接口结果码/HTTP状态",
+    "云端接力读取失败现在直接显示安全错误码与 HTTP 状态，便于区分 LICENSE/DEVICE/TOKEN/Workflow 等真实原因，不再只显示“当前账号授权不可用”",
+    "诊断不会显示 Token、密码、授权到期时间、设备上限、完整设备ID或管理员信息，也不会主动清除当前登录态",
+    "继续保留 4.1.0-dev.1 的 DEV 独立历史、Workflow 直连授权路径以及 dev.29 生产功能基线；直链生图测试模块继续封存"
   ]
 }

@@ -1,6 +1,6 @@
 {
   "channel": "protected-dev",
-  "version": "4.0.0-dev.31",
+  "version": "4.0.0-dev.29",
   "release_status": "dev",
   "recommended": true,
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/dev/protected/Ozon_ChatGPT_DEV.user.js",
@@ -10,9 +10,11 @@
   "cloud_handoff_protocol": "kagura-imageflow-handoff-v1",
   "cloud_handoff_backend": "kagura-workflow-v1-staging",
   "changelog": [
-    "dev.31 修复 Ozon 端直链计数刷新时报 directLinkText is not defined：直链计数节点改为在 updatePanel 内按需重新查询，不再依赖 createPanel 的局部变量作用域",
-    "dev.31 优化文件/文件夹选择取消行为：用户主动关闭 showDirectoryPicker/showOpenFilePicker 时不再记为红色失败日志，改为普通“已取消文件/文件夹选择”提示，不影响任务状态",
-    "继续保留 dev.30 Ozon直链来源模式、1-10 URL批处理、每批仅上传模板图、Prompt三层拼接、数量不一致待确认与 at-most-once 保护",
-    "Stable 3.2.0、DEV脚本 @name/@namespace、Auth v2 appId、云端接力协议和现有任务/断点数据结构均未修改"
+    "dev.29 修复上传异常恢复阶段的 ReferenceError：cQuotaFindVisibleLimitNotice is not defined。根因是 dev.27 替换额度等待函数时覆盖了 dev.25 插入的额度主动扫描辅助函数声明，但保留了调用点",
+    "恢复 cQuotaFindVisibleLimitNotice 与 cQuotaActiveProbe 两个运行时函数；模板上传超时、附件不足、清理残留附件等发送前异常现在可以继续进入额度判断、同页重试、页面刷新或30分钟周期恢复，而不会被未定义函数直接中断",
+    "新增构建期回归校验：最终源码中两个额度探测函数必须各且仅各存在1个定义，同时必须保留上传异常直接探测调用和每秒主动探测调用；再出现“有调用无定义”时CI直接失败，禁止发布",
+    "继续保留dev.28本地接力导入/下载，不依赖云端接力授权；继续保留dev.27明确恢复时间T+15秒/T+1分钟与无明确时间30分钟周期重试逻辑",
+    "所有自动上传恢复仍只允许发生在send_confirming之前；发送确认、生图、下载等at-most-once敏感阶段不会因此重发当前批",
+    "Stable 3.2.0、DEV脚本@name/@namespace、Auth v2 appId、云端接力协议及dev.23内部测试状态均未修改"
   ]
 }

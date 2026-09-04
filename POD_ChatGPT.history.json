@@ -15,8 +15,8 @@
         "继续保留V1.5.5长提示词压平、V1.5.6后台计时断层保护和V1.5.7发送前检查诊断/安全恢复；不引入V1.6.x已撤回开发版逻辑。"
       ],
       "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.8.txt",
-      "commit": "__RELEASE_COMMIT__",
-      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/__RELEASE_COMMIT__/POD_ChatGPT.user.js"
+      "commit": "56194dc106d34a31f2734aa33d4b628f756837f5",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/56194dc106d34a31f2734aa33d4b628f756837f5/POD_ChatGPT.user.js"
     },
     {
       "version": "1.5.7",

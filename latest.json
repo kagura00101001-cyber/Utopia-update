@@ -1,12 +1,13 @@
 {
-  "version": "3.2.0",
+  "version": "3.2.1",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js",
-  "published_at": "2026-08-19",
+  "published_at": "2026-09-05",
   "changelog": [
-    "热更新模块统一改为当前 POD 脚本使用的更新方式。",
-    "发现新版后弹窗提醒；点击“立刻更新”直接打开固定 GitHub Raw .user.js，由 Tampermonkey 显示升级/覆盖确认。",
-    "右下角“检查更新”同步使用同一套 POD 更新链路，不再跳转 Tampermonkey 管理面板。",
-    "移除旧的四步更新操作卡；点击版本号查看历史更新说明的功能继续保留。",
-    "保持手动热更新原则：不静默下载、不自动替换、不自动执行，最终覆盖由用户在 Tampermonkey 页面确认。"
+    "升级为 Kagura POD Studio。",
+    "新增参考素材队列系统，支持0张至任意数量参考图片。",
+    "参考素材按照用户选择顺序上传并生成 attachmentManifest 用于恢复。",
+    "旧模板图与Logo图逻辑自动迁移为参考素材队列。",
+    "版本历史增加稳定版与实验开发版风险标识。",
+    "保留创建图片恢复、发送保护、生图检测和热更新机制。"
   ]
 }

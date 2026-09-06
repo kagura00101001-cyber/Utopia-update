@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Ozon主图下载 + ChatGPT批量生图助手
 // @namespace    https://github.com/Kagura-userscripts
-// @version      3.2.0
+// @version      3.2.1
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js
 // @description  POD统一热更新版：新版提醒和手动检查均直接打开固定 Raw 脚本，由 Tampermonkey 接管覆盖确认。

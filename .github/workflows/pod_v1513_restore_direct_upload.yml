@@ -1,0 +1,162 @@
+name: POD V1.5.13 restore direct upload
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.pod_release/v1513-direct-upload/TRIGGER'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Restore proven direct upload core and validate
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          p = Path('POD_ChatGPT.user.js')
+          s = p.read_text(encoding='utf-8')
+
+          required = [
+              '// @version      1.5.12',
+              "const APP_VERSION = '1.5.12';",
+              'function fileInputScore(i){',
+              'function findUploadMenuItem(){',
+              'async function ensureFileInput(opts={}){',
+              'async function uploadFiles(files,label){',
+              'async function uploadFilesPlain(files,label){',
+              'handles.references.length',
+              'await activateCreate();',
+          ]
+          missing = [x for x in required if x not in s]
+          if missing:
+              raise SystemExit('V1.5.13 precondition failed: ' + repr(missing))
+
+          create_start = s.index('  function visibleMenuRoots(){')
+          create_end = s.index('  function setNativeValue', create_start)
+          create_block_before = s[create_start:create_end]
+
+          s = s.replace('// @name:zh-CN   Kagura POD智能创意中心 V1.5.12', '// @name:zh-CN   Kagura POD智能创意中心 V1.5.13', 1)
+          s = s.replace('// @version      1.5.12', '// @version      1.5.13', 1)
+          old_desc = '// @description  AI驱动的POD商品视觉生产系统：V1.5.12 修复ChatGPT新版“+ → 添加照片和文件”上传入口：不再误用页面其它隐藏file input，并在上传未启动时自动重走菜单链路。'
+          new_desc = '// @description  AI驱动的POD商品视觉生产系统：V1.5.13 恢复已验证的隐藏file input直接附件上传；“+”仅用于创建图片模式，保留0～N张有序参考素材队列。'
+          if old_desc not in s:
+              raise SystemExit('description precondition failed')
+          s = s.replace(old_desc, new_desc, 1)
+          s = s.replace('Kagura POD Studio V1.5.12\n   * ================================================================', 'Kagura POD Studio V1.5.13\n   * ================================================================', 1)
+          anchor = ' * - V1.5.12 上传热修复：适配ChatGPT新版“+ → 添加照片和文件”菜单；优先当前Composer/菜单激活后的上传控件，并在未触发上传时自动重试一次。\n'
+          if anchor not in s:
+              raise SystemExit('changelog anchor missing')
+          s = s.replace(anchor, anchor + ' * - V1.5.13 上传回归修复：恢复V1.5.8/V1.5.10已验证的隐藏file input直接上传；附件上传不再点击“+”，仅创建图片模块保留“+ → 创建图片”；0～N张参考素材队列、Manifest与其他稳定核心不变。\n', 1)
+          s = s.replace("const APP_VERSION = '1.5.12';", "const APP_VERSION = '1.5.13';", 1)
+
+          start = s.index('  function fileInputScore(i){')
+          end = s.index('  function countAttachments(){', start)
+          direct_adapter = '''  function findFileInput(){const a=[...document.querySelectorAll('input[type="file"]')];return a.find(i=>!i.accept||/image|png|jpe?g|webp|\\*/i.test(i.accept))||a[0]||null;}\n  async function ensureFileInput(){const i=findFileInput();if(!i)throw new Error('未找到ChatGPT直接附件上传控件；附件上传不会点击“+”，已暂停以避免误操作');return i;}\n'''
+          s = s[:start] + direct_adapter + s[end:]
+
+          old_upload_start = s.index('  async function uploadFiles(files,label){')
+          old_upload_end = s.index('\n\n  function plainText', old_upload_start)
+          direct_upload = '''  async function uploadFiles(files,label){if(!files.length)return countAttachments();const before=countAttachments(),expected=before+files.length,input=await ensureFileInput(),dt=new DataTransfer();files.forEach(f=>dt.items.add(f));input.files=dt.files;input.dispatchEvent(new Event('input',{bubbles:true,composed:true}));input.dispatchEvent(new Event('change',{bubbles:true,composed:true}));log(`已提交上传${label}：${files.map(f=>f.name).join('、')}`);return waitUploads(expected,label);}\n'''
+          s = s[:old_upload_start] + direct_upload + s[old_upload_end:]
+
+          plain_start = s.index('  async function uploadFilesPlain(files,label){')
+          plain_end = s.index('\n  async function setPlainPromptValue', plain_start)
+          direct_plain = '''  async function uploadFilesPlain(files,label){if(!files.length)return countAttachments();const before=countAttachments(),expected=before+files.length,input=await ensureFileInput(),dt=new DataTransfer();files.forEach(f=>dt.items.add(f));input.files=dt.files;input.dispatchEvent(new Event('input',{bubbles:true,composed:true}));input.dispatchEvent(new Event('change',{bubbles:true,composed:true}));log(`已提交上传${label}：${files.map(f=>f.name).join('、')}`);return waitUploadsPlain(expected,label);}\n'''
+          s = s[:plain_start] + direct_plain + s[plain_end:]
+
+          create_start_after = s.index('  function visibleMenuRoots(){')
+          create_end_after = s.index('  function setNativeValue', create_start_after)
+          create_block_after = s[create_start_after:create_end_after]
+          if create_block_after != create_block_before:
+              raise SystemExit('create-image core changed unexpectedly')
+
+          forbidden = ['function fileInputScore(', 'function findUploadMenuItem(', 'waitUploadKickoff(', 'ensureFileInput({forceMenu', 'assignFilesToInput(']
+          leftover = [x for x in forbidden if x in s]
+          if leftover:
+              raise SystemExit('V1.5.12 upload-menu helper still present: ' + repr(leftover))
+
+          direct_marker = "async function ensureFileInput(){const i=findFileInput();if(!i)throw new Error('未找到ChatGPT直接附件上传控件；附件上传不会点击“+”，已暂停以避免误操作');return i;}"
+          if direct_marker not in s:
+              raise SystemExit('direct upload adapter missing')
+          if s.count('input.files=dt.files') < 2:
+              raise SystemExit('direct DataTransfer upload paths missing')
+
+          pos_upload = s.index('expected=await uploadFiles(uploadList')
+          pos_create = s.index('await activateCreate();', pos_upload)
+          pos_prompt = s.index('await setPromptValue(prompt)', pos_create)
+          if not (pos_upload < pos_create < pos_prompt):
+              raise SystemExit('batch pipeline order changed')
+          if 'REFERENCE_FILES_KEY' not in s or 'makeAttachmentManifest(handles.references)' not in s:
+              raise SystemExit('reference queue/manifest was damaged')
+
+          p.write_text(s, encoding='utf-8')
+
+          end_meta = s.index('// ==/UserScript==') + len('// ==/UserScript==')
+          Path('POD_ChatGPT.meta.js').write_text(s[:end_meta] + '\n', encoding='utf-8')
+
+          notes = [
+              '恢复 V1.5.8/V1.5.10 已验证的隐藏 input[type=file] 直接附件上传方式，不再把附件上传与“+”菜单耦合。',
+              '“+”按钮重新只由创建图片模块使用：附件稳定上传完成后，才执行“+ → 创建图片 → 写入提示词 → 发送”。',
+              '继续保留 V1.5.10 的 0～N 张有序参考素材队列、按选择顺序上传、Attachment Manifest、旧模板/Logo迁移。',
+              '创建图片事件驱动检测、提示词写入、发送前保护、at-most-once、生成检测、暂停恢复和下载模块均保持不变。'
+          ]
+          manifest = {
+              'version': '1.5.13',
+              'install_url': 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js',
+              'download_url': 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js',
+              'published_at': '2026-09-07',
+              'changelog': notes,
+          }
+          manifest_text = json.dumps(manifest, ensure_ascii=False, indent=2) + '\n'
+          Path('POD_ChatGPT.latest.json').write_text(manifest_text, encoding='utf-8')
+          Path('POD_ChatGPT_latest.json').write_text(manifest_text, encoding='utf-8')
+
+          hp = Path('POD_ChatGPT.history.json')
+          hist = json.loads(hp.read_text(encoding='utf-8'))
+          for item in hist.get('versions', []):
+              if item.get('version') == '1.5.12' and item.get('status') == 'current':
+                  item['status'] = 'stable'
+          hist['title'] = 'Kagura POD Studio'
+          hist['versions'] = [x for x in hist.get('versions', []) if x.get('version') != '1.5.13']
+          hist['versions'].insert(0, {
+              'version': '1.5.13',
+              'date': '2026-09-07',
+              'status': 'current',
+              'notes': notes,
+              'archive_url': 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.13.txt',
+              'install_url': 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js',
+          })
+          hp.write_text(json.dumps(hist, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          Path('versions/POD_ChatGPT统一工作台_V1.5.13.txt').write_text(s, encoding='utf-8')
+          PY
+          node --check POD_ChatGPT.user.js
+          grep -q "@version      1.5.13" POD_ChatGPT.user.js
+          grep -q "const APP_VERSION = '1.5.13';" POD_ChatGPT.user.js
+          grep -q 'async function ensureFileInput(){const i=findFileInput()' POD_ChatGPT.user.js
+          grep -q 'expected=await uploadFiles(uploadList' POD_ChatGPT.user.js
+          ! grep -q 'ensureFileInput({forceMenu' POD_ChatGPT.user.js
+          ! grep -q 'function findUploadMenuItem' POD_ChatGPT.user.js
+      - name: Publish V1.5.13 and cleanup release scaffolding
+        shell: bash
+        run: |
+          rm -f .pod_release/v1513-direct-upload/TRIGGER
+          rm -f .github/workflows/pod_v1513_restore_direct_upload.yml
+          git config user.name 'Kagura Update Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'fix: release Kagura POD Studio V1.5.13 direct upload restore'
+          git push origin HEAD:main

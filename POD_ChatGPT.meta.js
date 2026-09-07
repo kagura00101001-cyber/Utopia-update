@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Kagura POD Studio
-// @name:zh-CN   Kagura POD智能创意中心 V1.5.14
+// @name:zh-CN   Kagura POD智能创意中心 V1.5.15
 // @namespace    https://github.com/Kagura-userscripts
-// @version      1.5.14
-// @description  AI驱动的POD商品视觉生产系统：V1.5.14 新增0～任意张有序参考素材队列、附件Manifest与旧模板/Logo自动迁移，并完整保留V1.5.8稳定生图核心；除参考素材队列及必要接线外，不改动创建图片、附件上传、发送、生图检测和下载恢复模块。
+// @version      1.5.15
+// @description  AI驱动的POD商品视觉生产系统：V1.5.15 修复参考素材队列升级后旧UI事件仍引用chooseTemplate导致的启动失败；完整保留V1.5.8稳定生图核心。
 // @author       Kagura
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js

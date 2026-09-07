@@ -3,9 +3,22 @@
   "since": "1.2.0",
   "versions": [
     {
-      "version": "1.5.10",
+      "version": "1.5.11",
       "date": "2026-09-07",
       "status": "current",
+      "notes": [
+        "修复 V1.5.10 启动时报错“chooseTemplate is not defined”的问题。",
+        "参考素材队列替换模板图/Logo图后，旧界面兼容动作统一改接 chooseReferenceFiles / clearReferenceFiles，不再引用已删除的 chooseTemplate、chooseLogo、clearLogo。",
+        "保留 V1.5.10 的 0～任意张有序参考素材、Attachment Manifest、旧模板/Logo自动迁移和按选择顺序上传。",
+        "不修改 V1.5.9 创建图片事件驱动兼容与 V1.5.8 at-most-once 发送安全核心。"
+      ],
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.11.txt",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js"
+    },
+    {
+      "version": "1.5.10",
+      "date": "2026-09-07",
+      "status": "stable",
       "notes": [
         "脚本正式升级为 Kagura POD Studio；中文名称为 Kagura POD智能创意中心，作者仍为 Kagura，namespace/updateURL/downloadURL 保持原 POD 链路。",
         "批量生图由固定模板图 + 可选Logo图升级为参考素材队列：支持0张、1张或任意多张图片，并严格按用户选择顺序上传。",

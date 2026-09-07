@@ -1,16 +1,12 @@
 {
-  "version": "1.5.10",
+  "version": "1.5.11",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "download_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "published_at": "2026-09-07",
   "changelog": [
-    "脚本正式升级为 Kagura POD Studio；中文名称为 Kagura POD智能创意中心，作者仍为 Kagura，namespace/updateURL/downloadURL 保持原 POD 链路。",
-    "批量生图由固定模板图 + 可选Logo图升级为参考素材队列：支持0张、1张或任意多张图片，并严格按用户选择顺序上传。",
-    "参考素材队列使用 referenceFiles 结构并持久化到 reference-files；旧 template-file / logo-file 授权在首次读取时自动按模板→Logo顺序迁移。",
-    "每批上传完成后生成并持久化 Attachment Manifest，记录附件数量、文件名、顺序与批次标识；create-refresh 恢复时按 Manifest 校验原顺序，避免错序恢复。",
-    "无参考素材时直接跳过上传并记录“本批无参考素材，跳过上传”；发送前 expected attachment count 动态为0～N。",
-    "提示词图片说明改为动态：仅有素材时追加“本批提供 X 张参考素材”及逐张顺序说明；0张素材时不追加图片说明。",
-    "完整保留 V1.5.9 事件驱动创建图片/Composer重载兼容，以及 V1.5.8 创建图片成功凭证、三次失败后单次刷新、发送前安全检查与 at-most-once 保护。",
-    "V1.6.x 继续统一标记为已撤回开发版：功能未完成，存在已知缺陷，不建议生产使用。"
+    "修复 V1.5.10 启动时报错“chooseTemplate is not defined”的问题。",
+    "参考素材队列替换模板图/Logo图后，旧界面兼容动作统一改接 chooseReferenceFiles / clearReferenceFiles，不再引用已删除的 chooseTemplate、chooseLogo、clearLogo。",
+    "保留 V1.5.10 的 0～任意张有序参考素材、Attachment Manifest、旧模板/Logo自动迁移和按选择顺序上传。",
+    "不修改 V1.5.9 创建图片事件驱动兼容与 V1.5.8 at-most-once 发送安全核心。"
   ]
 }

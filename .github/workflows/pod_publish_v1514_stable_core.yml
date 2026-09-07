@@ -1,0 +1,183 @@
+name: POD V1.5.14 Stable Core Rebuild
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .pod_release/v1514_stable_core/READY
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build V1.5.14 patch from verified queue patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          HIST_COMMIT = '4261026cb0a76f2092bb2e93248f861f61c74f78'
+          HIST_PATH = '.pod_release/v1510_queue/patch_v1510_queue.py'
+          text = subprocess.check_output(['git','show',f'{HIST_COMMIT}:{HIST_PATH}'], text=True, encoding='utf-8')
+
+          # 删除 V1.5.9 事件驱动创建图片块的提取逻辑。
+          start = text.index('# 复用当前 V1.5.9 已验证的事件驱动“创建图片”兼容块，不重新设计该逻辑。')
+          end = text.index('# 固定从 V1.5.8 生产稳定核心生成，V1.5.9 创建图片逻辑按上面原样复用。', start)
+          text = text[:start] + text[end:]
+          text = text.replace(
+              '# 固定从 V1.5.8 生产稳定核心生成，V1.5.9 创建图片逻辑按上面原样复用。',
+              '# 固定从 V1.5.8 生产稳定核心生成；创建图片/上传/发送/生图检测核心不做替换。',
+              1,
+          )
+
+          # 删除把 V1.5.9 create-image 模块覆盖到稳定核心的代码。
+          start = text.index('# ===== 保留 V1.5.9 已验证的事件驱动创建图片兼容层 =====')
+          end = text.index('# ===== 参考素材队列存储与旧数据兼容 =====', start)
+          text = text[:start] + text[end:]
+
+          # 升版本，但继续从固定 V1.5.8 CORE_COMMIT 生成。
+          text = text.replace('1.5.10', '1.5.14')
+          text = text.replace(
+              '并保留V1.5.9创建图片事件驱动兼容及V1.5.8发送安全核心。',
+              '并完整保留V1.5.8稳定生图核心；除参考素材队列及必要接线外，不改动创建图片、附件上传、发送、生图检测和下载恢复模块。',
+          )
+          text = text.replace(
+              '\\n * - V1.5.9 创建图片入口改为事件驱动局部检测，兼容 ChatGPT Composer 重载，不恢复 V1.6.x 撤回版的常驻全页高频扫描。',
+              '',
+          )
+          text = text.replace(
+              '完整保留 V1.5.9 事件驱动创建图片/Composer重载兼容，以及 V1.5.8 创建图片成功凭证、三次失败后单次刷新、发送前安全检查与 at-most-once 保护。',
+              '创建图片、附件上传稳定检测、提示词写入、发送确认、生图检测、下载与恢复逻辑全部来自 V1.5.8 稳定核心；V1.5.9～V1.5.13 对这些核心模块的改动不进入本版。',
+          )
+          text = text.replace(
+              'POD V1.5.14 reference asset queue patch applied',
+              'POD V1.5.14 stable-core reference queue patch applied',
+          )
+
+          out = Path('/tmp/patch_v1514_stable_core.py')
+          out.write_text(text, encoding='utf-8')
+          print('generated', out, 'bytes=', len(text))
+          PY
+          python -m py_compile /tmp/patch_v1514_stable_core.py
+
+      - name: Apply V1.5.14 stable-core queue patch
+        run: python /tmp/patch_v1514_stable_core.py
+
+      - name: Lock image-generation core to V1.5.8
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check POD_ChatGPT.user.js
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, json, re, subprocess
+
+          CORE_COMMIT='56194dc106d34a31f2734aa33d4b628f756837f5'
+          base=subprocess.check_output(['git','show',f'{CORE_COMMIT}:POD_ChatGPT.user.js'], text=True, encoding='utf-8')
+          user=Path('POD_ChatGPT.user.js').read_text(encoding='utf-8')
+          meta=Path('POD_ChatGPT.meta.js').read_text(encoding='utf-8')
+
+          def span(text,start,end):
+              a=text.index(start)
+              b=text.index(end,a)
+              return text[a:b]
+
+          # 上传实现和“创建图片”实现必须与 V1.5.8 逐字一致。
+          upload_base=span(base,'  async function uploadFiles(files,label){','  function plainText(e){')
+          upload_new=span(user,'  async function uploadFiles(files,label){','  function plainText(e){')
+          create_base=span(base,'  function plainText(e){','  function setNativeValue')
+          create_new=span(user,'  function plainText(e){','  function setNativeValue')
+          assert upload_new == upload_base, 'uploadFiles core changed from V1.5.8'
+          assert create_new == create_base, 'create-image core changed from V1.5.8'
+
+          # 禁止重新引入 V1.5.9+ 的 create-image 事件驱动改造。
+          for bad in ['kaguraWaitCreateItem','KAGURA_CREATE_POPUP_SELECTOR','waitForPromptEditorObserved','kaguraComposerSnapshot']:
+              assert bad not in user, f'forbidden post-V1.5.8 create token found: {bad}'
+
+          assert re.search(r'^// @version\s+1\.5\.14$', user, re.M)
+          assert re.search(r'^// @version\s+1\.5\.14$', meta, re.M)
+          assert "const APP_VERSION = '1.5.14';" in user
+          assert "const REFERENCE_FILES_KEY = 'reference-files';" in user
+          assert 'let referenceFiles=[];' in user
+          assert 'attachmentManifest' in user
+          assert 'makeAttachmentManifest' in user
+          assert 'orderedReferenceEntries' in user
+          assert '本批无参考素材，跳过上传' in user
+          assert '参考素材队列已更新' in user
+          assert 'if(!template)throw new Error(\'请先选择公共模板图\')' not in user
+          assert '当前DOM标签瞬时未命中' in user
+          assert 'send-confirming' in user
+
+          print('V1.5.8 upload SHA256:', hashlib.sha256(upload_new.encode()).hexdigest())
+          print('V1.5.8 create SHA256:', hashlib.sha256(create_new.encode()).hexdigest())
+          print('stable-core isolation assertions: PASS')
+          PY
+          git diff --check
+
+      - name: Mark incompatible intermediate builds withdrawn
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          p=Path('POD_ChatGPT.history.json')
+          h=json.loads(p.read_text(encoding='utf-8'))
+          withdrawn={f'1.5.{i}' for i in range(9,14)}
+          note='【已撤回】该版本改动过稳定生图核心，现已由 V1.5.14 的 V1.5.8 稳定核心重构取代。'
+          for v in h.get('versions',[]):
+              if str(v.get('version')) in withdrawn:
+                  v['status']='withdrawn'
+                  notes=[str(x) for x in v.get('notes',[])]
+                  if note not in notes:
+                      v['notes']=[note]+notes
+          p.write_text(json.dumps(h,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          PY
+
+      - name: Verify POD-only boundary
+        shell: bash
+        run: |
+          python - <<'PY'
+          import subprocess
+          allowed={
+            'POD_ChatGPT.user.js',
+            'POD_ChatGPT.meta.js',
+            'POD_ChatGPT.latest.json',
+            'POD_ChatGPT_latest.json',
+            'POD_ChatGPT.history.json',
+            'versions/POD_ChatGPT统一工作台_V1.5.14.txt',
+          }
+          changed=set(filter(None,subprocess.check_output(['git','diff','--name-only'],text=True).splitlines()))
+          unexpected=changed-allowed
+          if unexpected:
+              raise SystemExit('Unexpected files changed: '+', '.join(sorted(unexpected)))
+          print('POD-only boundary: PASS')
+          PY
+
+      - name: Publish V1.5.14
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Kagura Update Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add POD_ChatGPT.user.js POD_ChatGPT.meta.js POD_ChatGPT.latest.json POD_ChatGPT_latest.json POD_ChatGPT.history.json 'versions/POD_ChatGPT统一工作台_V1.5.14.txt'
+          git commit -m 'release: Kagura POD Studio V1.5.14 stable image-generation core + reference queue'
+          git push origin HEAD:main
+
+      - name: Cleanup release trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm -f .pod_release/v1514_stable_core/READY .github/workflows/pod_publish_v1514_stable_core.yml
+          git commit -m 'chore: cleanup POD V1.5.14 stable-core publisher'
+          git push origin HEAD:main

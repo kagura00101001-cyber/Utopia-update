@@ -4,7 +4,7 @@
 // @version      3.2.1
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js
-// @description  POD统一热更新版：新版提醒和手动检查均直接打开固定 Raw 脚本，由 Tampermonkey 接管覆盖确认。
+// @description  V3.2.1 热更新修复版：固定加载并校验 V3.2.0 稳定核心，修复发布链版本不一致。
 // @author       Kagura
 // @match        https://www.ozon.ru/*
 // @match        https://ozon.ru/*

@@ -1,0 +1,156 @@
+name: POD V1.5.15 chooseTemplate Compatibility Hotfix
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .pod_release/v1515_choose_template/READY
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply minimal compatibility hotfix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json, re
+
+          p=Path('POD_ChatGPT.user.js')
+          s=p.read_text(encoding='utf-8')
+          if '// @version      1.5.14' not in s or "const APP_VERSION = '1.5.14';" not in s:
+              raise SystemExit('Expected V1.5.14 current script not found')
+
+          # 仅修复旧 UI 事件表仍引用 chooseTemplate/chooseLogo/clearLogo 导致启动期 ReferenceError。
+          # 不修改上传、创建图片、提示词写入、发送、生图检测、下载恢复等稳定核心。
+          marker='  async function orderedReferenceEntries(manifest=null,request=false){'
+          if marker not in s:
+              raise SystemExit('reference queue marker missing')
+          bridge="""  // V1.5.15 legacy UI compatibility bridge: old hidden actions may still bind these names during createPanel().\n  // They delegate to the new reference queue only; image-generation core remains untouched.\n  async function chooseTemplate(){return chooseReferenceFiles();}\n  async function chooseLogo(){return chooseReferenceFiles();}\n  async function clearLogo(){return clearReferenceFiles();}\n"""
+          if 'async function chooseTemplate(){return chooseReferenceFiles();}' not in s:
+              s=s.replace(marker, bridge+marker, 1)
+
+          s=s.replace('// @name:zh-CN   Kagura POD智能创意中心 V1.5.14','// @name:zh-CN   Kagura POD智能创意中心 V1.5.15',1)
+          s=s.replace('// @version      1.5.14','// @version      1.5.15',1)
+          s=s.replace("const APP_VERSION = '1.5.14';","const APP_VERSION = '1.5.15';",1)
+          s=s.replace('   * Kagura POD Studio V1.5.14','   * Kagura POD Studio V1.5.15',1)
+          s=s.replace(
+              '// @description  AI驱动的POD商品视觉生产系统：V1.5.14 新增0～任意张有序参考素材队列、附件Manifest与旧模板/Logo自动迁移，并完整保留V1.5.8稳定生图核心；除参考素材队列及必要接线外，不改动创建图片、附件上传、发送、生图检测和下载恢复模块。',
+              '// @description  AI驱动的POD商品视觉生产系统：V1.5.15 修复参考素材队列升级后旧UI事件仍引用chooseTemplate导致的启动失败；完整保留V1.5.8稳定生图核心。',
+              1,
+          )
+          anchor=' * - V1.5.8 创建图片状态增强：已成功激活后记录同批短期成功凭证并加入composer局部宽松证据检测，避免瞬时假阴性导致重复点+；真正连续3次激活失败且尚未发送时只刷新1次后自动重新准备本批，刷新后仍失败才暂停。'
+          if anchor in s and 'V1.5.15 启动兼容修复' not in s:
+              s=s.replace(anchor, anchor+'\n * - V1.5.15 启动兼容修复：旧模板/Logo隐藏控件在createPanel阶段仍会绑定chooseTemplate/chooseLogo/clearLogo，现增加仅委托到参考素材队列的兼容桥，避免ReferenceError；不改动V1.5.8生图核心。',1)
+
+          p.write_text(s,encoding='utf-8')
+
+          # metadata
+          end=s.index('// ==/UserScript==')+len('// ==/UserScript==')
+          Path('POD_ChatGPT.meta.js').write_text(s[:end]+'\n',encoding='utf-8')
+
+          changelog=[
+              '修复启动时报错“chooseTemplate is not defined”：参考素材队列替换旧模板/Logo后，旧隐藏UI事件绑定仍会在createPanel阶段解析旧函数名。',
+              '新增最小兼容桥：chooseTemplate/chooseLogo统一委托到chooseReferenceFiles，clearLogo委托到clearReferenceFiles，仅用于旧UI事件兼容。',
+              '不修改V1.5.8稳定生图核心：附件上传、创建图片、提示词写入、发送确认、生图检测、下载与恢复逻辑保持原样。',
+              '继续保留V1.5.14的0～N张有序参考素材队列、Attachment Manifest与旧模板/Logo迁移。'
+          ]
+          latest={
+              'version':'1.5.15',
+              'install_url':'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js',
+              'download_url':'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js',
+              'published_at':'2026-09-07',
+              'changelog':changelog,
+          }
+          txt=json.dumps(latest,ensure_ascii=False,indent=2)+'\n'
+          Path('POD_ChatGPT.latest.json').write_text(txt,encoding='utf-8')
+          Path('POD_ChatGPT_latest.json').write_text(txt,encoding='utf-8')
+
+          hp=Path('POD_ChatGPT.history.json')
+          h=json.loads(hp.read_text(encoding='utf-8'))
+          versions=[v for v in h.get('versions',[]) if str(v.get('version'))!='1.5.15']
+          for v in versions:
+              if v.get('status')=='current': v['status']='stable'
+          entry={
+              'version':'1.5.15','date':'2026-09-07','status':'current','notes':changelog,
+              'archive_url':'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.15.txt',
+              'install_url':'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js'
+          }
+          h['versions']=[entry]+versions
+          hp.write_text(json.dumps(h,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
+          archive=Path('versions/POD_ChatGPT统一工作台_V1.5.15.txt')
+          archive.write_text(s,encoding='utf-8')
+          print('V1.5.15 compatibility hotfix applied')
+          PY
+
+      - name: Verify syntax and stable-core isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check POD_ChatGPT.user.js
+          python - <<'PY'
+          from pathlib import Path
+          import re, subprocess
+          CORE_COMMIT='56194dc106d34a31f2734aa33d4b628f756837f5'
+          base=subprocess.check_output(['git','show',f'{CORE_COMMIT}:POD_ChatGPT.user.js'],text=True,encoding='utf-8')
+          user=Path('POD_ChatGPT.user.js').read_text(encoding='utf-8')
+          meta=Path('POD_ChatGPT.meta.js').read_text(encoding='utf-8')
+          def span(text,start,end):
+              a=text.index(start); b=text.index(end,a); return text[a:b]
+          assert span(user,'  async function uploadFiles(files,label){','  function plainText(e){') == span(base,'  async function uploadFiles(files,label){','  function plainText(e){')
+          assert span(user,'  function plainText(e){','  function setNativeValue') == span(base,'  function plainText(e){','  function setNativeValue')
+          assert re.search(r'^// @version\s+1\.5\.15$',user,re.M)
+          assert re.search(r'^// @version\s+1\.5\.15$',meta,re.M)
+          assert "const APP_VERSION = '1.5.15';" in user
+          assert 'async function chooseTemplate(){return chooseReferenceFiles();}' in user
+          assert 'async function chooseLogo(){return chooseReferenceFiles();}' in user
+          assert 'async function clearLogo(){return clearReferenceFiles();}' in user
+          assert "const REFERENCE_FILES_KEY = 'reference-files';" in user
+          assert 'attachmentManifest' in user
+          print('V1.5.15 syntax/core isolation: PASS')
+          PY
+          git diff --check
+
+      - name: Verify POD-only boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import subprocess
+          allowed={
+            'POD_ChatGPT.user.js','POD_ChatGPT.meta.js','POD_ChatGPT.latest.json','POD_ChatGPT_latest.json','POD_ChatGPT.history.json','versions/POD_ChatGPT统一工作台_V1.5.15.txt'
+          }
+          changed=set(filter(None,subprocess.check_output(['git','diff','--name-only'],text=True).splitlines()))
+          bad=changed-allowed
+          if bad: raise SystemExit('Unexpected files changed: '+', '.join(sorted(bad)))
+          print('POD-only boundary: PASS')
+          PY
+
+      - name: Publish V1.5.15
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Kagura Update Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add POD_ChatGPT.user.js POD_ChatGPT.meta.js POD_ChatGPT.latest.json POD_ChatGPT_latest.json POD_ChatGPT.history.json 'versions/POD_ChatGPT统一工作台_V1.5.15.txt'
+          git commit -m 'fix: POD V1.5.15 restore legacy UI compatibility names'
+          git push origin HEAD:main
+
+      - name: Cleanup release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm -f .pod_release/v1515_choose_template/READY .github/workflows/pod_publish_v1515_choose_template_hotfix.yml
+          git commit -m 'chore: cleanup POD V1.5.15 hotfix assets'
+          git push origin HEAD:main

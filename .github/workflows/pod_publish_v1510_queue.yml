@@ -45,6 +45,38 @@ jobs:
       - name: Apply V1.5.10 reference queue patch
         run: python .pod_release/v1510_queue/patch_v1510_queue.py
 
+      - name: Restore V1.5.9 history bridge
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          p = Path('POD_ChatGPT.history.json')
+          data = json.loads(p.read_text(encoding='utf-8'))
+          versions = data.get('versions', [])
+          if not any(str(v.get('version')) == '1.5.9' for v in versions):
+              v159 = {
+                  'version': '1.5.9',
+                  'date': '2026-09-07',
+                  'status': 'stable',
+                  'notes': [
+                      '创建图片入口改为事件驱动局部检测：点击当前Composer的“+”后优先监听新出现的菜单节点，不再对document全页div/span进行高频扫描。',
+                      '创建图片候选限制在当前加号关联菜单、标准弹层和加号附近有限区域，减少长聊天中误命中侧栏、历史消息或其他浮层。',
+                      '兼容ChatGPT新版Composer重载：输入区或“+”节点被替换后会重新捕获当前有效节点，再继续同一批次。',
+                      '保留V1.5.8同批短期成功凭证、连续3次失败后单次刷新恢复与at-most-once发送保护。'
+                  ],
+                  'archive_url': 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.9.txt',
+                  'commit': 'e209f6add55cc3ebd385dc827bde0ea70879b078',
+                  'install_url': 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/e209f6add55cc3ebd385dc827bde0ea70879b078/POD_ChatGPT.user.js'
+              }
+              versions.insert(1, v159)
+          for v in versions:
+              if str(v.get('version')) == '1.5.9':
+                  v['status'] = 'stable'
+          data['versions'] = versions
+          p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+
       - name: Validate release
         shell: bash
         run: |

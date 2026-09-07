@@ -1,12 +1,16 @@
 {
-  "version": "1.5.13",
+  "version": "1.5.14",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "download_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "published_at": "2026-09-07",
   "changelog": [
-    "恢复 V1.5.8/V1.5.10 已验证的隐藏 input[type=file] 直接附件上传方式，不再把附件上传与“+”菜单耦合。",
-    "“+”按钮重新只由创建图片模块使用：附件稳定上传完成后，才执行“+ → 创建图片 → 写入提示词 → 发送”。",
-    "继续保留 V1.5.10 的 0～N 张有序参考素材队列、按选择顺序上传、Attachment Manifest、旧模板/Logo迁移。",
-    "创建图片事件驱动检测、提示词写入、发送前保护、at-most-once、生成检测、暂停恢复和下载模块均保持不变。"
+    "脚本正式升级为 Kagura POD Studio；中文名称为 Kagura POD智能创意中心，作者仍为 Kagura，namespace/updateURL/downloadURL 保持原 POD 链路。",
+    "批量生图由固定模板图 + 可选Logo图升级为参考素材队列：支持0张、1张或任意多张图片，并严格按用户选择顺序上传。",
+    "参考素材队列使用 referenceFiles 结构并持久化到 reference-files；旧 template-file / logo-file 授权在首次读取时自动按模板→Logo顺序迁移。",
+    "每批上传完成后生成并持久化 Attachment Manifest，记录附件数量、文件名、顺序与批次标识；create-refresh 恢复时按 Manifest 校验原顺序，避免错序恢复。",
+    "无参考素材时直接跳过上传并记录“本批无参考素材，跳过上传”；发送前 expected attachment count 动态为0～N。",
+    "提示词图片说明改为动态：仅有素材时追加“本批提供 X 张参考素材”及逐张顺序说明；0张素材时不追加图片说明。",
+    "创建图片、附件上传稳定检测、提示词写入、发送确认、生图检测、下载与恢复逻辑全部来自 V1.5.8 稳定核心；V1.5.9～V1.5.13 对这些核心模块的改动不进入本版。",
+    "V1.6.x 继续统一标记为已撤回开发版：功能未完成，存在已知缺陷，不建议生产使用。"
   ]
 }

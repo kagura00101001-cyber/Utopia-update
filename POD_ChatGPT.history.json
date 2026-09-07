@@ -3,10 +3,28 @@
   "since": "1.2.0",
   "versions": [
     {
-      "version": "1.5.13",
+      "version": "1.5.14",
       "date": "2026-09-07",
       "status": "current",
       "notes": [
+        "脚本正式升级为 Kagura POD Studio；中文名称为 Kagura POD智能创意中心，作者仍为 Kagura，namespace/updateURL/downloadURL 保持原 POD 链路。",
+        "批量生图由固定模板图 + 可选Logo图升级为参考素材队列：支持0张、1张或任意多张图片，并严格按用户选择顺序上传。",
+        "参考素材队列使用 referenceFiles 结构并持久化到 reference-files；旧 template-file / logo-file 授权在首次读取时自动按模板→Logo顺序迁移。",
+        "每批上传完成后生成并持久化 Attachment Manifest，记录附件数量、文件名、顺序与批次标识；create-refresh 恢复时按 Manifest 校验原顺序，避免错序恢复。",
+        "无参考素材时直接跳过上传并记录“本批无参考素材，跳过上传”；发送前 expected attachment count 动态为0～N。",
+        "提示词图片说明改为动态：仅有素材时追加“本批提供 X 张参考素材”及逐张顺序说明；0张素材时不追加图片说明。",
+        "创建图片、附件上传稳定检测、提示词写入、发送确认、生图检测、下载与恢复逻辑全部来自 V1.5.8 稳定核心；V1.5.9～V1.5.13 对这些核心模块的改动不进入本版。",
+        "V1.6.x 继续统一标记为已撤回开发版：功能未完成，存在已知缺陷，不建议生产使用。"
+      ],
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.14.txt",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js"
+    },
+    {
+      "version": "1.5.13",
+      "date": "2026-09-07",
+      "status": "withdrawn",
+      "notes": [
+        "【已撤回】该版本改动过稳定生图核心，现已由 V1.5.14 的 V1.5.8 稳定核心重构取代。",
         "恢复 V1.5.8/V1.5.10 已验证的隐藏 input[type=file] 直接附件上传方式，不再把附件上传与“+”菜单耦合。",
         "“+”按钮重新只由创建图片模块使用：附件稳定上传完成后，才执行“+ → 创建图片 → 写入提示词 → 发送”。",
         "继续保留 V1.5.10 的 0～N 张有序参考素材队列、按选择顺序上传、Attachment Manifest、旧模板/Logo迁移。",
@@ -18,8 +36,9 @@
     {
       "version": "1.5.12",
       "date": "2026-09-07",
-      "status": "stable",
+      "status": "withdrawn",
       "notes": [
+        "【已撤回】该版本改动过稳定生图核心，现已由 V1.5.14 的 V1.5.8 稳定核心重构取代。",
         "修复 V1.5.11 显示“上传参考素材”但实际只打开 ChatGPT “+”菜单、附件没有进入输入框的问题。",
         "上传入口改为优先当前 Composer，并在需要时明确执行“+ → 添加照片和文件”，避免误命中页面其它隐藏 file input。",
         "提交文件后新增上传启动确认；7秒内未出现附件或上传状态时自动重走菜单链路并重试一次，仍失败才暂停。",
@@ -31,8 +50,9 @@
     {
       "version": "1.5.11",
       "date": "2026-09-07",
-      "status": "stable",
+      "status": "withdrawn",
       "notes": [
+        "【已撤回】该版本改动过稳定生图核心，现已由 V1.5.14 的 V1.5.8 稳定核心重构取代。",
         "修复 V1.5.10 启动时报错“chooseTemplate is not defined”的问题。",
         "参考素材队列替换模板图/Logo图后，旧界面兼容动作统一改接 chooseReferenceFiles / clearReferenceFiles，不再引用已删除的 chooseTemplate、chooseLogo、clearLogo。",
         "保留 V1.5.10 的 0～任意张有序参考素材、Attachment Manifest、旧模板/Logo自动迁移和按选择顺序上传。",
@@ -44,8 +64,9 @@
     {
       "version": "1.5.10",
       "date": "2026-09-07",
-      "status": "stable",
+      "status": "withdrawn",
       "notes": [
+        "【已撤回】该版本改动过稳定生图核心，现已由 V1.5.14 的 V1.5.8 稳定核心重构取代。",
         "脚本正式升级为 Kagura POD Studio；中文名称为 Kagura POD智能创意中心，作者仍为 Kagura，namespace/updateURL/downloadURL 保持原 POD 链路。",
         "批量生图由固定模板图 + 可选Logo图升级为参考素材队列：支持0张、1张或任意多张图片，并严格按用户选择顺序上传。",
         "参考素材队列使用 referenceFiles 结构并持久化到 reference-files；旧 template-file / logo-file 授权在首次读取时自动按模板→Logo顺序迁移。",
@@ -61,8 +82,9 @@
     {
       "version": "1.5.9",
       "date": "2026-09-07",
-      "status": "stable",
+      "status": "withdrawn",
       "notes": [
+        "【已撤回】该版本改动过稳定生图核心，现已由 V1.5.14 的 V1.5.8 稳定核心重构取代。",
         "创建图片入口改为事件驱动局部检测：点击当前Composer的“+”后优先监听新出现的菜单节点，不再对document全页div/span进行高频扫描。",
         "创建图片候选限制在当前加号关联菜单、标准弹层和加号附近有限区域，减少长聊天中误命中侧栏、历史消息或其他浮层。",
         "兼容ChatGPT新版Composer重载：输入区或“+”节点被替换后会重新捕获当前有效节点，再继续同一批次。",

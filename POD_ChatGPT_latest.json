@@ -1,12 +1,12 @@
 {
-  "version": "1.5.11",
+  "version": "1.5.12",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "download_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "published_at": "2026-09-07",
   "changelog": [
-    "修复 V1.5.10 启动时报错“chooseTemplate is not defined”的问题。",
-    "参考素材队列替换模板图/Logo图后，旧界面兼容动作统一改接 chooseReferenceFiles / clearReferenceFiles，不再引用已删除的 chooseTemplate、chooseLogo、clearLogo。",
-    "保留 V1.5.10 的 0～任意张有序参考素材、Attachment Manifest、旧模板/Logo自动迁移和按选择顺序上传。",
-    "不修改 V1.5.9 创建图片事件驱动兼容与 V1.5.8 at-most-once 发送安全核心。"
+    "修复 V1.5.11 显示“上传参考素材”但实际只打开 ChatGPT “+”菜单、附件没有进入输入框的问题。",
+    "上传入口改为优先当前 Composer，并在需要时明确执行“+ → 添加照片和文件”，避免误命中页面其它隐藏 file input。",
+    "提交文件后新增上传启动确认；7秒内未出现附件或上传状态时自动重走菜单链路并重试一次，仍失败才暂停。",
+    "批量生图与风格反推共用同一上传修复；参考素材顺序、Attachment Manifest、创建图片恢复和 at-most-once 发送保护保持不变。"
   ]
 }

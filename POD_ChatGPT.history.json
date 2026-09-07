@@ -3,9 +3,22 @@
   "since": "1.2.0",
   "versions": [
     {
-      "version": "1.5.12",
+      "version": "1.5.13",
       "date": "2026-09-07",
       "status": "current",
+      "notes": [
+        "恢复 V1.5.8/V1.5.10 已验证的隐藏 input[type=file] 直接附件上传方式，不再把附件上传与“+”菜单耦合。",
+        "“+”按钮重新只由创建图片模块使用：附件稳定上传完成后，才执行“+ → 创建图片 → 写入提示词 → 发送”。",
+        "继续保留 V1.5.10 的 0～N 张有序参考素材队列、按选择顺序上传、Attachment Manifest、旧模板/Logo迁移。",
+        "创建图片事件驱动检测、提示词写入、发送前保护、at-most-once、生成检测、暂停恢复和下载模块均保持不变。"
+      ],
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.13.txt",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js"
+    },
+    {
+      "version": "1.5.12",
+      "date": "2026-09-07",
+      "status": "stable",
       "notes": [
         "修复 V1.5.11 显示“上传参考素材”但实际只打开 ChatGPT “+”菜单、附件没有进入输入框的问题。",
         "上传入口改为优先当前 Composer，并在需要时明确执行“+ → 添加照片和文件”，避免误命中页面其它隐藏 file input。",

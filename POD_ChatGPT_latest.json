@@ -1,14 +1,16 @@
 {
-  "version": "1.5.9",
+  "version": "1.5.10",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "download_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "published_at": "2026-09-07",
   "changelog": [
-    "创建图片入口改为事件驱动局部检测：点击当前Composer的“+”后优先监听新出现的菜单节点，不再对document全页div/span进行高频扫描。",
-    "创建图片候选限制在当前加号关联菜单、标准弹层和加号附近有限区域，减少长聊天中误命中侧栏、历史消息或其他浮层。",
-    "兼容ChatGPT新版Composer重载：输入区或“+”节点被替换后会重新捕获当前有效节点，再继续同一批次。",
-    "创建图片激活后的模式确认同样使用事件监听与低频局部兜底，并保留V1.5.8同批短期成功凭证，避免瞬时DOM假阴性导致重复点击。",
-    "继续保留创建图片真正连续3次失败后仅刷新1次、刷新后仍失败才暂停的规则；发送按钮一旦点击仍严格at-most-once，绝不重复发送。",
-    "本版固定继承V1.5.8生产稳定核心，不带回已撤回V1.6.x的全页扫描方案，也不重构上传、生图检测、下载隔离和暂停恢复模块。"
+    "脚本正式升级为 Kagura POD Studio；中文名称为 Kagura POD智能创意中心，作者仍为 Kagura，namespace/updateURL/downloadURL 保持原 POD 链路。",
+    "批量生图由固定模板图 + 可选Logo图升级为参考素材队列：支持0张、1张或任意多张图片，并严格按用户选择顺序上传。",
+    "参考素材队列使用 referenceFiles 结构并持久化到 reference-files；旧 template-file / logo-file 授权在首次读取时自动按模板→Logo顺序迁移。",
+    "每批上传完成后生成并持久化 Attachment Manifest，记录附件数量、文件名、顺序与批次标识；create-refresh 恢复时按 Manifest 校验原顺序，避免错序恢复。",
+    "无参考素材时直接跳过上传并记录“本批无参考素材，跳过上传”；发送前 expected attachment count 动态为0～N。",
+    "提示词图片说明改为动态：仅有素材时追加“本批提供 X 张参考素材”及逐张顺序说明；0张素材时不追加图片说明。",
+    "完整保留 V1.5.9 事件驱动创建图片/Composer重载兼容，以及 V1.5.8 创建图片成功凭证、三次失败后单次刷新、发送前安全检查与 at-most-once 保护。",
+    "V1.6.x 继续统一标记为已撤回开发版：功能未完成，存在已知缺陷，不建议生产使用。"
   ]
 }

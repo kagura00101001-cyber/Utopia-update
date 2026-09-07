@@ -1,11 +1,42 @@
 {
-  "title": "ChatGPT服装POD统一工作台",
+  "title": "Kagura POD Studio",
   "since": "1.2.0",
   "versions": [
     {
+      "version": "1.5.10",
+      "date": "2026-09-07",
+      "status": "current",
+      "notes": [
+        "脚本正式升级为 Kagura POD Studio；中文名称为 Kagura POD智能创意中心，作者仍为 Kagura，namespace/updateURL/downloadURL 保持原 POD 链路。",
+        "批量生图由固定模板图 + 可选Logo图升级为参考素材队列：支持0张、1张或任意多张图片，并严格按用户选择顺序上传。",
+        "参考素材队列使用 referenceFiles 结构并持久化到 reference-files；旧 template-file / logo-file 授权在首次读取时自动按模板→Logo顺序迁移。",
+        "每批上传完成后生成并持久化 Attachment Manifest，记录附件数量、文件名、顺序与批次标识；create-refresh 恢复时按 Manifest 校验原顺序，避免错序恢复。",
+        "无参考素材时直接跳过上传并记录“本批无参考素材，跳过上传”；发送前 expected attachment count 动态为0～N。",
+        "提示词图片说明改为动态：仅有素材时追加“本批提供 X 张参考素材”及逐张顺序说明；0张素材时不追加图片说明。",
+        "完整保留 V1.5.9 事件驱动创建图片/Composer重载兼容，以及 V1.5.8 创建图片成功凭证、三次失败后单次刷新、发送前安全检查与 at-most-once 保护。",
+        "V1.6.x 继续统一标记为已撤回开发版：功能未完成，存在已知缺陷，不建议生产使用。"
+      ],
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.10.txt",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js"
+    },
+    {
+      "version": "1.5.9",
+      "date": "2026-09-07",
+      "status": "stable",
+      "notes": [
+        "创建图片入口改为事件驱动局部检测：点击当前Composer的“+”后优先监听新出现的菜单节点，不再对document全页div/span进行高频扫描。",
+        "创建图片候选限制在当前加号关联菜单、标准弹层和加号附近有限区域，减少长聊天中误命中侧栏、历史消息或其他浮层。",
+        "兼容ChatGPT新版Composer重载：输入区或“+”节点被替换后会重新捕获当前有效节点，再继续同一批次。",
+        "保留V1.5.8同批短期成功凭证、连续3次失败后单次刷新恢复与at-most-once发送保护。"
+      ],
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.9.txt",
+      "commit": "e209f6add55cc3ebd385dc827bde0ea70879b078",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/e209f6add55cc3ebd385dc827bde0ea70879b078/POD_ChatGPT.user.js"
+    },
+    {
       "version": "1.5.8",
       "date": "2026-09-04",
-      "status": "current",
+      "status": "stable",
       "notes": [
         "修复“创建图片模式已经添加成功，但下一阶段再次检测时瞬时假阴性，导致脚本重复点击 + 并最终误报失败”的问题。",
         "新增本批创建图片成功凭证：同一批次、同一页面在刚刚明确确认创建图片成功后，短时间内即使DOM标签瞬时未命中，也不会立刻重复激活；发送前检查同时使用严格标签、composer局部宽松证据和近期成功凭证。",

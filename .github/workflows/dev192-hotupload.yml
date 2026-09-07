@@ -27,8 +27,8 @@ jobs:
           set -euo pipefail
           shopt -s nullglob
           parts=(.hotupload/dev192/part-*.b64)
-          if [ "${#parts[@]}" -ne 9 ]; then
-            echo "Waiting for all 9 chunks; currently ${#parts[@]}."
+          if [ "${#parts[@]}" -ne 16 ]; then
+            echo "Waiting for all 16 chunks; currently ${#parts[@]}."
             exit 0
           fi
           mkdir -p dev/testing/4.1.0-dev.19.2

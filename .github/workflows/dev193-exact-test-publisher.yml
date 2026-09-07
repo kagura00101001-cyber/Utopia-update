@@ -1,0 +1,158 @@
+name: dev193 exact test publisher
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/dev193-exact-test-publisher.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dev193-exact-test-publisher
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build dev19.3 exactly from published dev19.2 TEST
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re, hashlib
+
+          src = Path('dev/testing/4.1.0-dev.19.2/Ozon_ChatGPT_DEV_4.1.0-dev.19.2_TEST.user.js')
+          out = Path('dev/testing/4.1.0-dev.19.3/Ozon_ChatGPT_DEV_4.1.0-dev.19.3_TEST.user.js')
+          text = src.read_text(encoding='utf-8')
+          if '// @version      4.1.0-dev.19.2' not in text:
+              raise SystemExit('dev19.2 source header missing')
+
+          text = text.replace('// @version      4.1.0-dev.19.2', '// @version      4.1.0-dev.19.3', 1)
+          text = text.replace("version: '4.1.0-dev.19.2'", "version: '4.1.0-dev.19.3'", 1)
+          text = text.replace("log('dev.19.2 pre-upload gate installed');", "log('dev.19.3 strict create-image-first gate installed');", 1)
+          text = text.replace('// dev.19.2: make "Create image" a hard precondition for every programmatic image upload.', '// dev.19.3: make ACTIVE "Create image" mode a hard precondition before any image file assignment/upload event.', 1)
+
+          new_active = r'''  function isCreateImageActive(parts) {
+            const composer = parts?.composer;
+            if (!(composer instanceof Element) || !composer.isConnected) return false;
+
+            // Do NOT treat a bare visible "创建图片 / Create image" action as active.
+            // In the normal Composer ChatGPT may expose that text as a shortcut/menu action.
+            // Active mode must have positive state evidence: a remove/close affordance,
+            // pressed/selected/checked state, or an active-state attribute on the tool control.
+            const candidates = composer.querySelectorAll('button, [role="button"], [data-testid], [aria-label], [title], [aria-pressed], [aria-selected], [aria-checked], [data-state]');
+            for (const node of candidates) {
+              if (!visible(node)) continue;
+              const text = normalizeText(node);
+              const state = String(node.getAttribute?.('data-state') || '').toLowerCase();
+              const pressed = String(node.getAttribute?.('aria-pressed') || '').toLowerCase();
+              const selected = String(node.getAttribute?.('aria-selected') || '').toLowerCase();
+              const checked = String(node.getAttribute?.('aria-checked') || '').toLowerCase();
+
+              if (/(删除|移除|取消|关闭).*创建图片|remove.*create image|create image.*remove/i.test(text)) return true;
+              if (/创建图片|create image/i.test(text) && (
+                pressed === 'true' || selected === 'true' || checked === 'true' ||
+                /^(on|active|checked|selected|open)$/.test(state)
+              )) return true;
+            }
+
+            // Active chips often render the label and the close/remove button as siblings.
+            const labels = [...composer.querySelectorAll('span, div, p')].filter(node => {
+              if (!visible(node)) return false;
+              const text = String(node.textContent || '').replace(/\s+/g, ' ').trim();
+              return /^(创建图片|Create image)$/i.test(text);
+            });
+            for (const label of labels) {
+              let host = label;
+              for (let depth = 0; depth < 4 && host && host !== composer; depth++, host = host.parentElement) {
+                const remove = host?.querySelector?.('button[aria-label], button[title], [role="button"][aria-label], [role="button"][title]');
+                if (!remove || !visible(remove)) continue;
+                const removeText = normalizeText(remove);
+                if (/(删除|移除|取消|关闭|remove|close)/i.test(removeText)) return true;
+              }
+            }
+            return false;
+          }
+'''
+          text, n = re.subn(r"  function isCreateImageActive\(parts\) \{.*?\n  \}\n\n  function findPlusButton", new_active + '\n  function findPlusButton', text, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit('failed to replace isCreateImageActive')
+
+          new_files = r'''  Object.defineProperty(proto, 'files', {
+            configurable: filesDescriptor.configurable,
+            enumerable: filesDescriptor.enumerable,
+            get() {
+              // While upload is gated, let the caller observe the intended FileList without
+              // assigning it to the old/native input. This prevents ChatGPT from seeing files
+              // before Create image mode is active.
+              const entry = pending.get(this);
+              if (entry?.fileList) return entry.fileList;
+              return filesDescriptor.get.call(this);
+            },
+            set(value) {
+              if (!hasImageFiles(value) || !isStrictComposerInput(this)) {
+                filesDescriptor.set.call(this, value);
+                return;
+              }
+
+              const parts = lifecycle()?.getCurrentComposer?.();
+              if (parts && isCreateImageActive(parts)) {
+                filesDescriptor.set.call(this, value);
+                return;
+              }
+
+              // Critical dev.19.3 change: DO NOT call the native files setter yet.
+              // Hold the File objects in memory, activate Create image, wait for the new
+              // Composer, then assign the files only to that new Composer's file input.
+              const files = Array.from(value || []);
+              const fileList = makeFileList(files);
+              const previous = pending.get(this);
+              pending.set(this, {
+                running: false,
+                events: previous?.events || [],
+                files,
+                fileList,
+              });
+              log('已拦截图片文件赋值：先创建图片，尚未把文件交给 ChatGPT');
+              void gateProgrammaticUpload(this, files);
+            },
+          });
+'''
+          text, n = re.subn(r"  Object\.defineProperty\(proto, 'files', \{.*?\n  \}\);\n\n  eventProto\.dispatchEvent", new_files + '\n  eventProto.dispatchEvent', text, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit('failed to replace files gate')
+
+          needle = "      filesDescriptor.set.call(newInput, list);\n\n      const queuedEvents"
+          repl = "      filesDescriptor.set.call(newInput, list);\n      log('创建图片已激活：现在才把图片文件赋给新的 Composer');\n\n      const queuedEvents"
+          if needle not in text:
+              raise SystemExit('transfer point not found')
+          text = text.replace(needle, repl, 1)
+
+          if 'generation_scan_only' not in text or 'waitForStableComposer' not in text:
+              raise SystemExit('required inherited guards missing')
+          if '4.1.0-dev.19.2' in text:
+              raise SystemExit('old version residue exists')
+
+          out.parent.mkdir(parents=True, exist_ok=True)
+          out.write_text(text, encoding='utf-8')
+          raw = out.read_bytes()
+          got = hashlib.sha256(raw).hexdigest()
+          expected = '537dab24c13a663637951dc2d230f74185a6a45f42ca4f1bc2f9a0a29128b4f6'
+          if got != expected:
+              raise SystemExit(f'SHA256 mismatch: {got} != {expected}')
+          print('built', out, len(raw), got)
+          PY
+          node --check dev/testing/4.1.0-dev.19.3/Ozon_ChatGPT_DEV_4.1.0-dev.19.3_TEST.user.js
+          rm -f .github/workflows/dev193-exact-test-publisher.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'publish: dev 4.1.0-dev.19.3 TEST'
+          git push origin HEAD:main

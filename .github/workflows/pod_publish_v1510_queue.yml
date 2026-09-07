@@ -31,6 +31,10 @@ jobs:
               'source, count = pattern.subn(create_block, source, count=1)'
           )
           t = t.replace(
+              'source, count = pattern.subn(create_block, source, count=1)',
+              'source, count = pattern.subn(lambda _m: create_block, source, count=1)'
+          )
+          t = t.replace(
               'new_reference_functions + "  async function writeBlob("',
               'new_reference_functions'
           )

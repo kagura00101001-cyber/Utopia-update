@@ -1,16 +1,15 @@
-name: POD 3.2.1 release repair publisher
+name: POD 3.2.1 PR repair publisher
 
 on:
-  push:
+  pull_request:
     branches: [main]
-    paths:
-      - '.github/workflows/pod321-release-repair.yml'
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
 
 concurrency:
-  group: pod321-release-repair
+  group: pod321-pr-repair
   cancel-in-progress: true
 
 jobs:
@@ -19,6 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: release/pod-3.2.1-repair
           fetch-depth: 0
 
       - name: Rebuild 3.2.1 exactly from stable 3.2.0
@@ -38,30 +38,22 @@ jobs:
 
           if not stable_archive.exists():
               raise SystemExit('stable V3.2.0 archive missing')
+          if user_path.read_bytes() != stable_archive.read_bytes():
+              raise SystemExit('main userscript no longer matches archived V3.2.0 baseline')
 
-          current = user_path.read_bytes()
-          stable = stable_archive.read_bytes()
-          if current != stable:
-              raise SystemExit('main Ozon_ChatGPT.user.js is not the archived V3.2.0 baseline; refusing unsafe release')
-
-          text = stable.decode('utf-8')
-          required = [
-              '// @version      3.2.0',
-              "const CURRENT_VERSION = '3.2.0';",
-              "const APP_VERSION = '3.2.0';",
-              "const KAGURA_MANUAL_VERSION = '3.2.0';",
-              '/* KAGURA_POD_STYLE_UPDATE_V320 */',
+          text = stable_archive.read_text(encoding='utf-8')
+          replacements = [
+              ('// @version      3.2.0', '// @version      3.2.1'),
+              ("const CURRENT_VERSION = '3.2.0';", "const CURRENT_VERSION = '3.2.1';"),
+              ("const APP_VERSION = '3.2.0';", "const APP_VERSION = '3.2.1';"),
+              ("const KAGURA_MANUAL_VERSION = '3.2.0';", "const KAGURA_MANUAL_VERSION = '3.2.1';"),
+              ('/* KAGURA_POD_STYLE_UPDATE_V320 */', '/* KAGURA_POD_STYLE_UPDATE_V321 */'),
+              ('Kagura 手动更新检查 V3.2.0（POD统一热更新）', 'Kagura 手动更新检查 V3.2.1（POD统一热更新）'),
           ]
-          missing = [needle for needle in required if needle not in text]
-          if missing:
-              raise SystemExit(f'V3.2.0 baseline markers missing: {missing}')
-
-          text = text.replace('// @version      3.2.0', '// @version      3.2.1', 1)
-          text = text.replace("const CURRENT_VERSION = '3.2.0';", "const CURRENT_VERSION = '3.2.1';", 1)
-          text = text.replace("const APP_VERSION = '3.2.0';", "const APP_VERSION = '3.2.1';", 1)
-          text = text.replace("const KAGURA_MANUAL_VERSION = '3.2.0';", "const KAGURA_MANUAL_VERSION = '3.2.1';", 1)
-          text = text.replace('/* KAGURA_POD_STYLE_UPDATE_V320 */', '/* KAGURA_POD_STYLE_UPDATE_V321 */', 1)
-          text = text.replace('Kagura 手动更新检查 V3.2.0（POD统一热更新）', 'Kagura 手动更新检查 V3.2.1（POD统一热更新）', 1)
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f'missing stable marker: {old}')
+              text = text.replace(old, new, 1)
 
           changelog_pattern = re.compile(r"    const MODULE_CHANGELOG = \[\n.*?\n    \]\.join\('\\n'\);", re.S)
           changelog_replacement = """    const MODULE_CHANGELOG = [
@@ -83,28 +75,25 @@ jobs:
           meta = re.sub(r'(?m)^// @version\s+\S+\s*$', '// @version      3.2.1', meta, count=1)
           meta_path.write_text(meta, encoding='utf-8', newline='')
 
+          notes = [
+              '基于 V3.2.0 稳定代码重新完成 V3.2.1 热更新发布链。',
+              '修复 user.js、meta.js、latest.json 与 history.json 版本不一致的问题。',
+              '启动更新检查、手动更新检查与界面版本号统一为 V3.2.1。',
+              '保留 V3.2.0 全部业务逻辑和本地配置兼容性，本版不引入新的生图流程改动。',
+              '新增 V3.2.1 正式版本归档，V3.2.0 继续保留作为回滚基线。',
+          ]
           latest = {
               'version': '3.2.1',
               'install_url': 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js',
               'published_at': '2026-09-07',
-              'changelog': [
-                  '基于 V3.2.0 稳定代码重新完成 V3.2.1 热更新发布链。',
-                  '修复 user.js、meta.js、latest.json 与 history.json 版本不一致的问题。',
-                  '启动更新检查、手动更新检查与界面版本号统一为 V3.2.1。',
-                  '保留 V3.2.0 全部业务逻辑和本地配置兼容性，本版不引入新的生图流程改动。',
-                  '新增 V3.2.1 正式版本归档，V3.2.0 继续保留作为回滚基线。',
-              ],
+              'changelog': notes,
           }
           latest_path.write_text(json.dumps(latest, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
           history = json.loads(history_path.read_text(encoding='utf-8'))
           versions = history.setdefault('versions', [])
           versions[:] = [v for v in versions if str(v.get('version', '')) != '3.2.1']
-          versions.insert(0, {
-              'version': '3.2.1',
-              'date': '2026-09-07',
-              'notes': latest['changelog'],
-          })
+          versions.insert(0, {'version': '3.2.1', 'date': '2026-09-07', 'notes': notes})
           history_path.write_text(json.dumps(history, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
           raw = user_path.read_bytes()
@@ -131,7 +120,7 @@ jobs:
               'history latest': bool(history.get('versions')) and history['versions'][0].get('version') == '3.2.1',
               'archive exists': Path('versions/Ozon_ChatGPT批量生图下载器_V3.2.1.txt').exists(),
           }
-          failed = [k for k, v in checks.items() if not v]
+          failed = [k for k, ok in checks.items() if not ok]
           print(checks)
           if failed:
               raise SystemExit(f'release verification failed: {failed}')
@@ -143,4 +132,4 @@ jobs:
           git add -A
           git diff --cached --check
           git commit -m 'release: complete Ozon ChatGPT 3.2.1 hot update'
-          git push origin HEAD:main
+          git push origin HEAD:release/pod-3.2.1-repair

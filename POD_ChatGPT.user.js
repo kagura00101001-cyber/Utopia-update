@@ -233,7 +233,7 @@
 
   function patchStableCore(source) {
     let code = String(source || '');
-    if (code.length < 240000) throw new Error('V1.5.8 稳定核心文件异常：长度仅 ' + code.length);
+    if (code.length < 150000) throw new Error('V1.5.8 稳定核心文件异常：长度仅 ' + code.length);
 
     code = replaceOnce(code, '// @name:zh-CN   ChatGPT服装POD统一工作台 V1.5.8', '// @name:zh-CN   ChatGPT服装POD统一工作台 V1.5.9', '中文脚本名 V1.5.8');
     code = replaceOnce(code, '// @version      1.5.8', '// @version      1.5.9', '@version V1.5.8');
@@ -247,6 +247,10 @@
       ' * - V1.5.8 创建图片状态增强：已成功激活后记录同批短期成功凭证并加入composer局部宽松证据检测，避免瞬时假阴性导致重复点+；真正连续3次激活失败且尚未发送时只刷新1次后自动重新准备本批，刷新后仍失败才暂停。\n * - ' + RELEASE_NOTE,
       'V1.5.8 更新记录');
     code = replaceOnce(code, "const APP_VERSION = '1.5.8';", "const APP_VERSION = '1.5.9';", 'APP_VERSION V1.5.8');
+
+    const historyOld = "try{res(JSON.parse(String(r.responseText||'').trim()))}catch(e){rej(new Error(`历史版本解析失败：${e.message||e}`))}";
+    const historyNew = "try{const data=JSON.parse(String(r.responseText||'').trim());if(data&&Array.isArray(data.versions)){for(const v of data.versions){if(String(v?.version||'')==='1.5.8'&&v?.status==='current')v.status='stable';}if(!data.versions.some(v=>String(v?.version||'')==='1.5.9'))data.versions.unshift({version:'1.5.9',date:'2026-09-07',status:'current',notes:['创建图片入口改为事件驱动局部检测，不再全页高频扫描。','兼容ChatGPT Composer重载并重新绑定当前有效加号/菜单。','保留V1.5.8成功凭证、单次刷新恢复和at-most-once发送保护。'],archive_url:'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.9.txt',install_url:'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js'});}res(data)}catch(e){rej(new Error(`历史版本解析失败：${e.message||e}`))}";
+    code = replaceOnce(code, historyOld, historyNew, '版本历史解析入口');
 
     const blockPattern = /  function visibleMenuRoots\(\)\{[\s\S]*?\n  function setNativeValue/;
     const matches = code.match(new RegExp(blockPattern.source, 'g')) || [];
@@ -311,7 +315,7 @@
   async function boot() {
     const cached = GM_getValue(CORE_CACHE_KEY, '');
     const cachedVersion = String(GM_getValue(CORE_CACHE_VERSION_KEY, ''));
-    if (typeof cached === 'string' && cached.length >= 240000 && cachedVersion === CORE_VERSION) {
+    if (typeof cached === 'string' && cached.length >= 150000 && cachedVersion === CORE_VERSION) {
       try { runCore(cached, '本地缓存'); return; }
       catch (error) {
         console.warn('[Kagura POD] 缓存稳定核心校验失败，将重新下载：', error);

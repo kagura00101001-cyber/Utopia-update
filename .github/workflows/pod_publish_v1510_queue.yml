@@ -1,0 +1,121 @@
+name: POD V1.5.10 Reference Queue Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .pod_release/v1510_queue/READY
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare patch runner
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('.pod_release/v1510_queue/patch_v1510_queue.py')
+          t = p.read_text(encoding='utf-8')
+          t = t.replace(
+              'source, count = pattern.subn(create_block + "\\n\\n  function setNativeValue", source, count=1)',
+              'source, count = pattern.subn(create_block, source, count=1)'
+          )
+          t = t.replace(
+              'new_reference_functions + "  async function writeBlob("',
+              'new_reference_functions'
+          )
+          p.write_text(t, encoding='utf-8')
+          PY
+          python -m py_compile .pod_release/v1510_queue/patch_v1510_queue.py
+
+      - name: Apply V1.5.10 reference queue patch
+        run: python .pod_release/v1510_queue/patch_v1510_queue.py
+
+      - name: Validate release
+        shell: bash
+        run: |
+          node --check POD_ChatGPT.user.js
+          python - <<'PY'
+          from pathlib import Path
+          import json, re
+          user = Path('POD_ChatGPT.user.js').read_text(encoding='utf-8')
+          meta = Path('POD_ChatGPT.meta.js').read_text(encoding='utf-8')
+          latest = json.loads(Path('POD_ChatGPT.latest.json').read_text(encoding='utf-8'))
+          latest2 = json.loads(Path('POD_ChatGPT_latest.json').read_text(encoding='utf-8'))
+          history = json.loads(Path('POD_ChatGPT.history.json').read_text(encoding='utf-8'))
+          assert re.search(r'^// @name\s+Kagura POD Studio$', user, re.M)
+          assert re.search(r'^// @name:zh-CN\s+Kagura POD智能创意中心 V1\.5\.10$', user, re.M)
+          assert re.search(r'^// @version\s+1\.5\.10$', user, re.M)
+          assert re.search(r'^// @version\s+1\.5\.10$', meta, re.M)
+          assert "const APP_VERSION = '1.5.10';" in user
+          assert "const REFERENCE_FILES_KEY = 'reference-files';" in user
+          assert 'let referenceFiles=[];' in user
+          assert 'attachmentManifest' in user
+          assert 'makeAttachmentManifest' in user
+          assert 'orderedReferenceEntries' in user
+          assert '本批无参考素材，跳过上传' in user
+          assert '参考素材队列已更新' in user
+          assert '参考素材可为0张' in user
+          assert 'if(!template)throw new Error(\'请先选择公共模板图\')' not in user
+          assert 'rememberCreateModeProof' in user
+          assert 'CreateModeRetryableError' in user
+          assert 'send-confirming' in user
+          assert 'kaguraWaitCreateItem' in user
+          assert latest['version'] == '1.5.10' == latest2['version']
+          assert history['versions'][0]['version'] == '1.5.10'
+          assert history['versions'][0]['status'] == 'current'
+          assert any(v.get('version') == '1.5.9' and v.get('status') == 'stable' for v in history['versions'])
+          assert all(v.get('status') == 'withdrawn' for v in history['versions'] if str(v.get('version','')).startswith('1.6.'))
+          archive = Path('versions/POD_ChatGPT统一工作台_V1.5.10.txt')
+          assert archive.exists() and archive.read_text(encoding='utf-8') == user
+          print('V1.5.10 reference queue assertions: PASS')
+          PY
+          git diff --check
+
+      - name: Verify POD-only boundary
+        shell: bash
+        run: |
+          python - <<'PY'
+          import subprocess
+          allowed = {
+              'POD_ChatGPT.user.js',
+              'POD_ChatGPT.meta.js',
+              'POD_ChatGPT.latest.json',
+              'POD_ChatGPT_latest.json',
+              'POD_ChatGPT.history.json',
+              'versions/POD_ChatGPT统一工作台_V1.5.10.txt',
+              '.pod_release/v1510_queue/patch_v1510_queue.py',
+          }
+          changed = set(filter(None, subprocess.check_output(['git','diff','--name-only'], text=True).splitlines()))
+          unexpected = changed - allowed
+          if unexpected:
+              raise SystemExit('Unexpected files changed: ' + ', '.join(sorted(unexpected)))
+          print('POD-only boundary: PASS')
+          PY
+
+      - name: Commit formal release
+        shell: bash
+        run: |
+          git config user.name 'Kagura Update Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add POD_ChatGPT.user.js POD_ChatGPT.meta.js POD_ChatGPT.latest.json POD_ChatGPT_latest.json POD_ChatGPT.history.json 'versions/POD_ChatGPT统一工作台_V1.5.10.txt'
+          git commit -m 'release: Kagura POD Studio V1.5.10 reference asset queue'
+          git push origin HEAD:main
+
+      - name: Cleanup release assets
+        shell: bash
+        run: |
+          git rm -f .pod_release/v1510_queue/READY .pod_release/v1510_queue/patch_v1510_queue.py .github/workflows/pod_publish_v1510_queue.yml
+          git rm -f .pod_release/v1510/READY .pod_release/v1510/patch_v1510.py .github/workflows/pod_publish_v1510_final.yml 2>/dev/null || true
+          git commit -m 'chore: cleanup POD V1.5.10 release assets'
+          git push origin HEAD:main

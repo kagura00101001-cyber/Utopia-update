@@ -1,0 +1,58 @@
+name: dev192 hotupload assembler
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.hotupload/dev192/**'
+      - '.github/workflows/dev192-hotupload.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dev192-hotupload
+  cancel-in-progress: true
+
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assemble exact TEST artifact when all chunks exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          parts=(.hotupload/dev192/part-*.b64)
+          if [ "${#parts[@]}" -ne 9 ]; then
+            echo "Waiting for all 9 chunks; currently ${#parts[@]}."
+            exit 0
+          fi
+          mkdir -p dev/testing/4.1.0-dev.19.2
+          cat "${parts[@]}" > /tmp/dev192.xz.b64
+          python - <<'PY'
+          from pathlib import Path
+          import base64, lzma, hashlib
+          src = Path('/tmp/dev192.xz.b64').read_text(encoding='ascii')
+          raw = lzma.decompress(base64.b64decode(src))
+          expected = '9b015b9de7d75ec6e691edd79cd11395d1bb3642c563d564b312eb32f86e3133'
+          got = hashlib.sha256(raw).hexdigest()
+          if got != expected:
+              raise SystemExit(f'SHA256 mismatch: {got} != {expected}')
+          text = raw.decode('utf-8')
+          if '// @version      4.1.0-dev.19.2' not in text:
+              raise SystemExit('Expected @version header not found')
+          out = Path('dev/testing/4.1.0-dev.19.2/Ozon_ChatGPT_DEV_4.1.0-dev.19.2_TEST.user.js')
+          out.write_bytes(raw)
+          print('assembled', out, len(raw), got)
+          PY
+          rm -rf .hotupload/dev192
+          rm -f .github/workflows/dev192-hotupload.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'publish: dev 4.1.0-dev.19.2 TEST' || exit 0
+          git push origin HEAD:main

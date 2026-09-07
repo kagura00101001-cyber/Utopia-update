@@ -46,6 +46,12 @@ jobs:
           end = text.index('# ===== 参考素材队列存储与旧数据兼容 =====', start)
           text = text[:start] + text[end:]
 
+          # 历史 V1.5.10 patch runner 曾由 workflow 修正一次，继续保留这个经过验证的修正。
+          text = text.replace(
+              'new_reference_functions + "  async function writeBlob("',
+              'new_reference_functions'
+          )
+
           # 升版本，但继续从固定 V1.5.8 CORE_COMMIT 生成。
           text = text.replace('1.5.10', '1.5.14')
           text = text.replace(

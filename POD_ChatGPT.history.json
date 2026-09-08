@@ -3,9 +3,22 @@
   "since": "1.2.0",
   "versions": [
     {
-      "version": "1.5.16",
+      "version": "1.5.17",
       "date": "2026-09-08",
       "status": "current",
+      "notes": [
+        "新增“下一批输入框清场守卫”：每次准备新批次、上传参考素材之前先读取Composer；若存在上一批残留提示词则自动清空并复检，确认空白后才允许继续。",
+        "输入框残留最多自动清理3次；仍无法清空时立即停止当前执行，避免旧提示词与新批次串批或误判“提示词已存在”。",
+        "新增“生图进度停滞刷新”：只要已发现1张或更多当前批图片，但图片数量连续4分钟无变化且页面仍显示生成中，就刷新页面一次并只恢复结果检测/下载，不重新上传、不重新发送。",
+        "保留原有0图恢复、明确拒绝重试1次后跳过、at-most-once发送保护；附件上传、创建图片和发送核心保持不变。"
+      ],
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.17.txt",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js"
+    },
+    {
+      "version": "1.5.16",
+      "date": "2026-09-08",
+      "status": "stable",
       "notes": [
         "新增“明确内容限制拒绝”识别：仅在当前批已发送、0张生成图且ChatGPT回复明确包含第三方内容相似性、防护限制、版权/商标/受保护内容等拒绝语义时触发。",
         "第一次明确拒绝时不改提示词，自动重新准备并发送当前批1次；拒绝重试次数随任务持久化，页面意外刷新后也不会无限重试。",

@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Kagura POD Studio
-// @name:zh-CN   Kagura POD智能创意中心 V1.5.15
+// @name:zh-CN   Kagura POD智能创意中心 V1.5.16
 // @namespace    https://github.com/Kagura-userscripts
-// @version      1.5.15
-// @description  AI驱动的POD商品视觉生产系统：V1.5.15 修复参考素材队列升级后旧UI事件仍引用chooseTemplate导致的启动失败；完整保留V1.5.8稳定生图核心。
+// @version      1.5.16
+// @description  AI驱动的POD商品视觉生产系统：V1.5.16 新增明确内容限制拒绝识别：当前批自动重试1次，第二次仍被拒绝则跳过当前批并继续；不改动上传/创建图片/发送核心。
 // @author       Kagura
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js

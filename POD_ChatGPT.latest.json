@@ -1,12 +1,12 @@
 {
-  "version": "1.5.15",
+  "version": "1.5.16",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
   "download_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js",
-  "published_at": "2026-09-07",
+  "published_at": "2026-09-08",
   "changelog": [
-    "修复启动时报错“chooseTemplate is not defined”：参考素材队列替换旧模板/Logo后，旧隐藏UI事件绑定仍会在createPanel阶段解析旧函数名。",
-    "新增最小兼容桥：chooseTemplate/chooseLogo统一委托到chooseReferenceFiles，clearLogo委托到clearReferenceFiles，仅用于旧UI事件兼容。",
-    "不修改V1.5.8稳定生图核心：附件上传、创建图片、提示词写入、发送确认、生图检测、下载与恢复逻辑保持原样。",
-    "继续保留V1.5.14的0～N张有序参考素材队列、Attachment Manifest与旧模板/Logo迁移。"
+    "新增“明确内容限制拒绝”识别：仅在当前批已发送、0张生成图且ChatGPT回复明确包含第三方内容相似性、防护限制、版权/商标/受保护内容等拒绝语义时触发。",
+    "第一次明确拒绝时不改提示词，自动重新准备并发送当前批1次；拒绝重试次数随任务持久化，页面意外刷新后也不会无限重试。",
+    "同一批第二次仍被明确拒绝时，整批任务标记为“已跳过”，记录拒绝原因并自动继续下一批，不再等待6～15分钟的0图超时。",
+    "附件上传、创建图片、提示词写入、发送确认、下载、风格反推等既有模块不做功能改造；本版只增加发送后的明确拒绝分流。"
   ]
 }

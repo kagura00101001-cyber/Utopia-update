@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Kagura POD Studio
-// @name:zh-CN   Kagura POD智能创意中心 V1.5.17
+// @name:zh-CN   Kagura POD智能创意中心 V1.5.18
 // @namespace    https://github.com/Kagura-userscripts
-// @version      1.5.17
-// @description  AI驱动的POD商品视觉生产系统：V1.5.17 新增批次输入框清场守卫与生图进度停滞刷新恢复；不改动附件上传、创建图片和发送核心。
+// @version      1.5.18
+// @description  AI驱动的POD商品视觉生产系统：V1.5.18 修复拒绝/异常后残留附件导致已上传却被误判超时：新批次上传前同时清理残留提示词与附件；上传核心保持不变。
 // @author       Kagura
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js

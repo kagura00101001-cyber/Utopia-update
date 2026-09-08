@@ -3,9 +3,22 @@
   "since": "1.2.0",
   "versions": [
     {
-      "version": "1.5.17",
+      "version": "1.5.18",
       "date": "2026-09-08",
       "status": "current",
+      "notes": [
+        "修复“页面已经显示参考素材，但脚本等待180秒后仍判上传未完成”的问题：根因是上一批拒绝/异常后Composer可能同时残留提示词和附件，旧逻辑只清理文字，uploadFiles会把残留附件计入before，从而错误等待多1个附件。",
+        "新增批次残留附件清场守卫：每次真正准备新批次、上传参考素材之前，在清空残留提示词后继续检测并移除Composer中的旧附件，确认附件数为0后才允许上传本批参考素材。",
+        "残留附件最多自动清理3次；仍无法清空则停止当前执行，避免“实际1张已上传、脚本却等待2张”的假超时。",
+        "不修改V1.5.8稳定上传/创建图片/发送核心；保留V1.5.17输入框清场、生图停滞刷新，以及V1.5.16明确拒绝重试1次后跳过规则。"
+      ],
+      "archive_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/versions/POD_ChatGPT统一工作台_V1.5.18.txt",
+      "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/POD_ChatGPT.user.js"
+    },
+    {
+      "version": "1.5.17",
+      "date": "2026-09-08",
+      "status": "stable",
       "notes": [
         "新增“下一批输入框清场守卫”：每次准备新批次、上传参考素材之前先读取Composer；若存在上一批残留提示词则自动清空并复检，确认空白后才允许继续。",
         "输入框残留最多自动清理3次；仍无法清空时立即停止当前执行，避免旧提示词与新批次串批或误判“提示词已存在”。",

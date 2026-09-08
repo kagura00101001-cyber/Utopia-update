@@ -1,0 +1,55 @@
+name: POD V1517
+on:
+  push:
+    paths:
+      - '.pod_release/v1517_batch_guards/RUN'
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: cp POD_ChatGPT.user.js /tmp/before.js && python .pod_release/v1517_batch_guards/patch.py
+      - run: node --check POD_ChatGPT.user.js
+      - name: Verify
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          b=Path('/tmp/before.js').read_text(encoding='utf-8')
+          a=Path('POD_ChatGPT.user.js').read_text(encoding='utf-8')
+          def s(t,x,y):
+              i=t.index(x);j=t.index(y,i);return t[i:j]
+          # Upload/create/send core remains byte-identical.
+          assert s(b,'  function findFileInput(){','  function plainText(e){')==s(a,'  function findFileInput(){','  function plainText(e){')
+          assert s(b,'  function plainText(e){','  function setNativeValue')==s(a,'  function plainText(e){','  function setNativeValue')
+          assert "const APP_VERSION = '1.5.17';" in a
+          assert 'ensureComposerEmptyBeforeBatch' in a
+          assert '下一批输入框清场完成' in a
+          assert 'await ensureComposerEmptyBeforeBatch();' in a
+          assert 'progressStallRefreshed' in a
+          assert '连续4分钟无变化' in a
+          assert 'GenerationRefusalError' in a and 'refusalRetries=1' in a
+          latest=json.loads(Path('POD_ChatGPT.latest.json').read_text(encoding='utf-8'))
+          assert latest['version']=='1.5.17'
+          hist=json.loads(Path('POD_ChatGPT.history.json').read_text(encoding='utf-8'))
+          assert hist['versions'][0]['version']=='1.5.17' and hist['versions'][0]['status']=='current'
+          assert Path('versions/POD_ChatGPT统一工作台_V1.5.17.txt').read_text(encoding='utf-8')==a
+          print('PASS')
+          PY
+          git diff --check
+      - name: Publish
+        run: |
+          git config user.name 'Kagura Update Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add POD_ChatGPT.user.js POD_ChatGPT.meta.js POD_ChatGPT.latest.json POD_ChatGPT_latest.json POD_ChatGPT.history.json 'versions/POD_ChatGPT统一工作台_V1.5.17.txt'
+          git commit -m 'release: Kagura POD Studio V1.5.17 batch guards'
+          git push origin HEAD:main
+      - name: Cleanup
+        run: |
+          git rm -f .pod_release/v1517_batch_guards/RUN .pod_release/v1517_batch_guards/patch.py .github/workflows/pod_v1517.yml
+          git commit -m 'chore: cleanup POD V1.5.17 publisher'
+          git push origin HEAD:main

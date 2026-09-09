@@ -1,0 +1,46 @@
+name: POD V1519 Run
+
+on:
+  push:
+    paths:
+      - '.github/pod_v1519.trigger'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply patch
+        run: python scripts/pod_v1519_patch.py
+      - name: Syntax
+        run: node --check POD_ChatGPT.user.js
+      - name: Verify
+        shell: python
+        run: |
+          from pathlib import Path
+          import json
+          s=Path('POD_ChatGPT.user.js').read_text(encoding='utf-8')
+          assert '@version      1.5.19' in s
+          assert "const APP_VERSION = '1.5.19';" in s
+          assert 'function strictComposerRoot()' in s
+          assert '下一批附件清场前Composer瞬时不可用；等待Composer恢复，不扫描整页图片' in s
+          guard=s[s.index('function strictComposerRoot()'):s.index('function flattenPromptForComposer(')]
+          assert 'let residual=countAttachments()' not in guard
+          assert 'const c=findComposer();' not in guard
+          assert 'button[aria-label*="删除"],' not in guard
+          assert 'button[aria-label*="Delete"],' not in guard
+          assert Path('versions/POD_ChatGPT统一工作台_V1.5.19.txt').read_text(encoding='utf-8')==s
+          assert json.loads(Path('POD_ChatGPT.latest.json').read_text(encoding='utf-8'))['version']=='1.5.19'
+      - name: Publish
+        run: |
+          git config user.name kagura00101001-cyber
+          git config user.email kagura00101001@gmail.com
+          git add POD_ChatGPT.user.js POD_ChatGPT.meta.js POD_ChatGPT.latest.json POD_ChatGPT_latest.json POD_ChatGPT.history.json versions/POD_ChatGPT统一工作台_V1.5.19.txt
+          git commit -m "release: Kagura POD Studio V1.5.19 composer guard hotfix"
+          git push

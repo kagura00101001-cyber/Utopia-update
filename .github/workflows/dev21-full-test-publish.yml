@@ -1,0 +1,47 @@
+name: dev21 full test publisher
+
+on:
+  push:
+    paths:
+      - '.hotupload/dev21/build.py'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build exact dev21 full TEST
+        run: python .hotupload/dev21/build.py
+
+      - name: Syntax check
+        run: node --check dev/testing/4.1.0-dev.21/Ozon_ChatGPT_DEV_4.1.0-dev.21_TEST.user.js
+
+      - name: Verify exact artifact
+        shell: bash
+        run: |
+          test "$(wc -c < dev/testing/4.1.0-dev.21/Ozon_ChatGPT_DEV_4.1.0-dev.21_TEST.user.js)" = "2154355"
+          echo "19c5f4596a31d8aaad8929c5de1876172acf09837afaf39d5795664ee9b29d5d  dev/testing/4.1.0-dev.21/Ozon_ChatGPT_DEV_4.1.0-dev.21_TEST.user.js" | sha256sum -c -
+          grep -q '^// @version      4.1.0-dev.21$' dev/testing/4.1.0-dev.21/Ozon_ChatGPT_DEV_4.1.0-dev.21_TEST.user.js
+          ! grep -q 'main/dev/testing/4.1.0-dev.19' dev/testing/4.1.0-dev.21/Ozon_ChatGPT_DEV_4.1.0-dev.21_TEST.user.js
+          grep -q "const _0x7ca766='4.1.0-dev.21';" dev/testing/4.1.0-dev.21/Ozon_ChatGPT_DEV_4.1.0-dev.21_TEST.user.js
+          grep -q 'CreateImageFirst21' dev/testing/4.1.0-dev.21/Ozon_ChatGPT_DEV_4.1.0-dev.21_TEST.user.js
+          grep -q 'body div' dev/testing/4.1.0-dev.21/Ozon_ChatGPT_DEV_4.1.0-dev.21_TEST.user.js
+
+      - name: Commit TEST artifact and remove temporary publisher
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dev/testing/4.1.0-dev.21/Ozon_ChatGPT_DEV_4.1.0-dev.21_TEST.user.js
+          git add dev/testing/4.1.0-dev.21/Ozon_ChatGPT_DEV_4.1.0-dev.21_TEST.txt
+          git rm -r .hotupload/dev21
+          git rm .github/workflows/dev21-full-test-publish.yml
+          git commit -m "test: publish 4.1.0-dev.21 full standalone build"
+          git push

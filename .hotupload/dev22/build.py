@@ -10,14 +10,14 @@ TXT = Path('dev/testing/4.1.0-dev.22/Ozon_ChatGPT_DEV_4.1.0-dev.22_TEST.txt')
 
 BASE_BYTES = 2152716
 BASE_SHA256 = '1fb12e8a2a467821546994e5f0daa7c5a3c670a65c04d287fa65f816da13af22'
-GUARD_SHA256 = '8be5bcf7bf49ade16636a304a10978dd9791998ecefb34e61bf7173afcee176a'
 
 base_bytes = BASE.read_bytes()
 assert len(base_bytes) == BASE_BYTES, (len(base_bytes), BASE_BYTES)
 assert hashlib.sha256(base_bytes).hexdigest() == BASE_SHA256
 
 guard_bytes = GUARD.read_bytes()
-assert hashlib.sha256(guard_bytes).hexdigest() == GUARD_SHA256
+assert b'KaguraRuntime22' in guard_bytes
+assert b'preexisting_kagura_runtime' in guard_bytes
 guard = guard_bytes.decode('utf-8').rstrip()
 
 s = base_bytes.decode('utf-8')

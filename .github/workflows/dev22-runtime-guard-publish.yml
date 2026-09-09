@@ -1,0 +1,50 @@
+name: dev22 runtime guard publisher
+
+on:
+  push:
+    paths:
+      - '.hotupload/dev22/**'
+      - '.github/workflows/dev22-runtime-guard-publish.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build dev22 standalone TEST
+        run: python .hotupload/dev22/build.py
+
+      - name: Syntax check
+        run: node --check dev/testing/4.1.0-dev.22/Ozon_ChatGPT_DEV_4.1.0-dev.22_TEST.user.js
+
+      - name: Verify structural invariants
+        shell: bash
+        run: |
+          grep -q '^// @version      4.1.0-dev.22$' dev/testing/4.1.0-dev.22/Ozon_ChatGPT_DEV_4.1.0-dev.22_TEST.user.js
+          grep -q "const _0x7ca766='4.1.0-dev.22';" dev/testing/4.1.0-dev.22/Ozon_ChatGPT_DEV_4.1.0-dev.22_TEST.user.js
+          grep -q 'KaguraRuntime22' dev/testing/4.1.0-dev.22/Ozon_ChatGPT_DEV_4.1.0-dev.22_TEST.user.js
+          grep -q 'CreateImageFirst22' dev/testing/4.1.0-dev.22/Ozon_ChatGPT_DEV_4.1.0-dev.22_TEST.user.js
+          grep -q 'runtimeFingerprint' dev/testing/4.1.0-dev.22/Ozon_ChatGPT_DEV_4.1.0-dev.22_TEST.user.js
+          ! grep -q '4.1.0-dev.21' dev/testing/4.1.0-dev.22/Ozon_ChatGPT_DEV_4.1.0-dev.22_TEST.user.js
+          ! grep -q '4.1.0-dev.18' dev/testing/4.1.0-dev.22/Ozon_ChatGPT_DEV_4.1.0-dev.22_TEST.user.js
+          sha256sum dev/testing/4.1.0-dev.22/Ozon_ChatGPT_DEV_4.1.0-dev.22_TEST.user.js
+          wc -c dev/testing/4.1.0-dev.22/Ozon_ChatGPT_DEV_4.1.0-dev.22_TEST.user.js
+
+      - name: Commit TEST artifact and remove temporary publisher
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dev/testing/4.1.0-dev.22/Ozon_ChatGPT_DEV_4.1.0-dev.22_TEST.user.js
+          git add dev/testing/4.1.0-dev.22/Ozon_ChatGPT_DEV_4.1.0-dev.22_TEST.txt
+          git rm -r .hotupload/dev22
+          git rm .github/workflows/dev22-runtime-guard-publish.yml
+          git commit -m "test: publish 4.1.0-dev.22 runtime singleton guard"
+          git push

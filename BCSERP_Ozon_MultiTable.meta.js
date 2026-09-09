@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         卖家国度 Ozon 多表采集 v4.3.0（统一热更新）
+// @name         卖家国度 Ozon 多表采集
 // @author       Kagura
 // @namespace    bcserp-api-scraper
-// @version      4.3.0
-// @description  新增与POD工作台一致的独立手动热更新模块：启动检查新版、版本按钮手动检查、更新说明、本版本不再提醒、由Tampermonkey手动确认覆盖；保留商品订单阈值服务端筛选、搜索请求官方数组、类目TOP等多表采集。
+// @version      4.4.1
+// @description  V4.4.1：商品服务端预筛支持可调订单阈值、最大上架天数、可选无品牌；新增低成本查询当前筛选数量与查询计时反馈；保留搜索请求官方数组、多表采集和 POD 风格手动热更新。
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/BCSERP_Ozon_MultiTable.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/BCSERP_Ozon_MultiTable.user.js
 // @match        https://ozon.bcserp.com/system/mp/categoryReport*

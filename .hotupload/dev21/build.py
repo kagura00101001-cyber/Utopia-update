@@ -7,7 +7,7 @@ WRAP=Path('.hotupload/dev21/create-first.js')
 OUT=Path('dev/testing/4.1.0-dev.21/Ozon_ChatGPT_DEV_4.1.0-dev.21_TEST.user.js')
 TXT=Path('dev/testing/4.1.0-dev.21/Ozon_ChatGPT_DEV_4.1.0-dev.21_TEST.txt')
 EXPECTED_BYTES=2152716
-EXPECTED_SHA256='0000000000000000000000000000000000000000000000000000000000000000'
+EXPECTED_SHA256='1fb12e8a2a467821546994e5f0daa7c5a3c670a65c04d287fa65f816da13af22'
 
 s=BASE.read_text('utf-8')
 s=s.replace('// @version      4.1.0-dev.19.2', f'// @version      {VERSION}',1)
@@ -40,7 +40,6 @@ assert '// @require      https://raw.githubusercontent.com/kagura00101001-cyber/
 OUT.parent.mkdir(parents=True,exist_ok=True)
 OUT.write_text(s,'utf-8'); TXT.write_text(s,'utf-8')
 b=OUT.read_bytes(); sha=hashlib.sha256(b).hexdigest()
-print('candidate',OUT,len(b),sha)
 assert len(b)==EXPECTED_BYTES,(len(b),EXPECTED_BYTES)
 assert sha==EXPECTED_SHA256,(sha,EXPECTED_SHA256)
 print('built',OUT,len(b),sha)

@@ -1,13 +1,14 @@
 {
-  "version": "4.3.0",
+  "version": "4.4.1",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/BCSERP_Ozon_MultiTable.user.js",
   "download_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/BCSERP_Ozon_MultiTable.user.js",
-  "published_at": "2026-08-19",
+  "published_at": "2026-09-09",
   "changelog": [
-    "新增与当前 POD 工作台一致的独立手动热更新模块。",
-    "页面启动后自动检查新版；无新版时不打扰，发现新版时弹窗提醒。",
-    "版本弹窗显示更新说明，并提供“立刻更新 / 本版本不再提醒 / 稍后”。",
-    "立刻更新只打开 Tampermonkey 新版确认页，不会自动下载、自动替换或自动执行。",
-    "保留 V4.2.4 商品订单量阈值服务端筛选、搜索请求官方数组、类目TOP、卖家、价格等采集逻辑。"
+    "商品采集新增服务端预筛：最低订单量、最大上架天数均可独立设置，并支持可选“只要无品牌商品”。",
+    "无品牌筛选使用已实测生效的 brand Set Filter [null]，在商品返回前由 BCS 服务端过滤。",
+    "新增“查询当前筛选符合数量”：仅实际返回 1 条商品即可读取筛选后的总数，正式采集前可先评估候选池大小。",
+    "数量查询增加实时计时和状态反馈，查询期间禁用重复点击，避免用户误判为卡住。",
+    "服务端预筛在正式采集首批及后续批次持续校验；筛选失效时停止任务，避免在 BCS 每日数量限制下浪费采集额度。",
+    "保留搜索请求 $.queries 官方数组完整采集、卖家/价格/类目TOP、多表导出及 POD 风格手动热更新。"
   ]
 }

@@ -1,0 +1,42 @@
+{
+  "channel": "testing",
+  "version": "4.1.0-dev.30",
+  "architecture": "clean-readable-single-pass-rebuild",
+  "readableBaseVersion": "4.1.0-dev.18",
+  "readableBaseBytes": 573359,
+  "readableComposedBytes": 621117,
+  "readableSha256": "ad5271d1b2c476a70fe95de94ecb8f3bdf234e63e8e78fe40d3fdc12c12763e6",
+  "protectedSha256": "2a1efdded133d97fcd9ec004cadcc051c629fd76c36c224055eb590bffde9c46",
+  "nestedProtectedCore": false,
+  "protectedReuse": false,
+  "singlePassProtection": true,
+  "protectedAutoUpdate": false,
+  "stableTouched": false,
+  "protectedTouched": false,
+  "p0": {
+    "unifiedRuntimeVersionSource": true,
+    "pageLevelLease": true,
+    "preexistingPanelAbort": true,
+    "lateDuplicatePanelDetection": true,
+    "conflictStartBlock": true,
+    "forbiddenRuntimeObserverLoop": false
+  },
+  "p1": {
+    "immutableTemplateTarget": "N+1",
+    "retryRecheckBeforeRedispatch": true,
+    "delayedFirstTemplateAdopted": true,
+    "ambiguousTemplateCountDoesNotRaiseTarget": true,
+    "strictComposerScopeRetained": true,
+    "postSendAtMostOnceRetained": true
+  },
+  "wrappers": [
+    "prefix.js",
+    "suffix1-composer.js",
+    "suffix2-create-image-first.js",
+    "suffix3-dev-fixes.js",
+    "suffix4-version-check.js"
+  ],
+  "versionTokens": {
+    "4.1.0-dev.30": 13
+  }
+}

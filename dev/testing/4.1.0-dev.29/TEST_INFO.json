@@ -1,0 +1,20 @@
+{
+  "channel": "testing",
+  "version": "4.1.0-dev.29",
+  "baseVersion": "4.1.0-dev.27",
+  "baseSha256": "da014f657df2bfd555320d7ba54b539ef94496bc86a534a1a7eb68b522a34dec",
+  "sha256": "c19a50c56ddd12831b04a92a29593fd70c28ab2e92f9a5cfeeb72b4e73c21fda",
+  "protectedAutoUpdate": false,
+  "stableTouched": false,
+  "protectedTouched": false,
+  "p0": {
+    "pageLevelLease": true,
+    "preexistingPanelAbort": true,
+    "lateDuplicatePanelDetection": true,
+    "conflictStartBlock": true,
+    "unifiedRuntimeVersionSource": true,
+    "manualUpdateCurrentVersionRepair": true,
+    "falseSameVersionUpdateDisabled": true,
+    "globalMutationObserver": false
+  }
+}

@@ -9,7 +9,7 @@
   "task_preset_schema": 3,
   "cloud_handoff_protocol": "kagura-imageflow-handoff-v1",
   "cloud_handoff_backend": "kagura-workflow-v1-staging",
-  "sha256": "19bf06d75a7d834da613e796c52683bfab6a8ce08d344417279d39c9896dab71",
+  "sha256": "da014f657df2bfd555320d7ba54b539ef94496bc86a534a1a7eb68b522a34dec",
   "changelog": [
     "正常流程保持为：创建图片 → 等Composer稳定 → 上传原图 → 上传模板 → 写提示词 → 单次发送 → 下载 → 下一批。",
     "自动进入下一批时复用现有创建图片激活逻辑，在批次等待期间先确认创建图片模式和Composer稳定，再进入原有上传流程。",

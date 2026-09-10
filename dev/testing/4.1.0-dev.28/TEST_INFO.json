@@ -1,0 +1,17 @@
+{
+  "channel": "testing",
+  "version": "4.1.0-dev.28",
+  "baseVersion": "4.1.0-dev.27",
+  "baseSha256": "da014f657df2bfd555320d7ba54b539ef94496bc86a534a1a7eb68b522a34dec",
+  "sha256": "432cbe12876c28bb56961e9f846c7097d1d711cf13bdf56e691684259ef346bb",
+  "protectedAutoUpdate": false,
+  "stableTouched": false,
+  "protectedTouched": false,
+  "p0": {
+    "pageLevelLease": true,
+    "preexistingPanelAbort": true,
+    "lateDuplicatePanelDetection": true,
+    "conflictStartBlock": true,
+    "globalMutationObserver": false
+  }
+}

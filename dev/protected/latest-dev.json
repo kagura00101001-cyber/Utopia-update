@@ -1,6 +1,6 @@
 {
   "channel": "protected-dev",
-  "version": "4.1.0-dev.13",
+  "version": "4.1.0-dev.27",
   "release_status": "dev",
   "recommended": true,
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/dev/protected/Ozon_ChatGPT_DEV.user.js",
@@ -9,12 +9,12 @@
   "task_preset_schema": 3,
   "cloud_handoff_protocol": "kagura-imageflow-handoff-v1",
   "cloud_handoff_backend": "kagura-workflow-v1-staging",
+  "sha256": "19bf06d75a7d834da613e796c52683bfab6a8ce08d344417279d39c9896dab71",
   "changelog": [
-    "任务中心升级并修复任务开关：方案内“关闭/启用”任务现可正常保存，关闭任务不会进入下一次新运行；同时加固“退出任务中心”返回主面板。",
-    "新增无人值守恢复：检测浏览器长时间冻结/休眠后按 checkpoint 安全恢复；已发送批只扫描结果，禁止重复发送。",
-    "相似性防护拦截自动重试当前批 1 次；第二次仍被拦截则记录异常并跳过当前批，继续下一批。",
-    "上传附件清理失败时增加一次发送前安全刷新恢复；仍保持 send_confirming / sent_waiting 的 at-most-once 边界。",
-    "恢复并最终守卫任务方案同步与完整额度恢复子系统，修复 cSyncLatestPresetIntoRuntime / cQuotaFindVisibleLimitNotice 等函数缺失回归。",
-    "继续保留云端接力、手动检查更新、任务中心 V2 与 DEV/Stable 独立更新通道；Stable V3.2.0 不变。"
+    "正常流程保持为：创建图片 → 等Composer稳定 → 上传原图 → 上传模板 → 写提示词 → 单次发送 → 下载 → 下一批。",
+    "自动进入下一批时复用现有创建图片激活逻辑，在批次等待期间先确认创建图片模式和Composer稳定，再进入原有上传流程。",
+    "附件异步结算期间阻止同一批文件重复派发，避免原图重复和模板N+2；不改变发送、生图检测与下载主流程。",
+    "继续保留严格Composer附件作用域、发送后at-most-once、相似性防护重试/跳过、额度恢复、故障包与任务中心能力。",
+    "TEST/Protected更新通道重新隔离；本次仅更新Protected DEV，Stable保持不变。"
   ]
 }

@@ -76,14 +76,14 @@
   }
 
   function removeLegacyReleaseNote() {
-    document.querySelectorAll('#kagura-gpt-version-modal, [id*="version-modal"]').forEach(node => {
+    document.querySelectorAll('[id*="version-modal"]').forEach(node => {
       if (String(node.textContent || '').includes('脚本更新说明')) node.remove();
     });
   }
 
   const legacyStyle = document.createElement('style');
   legacyStyle.id = 'kagura-disable-legacy-release-note';
-  legacyStyle.textContent = '#kagura-gpt-version-modal{display:none!important;}';
+  legacyStyle.textContent = '[id*="version-modal"]{display:none!important;}';
   (document.head || document.documentElement).appendChild(legacyStyle);
 
   const legacyObserver = new MutationObserver(removeLegacyReleaseNote);
@@ -1910,7 +1910,7 @@
     // 强制让面板显示当前真正安装版本。
     const header = panel.querySelector('.kagura-ozon-header-title');
     if (header) {
-      const prefix = panel.id === 'kagura-gpt-panel'
+      const prefix = panel.id === 'kagura-ozon-panel'
         ? 'Ozon SKU主图批量下载器'
         : 'Ozon SKU主图批量下载器';
       header.textContent = `${prefix} V${KAGURA_MANUAL_VERSION}`;
@@ -1918,7 +1918,7 @@
 
     // 在脚本窗口右下角“版本处”增加检查更新按钮。
     const body = panel.querySelector('.kagura-ozon-body') || panel;
-    let versionButton = body.querySelector('[data-role="version"], .kagura-gpt-version-btn, .kagura-ozon-version-btn');
+    let versionButton = body.querySelector('[data-role="version"], .kagura-ozon-version-btn');
     let row = versionButton?.parentElement;
 
     if (!row || !row.classList.contains('kagura-manual-update-row')) {

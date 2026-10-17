@@ -26,11 +26,11 @@
 // @run-at       document-idle
 // ==/UserScript==
 
-/* KAGURA_POD_STYLE_UPDATE_V322 */
+/* KAGURA_OZON_CRAWLER_UPDATE_V100 */
 (() => {
   'use strict';
 
-  const CURRENT_VERSION = '3.2.2';
+  const CURRENT_VERSION = '1.0.0';
   const MANIFEST_API = 'https://api.github.com/repos/kagura00101001-cyber/Utopia-update/contents/ozon-sku-image-crawler.latest.json?ref=main';
   const INSTALL_URL = 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_SKU_Image_Crawler.user.js';
   const SUPPRESS_KEY = 'kaguraStartupUpdateSuppressVersion';
@@ -1227,7 +1227,6 @@
         statusText.textContent = '检测到地区不可配送提示，正在等待可验证的原商品入口（' + sku + '）…';
         return null;
       }
-      if (exactUrl) return { type: 'exact-product', url: exactUrl };
 
       // 给精确商品/告罄卡片约 2.5 秒的优先加载窗口，再使用普通首个商品作为兜底。
       if (Date.now() - searchStartedAt < 2500) return null;

@@ -1,13 +1,11 @@
 {
-  "version": "3.2.1",
+  "version": "3.2.2",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_ChatGPT.user.js",
-  "published_at": "2026-09-05",
+  "published_at": "2026-10-17",
   "changelog": [
-    "升级为 Kagura POD Studio。",
-    "新增参考素材队列系统，支持0张至任意数量参考图片。",
-    "参考素材按照用户选择顺序上传并生成 attachmentManifest 用于恢复。",
-    "旧模板图与Logo图逻辑自动迁移为参考素材队列。",
-    "版本历史增加稳定版与实验开发版风险标识。",
-    "保留创建图片恢复、发送保护、生图检测和热更新机制。"
+    "将 Ozon SKU 主图爬取模块彻底拆分为独立的 Ozon_SKU_Image_Crawler.user.js；本脚本仅在 ChatGPT 域名运行。",
+    "保留 ChatGPT 批量生图、刷新恢复、懒加载图库扫描和一次提交保护。",
+    "新增独立 Ozon 爬图脚本的 REGION_UNAVAILABLE 安全恢复、精确 SKU 校验和失败后继续队列。",
+    "保留既有 POD 参考素材队列、上传顺序、attachmentManifest 恢复及其他生图流程。"
   ]
 }

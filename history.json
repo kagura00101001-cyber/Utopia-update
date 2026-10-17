@@ -3,6 +3,15 @@
   "since": "3.0.34",
   "versions": [
     {
+      "version": "3.2.2",
+      "date": "2026-10-17",
+      "notes": [
+        "从组合脚本中移除 Ozon SKU 主图爬取模块；ChatGPT 脚本仅匹配 ChatGPT 域名。",
+        "保留原脚本名称和 namespace，避免改变现有 Tampermonkey 更新身份。",
+        "Ozon 爬取功能迁移到独立的 Ozon_SKU_Image_Crawler.user.js，拥有独立版本清单、更新入口和历史记录。"
+      ]
+    },
+    {
       "version": "3.2.0",
       "date": "2026-08-19",
       "notes": [

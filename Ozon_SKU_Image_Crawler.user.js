@@ -1160,12 +1160,12 @@
       if (!/^\d{6,}$/.test(expected) || !current) {
         state.expectedDetailSku = ''; state.expectedDetailSource = ''; state.soldOutExpectedSku = '';
         state.phase = 'search'; saveState();
-        throw new Error('DETAIL_ID_UNVERIFIABLE: expected SKU ' + expectedSku + '; current detail ID could not be verified; image download blocked');
+        throw new Error((expectedSource.startsWith('region-') ? 'REGION_EXACT_NOT_FOUND: ' : 'DETAIL_ID_UNVERIFIABLE: ') + 'expected SKU ' + expectedSku + '; current detail ID could not be verified; image download blocked');
       }
       if (current !== expected) {
         state.expectedDetailSku = ''; state.expectedDetailSource = ''; state.soldOutExpectedSku = '';
         state.phase = 'search'; saveState();
-        throw new Error('DETAIL_ID_MISMATCH: expected SKU ' + expected + '; actual product ' + current + '; image download blocked');
+        throw new Error((expectedSource.startsWith('region-') ? 'REGION_EXACT_NOT_FOUND: ' : 'DETAIL_ID_MISMATCH: ') + 'expected SKU ' + expected + '; actual product ' + current + '; image download blocked');
       }
       log('OZON_DETAIL_ID_VERIFIED: expected=' + expected + '; source=' + (expectedSource || 'existing-flow'), 'success');
       if (expectedSource === 'region-safe-fallback') log('OZON_REGION_OOS_FALLBACK_SUCCESS: verified product ID=' + expected, 'success');
@@ -1332,9 +1332,10 @@
 
       if ((state.expectedDetailSku || state.soldOutExpectedSku) && !looksLikeProductPage()) {
         const expected = cleanSku(state.expectedDetailSku || state.soldOutExpectedSku);
+        const expectedSource = cleanSku(state.expectedDetailSource);
         state.expectedDetailSku = ''; state.expectedDetailSource = ''; state.soldOutExpectedSku = '';
         state.phase = 'search'; saveState();
-        throw new Error('DETAIL_ID_UNVERIFIABLE: expected SKU ' + expected + '; navigation did not reach a product detail page; image download blocked');
+        throw new Error((expectedSource.startsWith('region-') ? 'REGION_EXACT_NOT_FOUND: ' : 'DETAIL_ID_UNVERIFIABLE: ') + 'expected SKU ' + expected + '; navigation did not reach a product detail page; image download blocked');
       }
 
       if (looksLikeProductPage()) {

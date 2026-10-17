@@ -1,0 +1,43 @@
+name: Validate split userscripts
+
+on:
+  pull_request:
+    paths:
+      - "Ozon_ChatGPT.user.js"
+      - "Ozon_ChatGPT.meta.js"
+      - "latest.json"
+      - "Ozon_SKU_Image_Crawler.user.js"
+      - "Ozon_SKU_Image_Crawler.meta.js"
+      - "ozon-sku-image-crawler.latest.json"
+      - ".github/workflows/validate-split-userscripts.yml"
+  push:
+    branches: [main]
+    paths:
+      - "Ozon_ChatGPT.user.js"
+      - "Ozon_SKU_Image_Crawler.user.js"
+      - ".github/workflows/validate-split-userscripts.yml"
+
+jobs:
+  syntax-and-boundaries:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check JavaScript syntax
+        run: |
+          node --check Ozon_ChatGPT.user.js
+          node --check Ozon_SKU_Image_Crawler.user.js
+      - name: Check userscript separation
+        shell: bash
+        run: |
+          grep -Fq '// @match        https://chatgpt.com/*' Ozon_ChatGPT.user.js
+          grep -Fq '// @match        https://www.ozon.ru/*' Ozon_SKU_Image_Crawler.user.js
+          ! grep -Eq '^// @match[[:space:]]+https?://(www\.)?ozon\.ru/' Ozon_ChatGPT.user.js
+          ! grep -Eq '^// @match[[:space:]]+https?://chatgpt\.com/' Ozon_SKU_Image_Crawler.user.js
+          ! grep -Fq 'function processSearchPage(' Ozon_ChatGPT.user.js
+          ! grep -Fq 'function initChatGPTModule(' Ozon_SKU_Image_Crawler.user.js
+          grep -Fq 'function processRegionUnavailableSearchResult' Ozon_SKU_Image_Crawler.user.js
+          grep -Fq 'BEHAVIOR_TYPE_REDIRECT' Ozon_SKU_Image_Crawler.user.js
+          grep -Fq 'REGION_EXACT_NOT_FOUND' Ozon_SKU_Image_Crawler.user.js

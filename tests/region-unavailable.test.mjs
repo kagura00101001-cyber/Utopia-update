@@ -87,7 +87,7 @@ test('malformed and missing data-state values are ignored safely', () => {
 });
 
 test('normal exact href is checked before region fallback in search flow', () => {
-  const fn = sliceBetween('  async function processSearchPage(sku) {', '\n  async function processProductPage');
+  const fn = sliceBetween('  async function processSearchPage(sku) {', '\n  async function failAndContinue');
   const exactIndex = fn.indexOf('const exactUrl = findExactProductLink(sku)');
   const regionIndex = fn.indexOf('const regionEvidence = inspectRegionUnavailableEvidence()');
   assert.notEqual(exactIndex, -1);

@@ -1,8 +1,9 @@
 {
-  "version": "1.0.1-dev.1",
+  "version": "1.0.1",
   "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/ozon-crawler-region-fallback-fix-test-20261019/Ozon_SKU_Image_Crawler.user.js",
   "published_at": "2026-10-19",
   "changelog": [
+    "仅测试分支：使用独立 [TEST] 脚本身份与 namespace，避免覆盖 Stable 正式安装。",
     "测试版修复：可见地区不可配送文案本身即可触发 REGION_UNAVAILABLE，不再依赖推荐模块标题。",
     "正常 exact SKU href 优先于地区不可配送回退。",
     "移除未经 widget identity 验证的直接 SKU URL 回退；没有 exact href/widget identity 时明确失败，禁止抓取推荐商品。",

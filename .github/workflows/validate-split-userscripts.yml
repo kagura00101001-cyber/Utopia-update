@@ -29,6 +29,7 @@ jobs:
         run: |
           node --check Ozon_ChatGPT.user.js
           node --check Ozon_SKU_Image_Crawler.user.js
+          node --test tests/region-unavailable.test.mjs
       - name: Check userscript separation
         shell: bash
         run: |

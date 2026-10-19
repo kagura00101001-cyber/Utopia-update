@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         Ozon SKU主图批量下载器
-// @namespace    https://github.com/Kagura-userscripts/ozon-sku-image-crawler
-// @version      1.0.0
-// @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_SKU_Image_Crawler.meta.js
-// @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_SKU_Image_Crawler.user.js
+// @name         Ozon SKU主图批量下载器 [TEST] TEST 1.0.1-dev.1
+// @namespace    https://github.com/Kagura-userscripts/ozon-sku-image-crawler-test-test
+// @version      1.0.1
+// @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/ozon-crawler-region-fallback-fix-test-20261019/Ozon_SKU_Image_Crawler.meta.js
+// @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/ozon-crawler-region-fallback-fix-test-20261019/Ozon_SKU_Image_Crawler.user.js
 // @description  独立版 Ozon SKU 主图批量下载器，支持 Excel、断点续跑和地区不可配送安全恢复。
 // @author       Kagura
 // @match        https://www.ozon.ru/*
@@ -30,9 +30,9 @@
 (() => {
   'use strict';
 
-  const CURRENT_VERSION = '1.0.0';
-  const MANIFEST_API = 'https://api.github.com/repos/kagura00101001-cyber/Utopia-update/contents/ozon-sku-image-crawler.latest.json?ref=main';
-  const INSTALL_URL = 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_SKU_Image_Crawler.user.js';
+  const CURRENT_VERSION = '1.0.1';
+  const MANIFEST_API = 'https://api.github.com/repos/kagura00101001-cyber/Utopia-update/contents/ozon-sku-image-crawler.latest.json?ref=ozon-crawler-region-fallback-fix-test-20261019';
+  const INSTALL_URL = 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/ozon-crawler-region-fallback-fix-test-20261019/Ozon_SKU_Image_Crawler.user.js';
   const SUPPRESS_KEY = 'kaguraStartupUpdateSuppressVersion';
   const OVERLAY_CLASS = 'kagura-startup-update-overlay';
 
@@ -182,7 +182,7 @@
 (() => {
   'use strict';
 
-  const APP_VERSION = '1.0.0';
+  const APP_VERSION = '1.0.1';
 
   if (!/(^|\.)ozon\.ru$/i.test(location.hostname)) return;
 
@@ -899,13 +899,13 @@
   }
 
   function inspectRegionUnavailableEvidence() {
-    const regionPattern = /не\s+доставляется\s+в\s+(?:ваш|выбранный|указанный)\s+регион|не\s+доставляется\s+по\s+вашему\s+адресу|(?:не\s+доступен|недоступен)\s+для\s+доставки\s+в\s+(?:ваш|выбранный|указанный)\s+регион|not\s+available\s+for\s+delivery\s+to\s+your\s+region|cannot\s+be\s+delivered\s+to\s+your\s+region|can't\s+be\s+delivered\s+to\s+your\s+region|not\s+deliverable\s+to\s+your\s+region|无法配送到.{0,12}地区|不支持配送到.{0,12}地区/i;
-    const similarPattern = /похожие\s+(?:предложения|товары)|similar\s+(?:offers|products)|you\s+may\s+also\s+like|相似(?:推荐|商品)/i;
+    const regionPattern = /не\s+доставляется\s+в\s+(?:ваш|выбранный|указанный)\s+регион|не\s+доставляется\s+по\s+вашему\s+адресу|(?:не\s+доступен|недоступен)\s+для\s+доставки\s+в\s+(?:ваш|выбранный|указанный)\s+регион|not\s+available\s+for\s+delivery\s+to\s+your\s+region|not\s+delivered\s+to\s+your\s+region|cannot\s+be\s+delivered\s+to\s+your\s+region|can't\s+be\s+delivered\s+to\s+your\s+region|not\s+deliverable\s+to\s+your\s+region|无法配送到.{0,12}地区|不支持配送到.{0,12}地区/i;
+    const similarPattern = /похожие\s+(?:предложения|товары)|рекомендуем\s+также|similar\s+(?:offers|products)|you\s+may\s+also\s+like|we\s+also\s+recommend|相似(?:推荐|商品)|为您推荐/i;
     const elements = [...document.querySelectorAll('h1,h2,h3,h4,div,span,p')].filter(isVisible);
     const texts = elements.map(element => normalizeOzonText(element.innerText || element.textContent || '')).filter(text => text.length > 0);
     const markerVisible = texts.filter(text => text.length <= 240).some(text => regionPattern.test(text));
     const similarLayoutVisible = texts.filter(text => text.length <= 120).some(text => similarPattern.test(text));
-    return { markerVisible, similarLayoutVisible, confirmed: markerVisible && similarLayoutVisible };
+    return { markerVisible, similarLayoutVisible, confirmed: markerVisible };
   }
 
   function safeExactOzonProductUrl(href, expectedId) {
@@ -961,9 +961,8 @@
       if (nativeTarget) { targetUrl = nativeTarget.url; method = 'region-native-widget'; }
     }
     if (!targetUrl) {
-      targetUrl = 'https://www.ozon.ru/product/' + encodeURIComponent(targetId) + '/?oos_search=false';
-      method = 'region-safe-fallback';
-      log('OZON_REGION_OOS_FALLBACK_STARTED: expected=' + targetId + '; direct URL uses input SKU only', 'warn');
+      log('REGION_EXACT_NOT_FOUND: expected=' + targetId + '; no exact visible href or exact webOutOfStock identity', 'error');
+      throw new Error('REGION_EXACT_PRODUCT_NOT_FOUND: no exact original-product identity was found in the visible link or webOutOfStock data-state; recommended products were not used');
     }
     state.phase = 'product';
     state.currentSku = sku;
@@ -972,7 +971,7 @@
     state.soldOutExpectedSku = '';
     saveState();
     statusText.textContent = '地区不可配送：仅尝试原 SKU ' + targetId + '（' + method + '）…';
-    log('REGION_UNAVAILABLE: sku=' + targetId + '; recovery=' + method + '; recommended products are forbidden', method === 'region-safe-fallback' ? 'warn' : 'success');
+    log('REGION_UNAVAILABLE: sku=' + targetId + '; recovery=' + method + '; recommended products are forbidden', 'success');
     await sleep(400 + Math.floor(Math.random() * 400));
     location.assign(targetUrl);
   }
@@ -1217,12 +1216,12 @@
         return null;
       }
 
-      // 只有可见地区不可配送提示与相似商品布局同时存在时，才进入专用安全恢复。
-      const regionEvidence = inspectRegionUnavailableEvidence();
-      if (regionEvidence.confirmed) return { type: 'region-unavailable', evidence: regionEvidence };
-      // 只看见地区提示但布局证据尚未出现时继续等待，不用普通首个商品兜底。
+      // 正常商品的精确链接始终优先；仅在没有精确 href 时才进入地区不可配送恢复。
       const exactUrl = findExactProductLink(sku);
       if (exactUrl) return { type: 'exact-product', url: exactUrl };
+      const regionEvidence = inspectRegionUnavailableEvidence();
+      // 明确的不可配送文案本身足以判定异常，不依赖推荐模块是否存在。
+      if (regionEvidence.confirmed) return { type: 'region-unavailable', evidence: regionEvidence };
       if (regionEvidence.markerVisible) {
         statusText.textContent = '检测到地区不可配送提示，正在等待可验证的原商品入口（' + sku + '）…';
         return null;
@@ -1732,8 +1731,8 @@
   'use strict';
 
   const KAGURA_MANUAL_VERSION = '1.0.0';
-  const KAGURA_MANIFEST_URL = 'https://api.github.com/repos/kagura00101001-cyber/Utopia-update/contents/ozon-sku-image-crawler.latest.json?ref=main';
-  const KAGURA_INSTALL_URL = 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_SKU_Image_Crawler.user.js';
+  const KAGURA_MANIFEST_URL = 'https://api.github.com/repos/kagura00101001-cyber/Utopia-update/contents/ozon-sku-image-crawler.latest.json?ref=ozon-crawler-region-fallback-fix-test-20261019';
+  const KAGURA_INSTALL_URL = 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/ozon-crawler-region-fallback-fix-test-20261019/Ozon_SKU_Image_Crawler.user.js';
 
   function versionCompare(a, b) {
     const aa = String(a).split('.').map(v => Number(v) || 0);

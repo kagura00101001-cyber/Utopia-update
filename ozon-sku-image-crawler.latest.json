@@ -1,12 +1,12 @@
 {
-  "version": "1.0.0",
-  "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/main/Ozon_SKU_Image_Crawler.user.js",
-  "published_at": "2026-10-17",
+  "version": "1.0.1",
+  "install_url": "https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/ozon-crawler-region-fallback-fix-test-20261019/Ozon_SKU_Image_Crawler.user.js",
+  "published_at": "2026-10-19",
   "changelog": [
-    "从 Ozon主图下载 + ChatGPT批量生图助手组合脚本中独立拆出 Ozon SKU 主图批量下载器。",
-    "保留 Excel SKU/自定义货号映射、批量搜索、JPG 保存、结果 CSV、暂停/继续和断点状态。",
-    "新增 REGION_UNAVAILABLE 安全恢复：必须同时出现可见地区不可配送提示和相似商品布局证据。",
-    "优先精确商品 href；否则仅解析 state-webOutOfStock 的 data-state，要求 BEHAVIOR_TYPE_REDIRECT 且 productId 与输入 SKU 完全一致。",
-    "仅在没有精确 href/widget 目标时按输入 SKU 构造安全详情 URL；详情页 ID 二次校验失败则阻止下载并继续下一 SKU。"
+    "仅测试分支：使用独立 [TEST] 脚本身份与 namespace，避免覆盖 Stable 正式安装。",
+    "测试版修复：可见地区不可配送文案本身即可触发 REGION_UNAVAILABLE，不再依赖推荐模块标题。",
+    "正常 exact SKU href 优先于地区不可配送回退。",
+    "移除未经 widget identity 验证的直接 SKU URL 回退；没有 exact href/widget identity 时明确失败，禁止抓取推荐商品。",
+    "增加 Unicode 空白、data-state 精确 SKU、推荐 SKU 拒绝和流程优先级回归测试。"
   ]
 }

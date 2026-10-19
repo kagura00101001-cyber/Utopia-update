@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Ozon SKU主图批量下载器 TEST 1.0.1-dev.1
-// @namespace    https://github.com/Kagura-userscripts/ozon-sku-image-crawler-test
-// @version      1.0.1-dev.1
+// @name         Ozon SKU主图批量下载器 [TEST] TEST 1.0.1-dev.1
+// @namespace    https://github.com/Kagura-userscripts/ozon-sku-image-crawler-test-test
+// @version      1.0.1
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/ozon-crawler-region-fallback-fix-test-20261019/Ozon_SKU_Image_Crawler.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/ozon-crawler-region-fallback-fix-test-20261019/Ozon_SKU_Image_Crawler.user.js
 // @description  独立版 Ozon SKU 主图批量下载器，支持 Excel、断点续跑和地区不可配送安全恢复。
@@ -30,7 +30,7 @@
 (() => {
   'use strict';
 
-  const CURRENT_VERSION = '1.0.1-dev.1';
+  const CURRENT_VERSION = '1.0.1';
   const MANIFEST_API = 'https://api.github.com/repos/kagura00101001-cyber/Utopia-update/contents/ozon-sku-image-crawler.latest.json?ref=ozon-crawler-region-fallback-fix-test-20261019';
   const INSTALL_URL = 'https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/ozon-crawler-region-fallback-fix-test-20261019/Ozon_SKU_Image_Crawler.user.js';
   const SUPPRESS_KEY = 'kaguraStartupUpdateSuppressVersion';
@@ -182,7 +182,7 @@
 (() => {
   'use strict';
 
-  const APP_VERSION = '1.0.0';
+  const APP_VERSION = '1.0.1';
 
   if (!/(^|\.)ozon\.ru$/i.test(location.hostname)) return;
 

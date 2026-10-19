@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Ozon SKU主图批量下载器 TEST 1.0.1-dev.1
-// @namespace    https://github.com/Kagura-userscripts/ozon-sku-image-crawler-test
-// @version      1.0.1-dev.1
+// @name         Ozon SKU主图批量下载器 [TEST] TEST 1.0.1-dev.1
+// @namespace    https://github.com/Kagura-userscripts/ozon-sku-image-crawler-test-test
+// @version      1.0.1
 // @updateURL    https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/ozon-crawler-region-fallback-fix-test-20261019/Ozon_SKU_Image_Crawler.meta.js
 // @downloadURL  https://raw.githubusercontent.com/kagura00101001-cyber/Utopia-update/ozon-crawler-region-fallback-fix-test-20261019/Ozon_SKU_Image_Crawler.user.js
 // @description  测试版：修复地区不可配送检测，并严格验证 webOutOfStock 原商品身份。

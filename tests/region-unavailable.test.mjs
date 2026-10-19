@@ -60,6 +60,11 @@ test('region marker tolerates repeated Unicode whitespace and recommended headin
   assert.equal(result.similarLayoutVisible, false);
 });
 
+test('English region-unavailable wording is recognized', () => {
+  const ctx = createResolver([], 'Not delivered to your region');
+  assert.equal(ctx.inspectRegionUnavailableEvidence().confirmed, true);
+});
+
 test('native widget returns only exact SKU identity from data-state', () => {
   const ctx = createResolver([widget(recommendedState), widget(exactState)]);
   const result = ctx.findRegionUnavailableNativeTarget('5874488973');

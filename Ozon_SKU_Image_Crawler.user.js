@@ -899,7 +899,7 @@
   }
 
   function inspectRegionUnavailableEvidence() {
-    const regionPattern = /не\s+доставляется\s+в\s+(?:ваш|выбранный|указанный)\s+регион|не\s+доставляется\s+по\s+вашему\s+адресу|(?:не\s+доступен|недоступен)\s+для\s+доставки\s+в\s+(?:ваш|выбранный|указанный)\s+регион|not\s+available\s+for\s+delivery\s+to\s+your\s+region|cannot\s+be\s+delivered\s+to\s+your\s+region|can't\s+be\s+delivered\s+to\s+your\s+region|not\s+deliverable\s+to\s+your\s+region|无法配送到.{0,12}地区|不支持配送到.{0,12}地区/i;
+    const regionPattern = /не\s+доставляется\s+в\s+(?:ваш|выбранный|указанный)\s+регион|не\s+доставляется\s+по\s+вашему\s+адресу|(?:не\s+доступен|недоступен)\s+для\s+доставки\s+в\s+(?:ваш|выбранный|указанный)\s+регион|not\s+available\s+for\s+delivery\s+to\s+your\s+region|not\s+delivered\s+to\s+your\s+region|cannot\s+be\s+delivered\s+to\s+your\s+region|can't\s+be\s+delivered\s+to\s+your\s+region|not\s+deliverable\s+to\s+your\s+region|无法配送到.{0,12}地区|不支持配送到.{0,12}地区/i;
     const similarPattern = /похожие\s+(?:предложения|товары)|рекомендуем\s+также|similar\s+(?:offers|products)|you\s+may\s+also\s+like|we\s+also\s+recommend|相似(?:推荐|商品)|为您推荐/i;
     const elements = [...document.querySelectorAll('h1,h2,h3,h4,div,span,p')].filter(isVisible);
     const texts = elements.map(element => normalizeOzonText(element.innerText || element.textContent || '')).filter(text => text.length > 0);
